@@ -1,0 +1,13 @@
+/Users/edo/Documents/Progetti/Honeypot/Backend/target/debug/deps/liburl-412d7cfcc552f131.rmeta: /Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/lib.rs /Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/encoding.rs /Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/host.rs /Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/origin.rs /Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/path_segments.rs /Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/parser.rs /Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/slicing.rs /Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/form_urlencoded.rs /Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/quirks.rs
+
+/Users/edo/Documents/Progetti/Honeypot/Backend/target/debug/deps/url-412d7cfcc552f131.d: /Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/lib.rs /Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/encoding.rs /Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/host.rs /Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/origin.rs /Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/path_segments.rs /Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/parser.rs /Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/slicing.rs /Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/form_urlencoded.rs /Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/quirks.rs
+
+/Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/lib.rs:
+/Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/encoding.rs:
+/Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/host.rs:
+/Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/origin.rs:
+/Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/path_segments.rs:
+/Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/parser.rs:
+/Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/slicing.rs:
+/Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/form_urlencoded.rs:
+/Users/edo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/url-1.7.2/src/quirks.rs:
