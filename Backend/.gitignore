@@ -1,0 +1,7 @@
+.env
+
+target/
+
+# Ignora anche altri file temporanei di editor (come quelli di VS Code)
+.vscode/
+.idea/

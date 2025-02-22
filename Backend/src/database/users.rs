@@ -14,14 +14,14 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    //#[sea_orm(has_many = "super::tasks::Entity")]
-    //Tasks,
+    #[sea_orm(has_many = "super::devices::Entity")]
+    Devices,
 }
-/* 
-impl Related<super::tasks::Entity> for Entity {
+
+impl Related<super::devices::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Tasks.def()
+        Relation::Devices.def()
     }
-}*/
+}
 
 impl ActiveModelBehavior for ActiveModel {}
