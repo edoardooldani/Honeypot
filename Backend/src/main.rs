@@ -1,42 +1,28 @@
-mod auth;
-use auth::{register, login};
-use dotenv::dotenv;
-use axum::{
-  routing::{get, post},
-  Router,
-};
-use std::net::SocketAddr;
-mod conn;
-mod models;
-mod schema;
-
-#[macro_use]
-extern crate diesel; 
-
-
-pub fn load_env() {
-    dotenv().ok();
-  }
+use dotenvy::dotenv;
+use honeypot::{app_state::AppState, run, utilities::token_wrapper::TokenWrapper};
+use sea_orm::Database;
 
 #[tokio::main]
 async fn main() {
-    load_env();
+    dotenv().ok();
+    let database_url = std::env::var("DATABASE_URL")
+        .expect("Missing environment variable DATABASE_URL")
+        .to_owned();
+    println!("URL: {}", database_url);
+    let jwt_secret = std::env::var("JWT_SECRET")
+        .expect("Missing environment variable JWT_SECRET")
+        .to_owned();
+    let db = match Database::connect(database_url).await {
+        Ok(db) => db,
+        Err(error) => {
+            eprintln!("Error connecting to the database: {:?}", error);
+            panic!();
+        }
+    };
+    let app_state = AppState {
+        db,
+        jwt_secret: TokenWrapper(jwt_secret),
+    };
 
-    let app = Router::new()
-    .route("/", get(root))
-    .route("/register", post(register))
-    .route("/login", post(login));
-
-    let addr: SocketAddr = "127.0.0.1:3000".parse().unwrap();
-
-    println!("Server in ascolto su {}", addr);
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
-}
-
-
-async fn root() -> &'static str {
-  "Root Honeypot by Astroboyz"
+    run(app_state).await;
 }
