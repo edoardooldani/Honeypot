@@ -23,7 +23,7 @@ pub async fn login(
         ));
     }
 
-    let token = create_token(&token_secret.0, user.email.clone())?;
+    let token = create_token(&token_secret.0, user.id.clone())?;
 
     let mut user = user.into_active_model();
 

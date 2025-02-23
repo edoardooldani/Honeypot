@@ -1,4 +1,5 @@
 use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "devices")]
@@ -33,7 +34,7 @@ impl Related<super::users::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Status {
     Online = 1,
     Offline = 0,
@@ -58,24 +59,24 @@ impl From<Status> for i32 {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Type {
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum DeviceType {
     Honeypot = 0,
 }
 
-impl From<i32> for Type {
+impl From<i32> for DeviceType {
     fn from(value: i32) -> Self {
         match value {
-            0 => Type::Honeypot,
+            0 => DeviceType::Honeypot,
             _ => panic!("Invalid value for Type"),
         }
     }
 }
 
-impl From<Type> for i32 {
-    fn from(status: Type) -> Self {
+impl From<DeviceType> for i32 {
+    fn from(status: DeviceType) -> Self {
         match status {
-            Type::Honeypot => 0,
+            DeviceType::Honeypot => 0,
         }
     }
 }

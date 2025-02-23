@@ -45,7 +45,7 @@ pub async fn save_active_user(
         {
             AppError::new(
                 StatusCode::BAD_REQUEST,
-                "Username already taken, try again with a different user name",
+                "Email already taken, try again with a different email",
             )
         } else {
             eprintln!("Error creating user: {:?}", error_message);
