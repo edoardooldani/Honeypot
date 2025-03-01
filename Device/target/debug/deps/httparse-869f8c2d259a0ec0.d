@@ -1,0 +1,12 @@
+/Users/cle/dev/Honeypot/Device/target/debug/deps/libhttparse-869f8c2d259a0ec0.rmeta: /Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/lib.rs /Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/iter.rs /Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/macros.rs /Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/simd/mod.rs /Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/simd/swar.rs /Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/simd/neon.rs
+
+/Users/cle/dev/Honeypot/Device/target/debug/deps/libhttparse-869f8c2d259a0ec0.rlib: /Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/lib.rs /Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/iter.rs /Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/macros.rs /Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/simd/mod.rs /Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/simd/swar.rs /Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/simd/neon.rs
+
+/Users/cle/dev/Honeypot/Device/target/debug/deps/httparse-869f8c2d259a0ec0.d: /Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/lib.rs /Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/iter.rs /Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/macros.rs /Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/simd/mod.rs /Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/simd/swar.rs /Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/simd/neon.rs
+
+/Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/lib.rs:
+/Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/iter.rs:
+/Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/macros.rs:
+/Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/simd/mod.rs:
+/Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/simd/swar.rs:
+/Users/cle/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/httparse-1.10.0/src/simd/neon.rs:
