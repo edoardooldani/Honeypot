@@ -1,7 +1,14 @@
 use futures_util::{StreamExt, future, pin_mut};
+use rustls::{ClientConfig, RootCertStore, pki_types::CertificateDer};
 use serde::{Deserialize, Serialize};
-use std::{env, os::unix::raw::time_t};
-use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
+use std::{
+    env,
+    fs::File,
+    io::{BufReader, Read},
+    os::unix::raw::time_t,
+    sync::Arc,
+};
+use tokio_tungstenite::{Connector, connect_async_tls_with_config, tungstenite::protocol::Message};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct NetData {
@@ -18,7 +25,26 @@ async fn main() {
     let (stdin_tx, stdin_rx) = futures_channel::mpsc::unbounded();
     tokio::spawn(read_stdin(stdin_tx));
 
-    let (ws_stream, _) = connect_async(&url).await.expect("Failed to connect");
+    let cert_file = File::open("certs/localhost.crt.der").unwrap();
+    let mut cert_reader = BufReader::new(cert_file);
+
+    let mut cert_data = Vec::new();
+    cert_reader.read_to_end(&mut cert_data).unwrap();
+
+    let cert = CertificateDer::from(cert_data);
+
+    let mut root_cert_store = RootCertStore::empty();
+    root_cert_store.add(cert).unwrap();
+
+    let config = ClientConfig::builder()
+        .with_root_certificates(root_cert_store)
+        .with_no_client_auth();
+
+    let connector = Connector::Rustls(Arc::new(config));
+
+    let (ws_stream, _) = connect_async_tls_with_config(&url, None, false, Some(connector))
+        .await
+        .expect("Failed to connect");
     println!("WebSocket handshake has been successfully completed");
 
     let (write, read) = ws_stream.split();
