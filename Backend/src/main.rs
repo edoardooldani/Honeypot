@@ -1,5 +1,5 @@
 use dotenvy::dotenv;
-use honeypot::{app_state::AppState, run, utilities::token_wrapper::TokenWrapper};
+use honeypot::{app_state::AppState, run, run_ws, utilities::token_wrapper::TokenWrapper};
 use sea_orm::Database;
 
 #[tokio::main]
@@ -8,7 +8,6 @@ async fn main() {
     let database_url = std::env::var("DATABASE_URL")
         .expect("Missing environment variable DATABASE_URL")
         .to_owned();
-    println!("URL: {}", database_url);
     let jwt_secret = std::env::var("JWT_SECRET")
         .expect("Missing environment variable JWT_SECRET")
         .to_owned();
@@ -24,5 +23,6 @@ async fn main() {
         jwt_secret: TokenWrapper(jwt_secret),
     };
 
-    run(app_state).await;
+    //run(app_state).await;
+    run_ws().await;
 }
