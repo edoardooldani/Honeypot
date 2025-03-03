@@ -1,5 +1,6 @@
 use app_state::AppState;
 use router::{create_router_api};
+use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
 
 pub mod app_state;
@@ -9,10 +10,9 @@ mod queries;
 mod router;
 mod routes;
 pub mod utilities;
-
 use axum::{
     extract::{
-        ws::{self, WebSocketUpgrade},
+        ws::{self, WebSocketUpgrade, Message},
         State,
     },
     http::Version,
@@ -20,10 +20,20 @@ use axum::{
     Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
-use std::{net::SocketAddr, path::PathBuf};
+use std::{net::SocketAddr, path::PathBuf, os::unix::raw::time_t};
+
 use tokio::sync::broadcast;
 use tower_http::services::ServeDir;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use bincode;
+
+
+#[derive(Serialize, Deserialize, Debug)]
+struct NetData {
+    id: u32,
+    data: time_t,
+}
+
 
 pub async fn run(app_state: AppState) {
     let app = create_router_api(app_state);
@@ -49,10 +59,10 @@ pub async fn run_ws() {
         let config = RustlsConfig::from_pem_file(
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("certs")
-                .join("cert.pem"),
+                .join("localhost.pem"),
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("certs")
-                .join("key.pem"),
+                .join("localhost-key.pem"),
         )
         .await
         .unwrap();
@@ -87,14 +97,28 @@ async fn ws_handler(
                 // Since `ws` is a `Stream`, it is by nature cancel-safe.
                 res = ws.recv() => {
                     match res {
-                        Some(Ok(ws::Message::Text(s))) => {
+                        /*Some(Ok(ws::Message::Text(s))) => {
+                            println!("s: {:?}", s);
                             let _ = sender.send(s.to_string());
+                        }*/
+                        Some(Ok(message)) => { 
+                            match message {
+                                Message::Binary(bin) => {
+                                    match bincode::deserialize::<NetData>(&bin) {
+                                        Ok(net_data) => println!("Dati ricevuti: {:?}", net_data),
+                                        Err(e) => eprintln!("Errore di deserializzazione: {}", e),
+                                    }
+                                }
+                                _ => {
+                                    println!("Messaggio non binario ricevuto: {:?}", message);
+                                }
+                            }   
                         }
-                        Some(Ok(_)) => {}
                         Some(Err(e)) => tracing::debug!("client disconnected abruptly: {e}"),
                         None => break,
                     }
                 }
+
                 // Tokio guarantees that `broadcast::Receiver::recv` is cancel-safe.
                 res = receiver.recv() => {
                     match res {
@@ -105,6 +129,7 @@ async fn ws_handler(
                     }
                 }
             }
+            
         }
     })
 }
