@@ -1,5 +1,5 @@
 use futures_util::{StreamExt, future, pin_mut};
-use rustls::{ClientConfig, RootCertStore, pki_types::CertificateDer};
+use rustls::{pki_types::{pem::PemObject, CertificateDer, PrivateKeyDer, PrivatePkcs1KeyDer, PrivatePkcs8KeyDer}, ClientConfig, RootCertStore};
 use serde::{Deserialize, Serialize};
 use std::{
     env,
@@ -9,6 +9,8 @@ use std::{
     sync::Arc,
 };
 use tokio_tungstenite::{Connector, connect_async_tls_with_config, tungstenite::protocol::Message};
+use rustls_pemfile::{certs, pkcs8_private_keys, rsa_private_keys};  // Per leggere PEM
+
 
 #[derive(Serialize, Deserialize, Debug)]
 struct NetData {
@@ -25,7 +27,8 @@ async fn main() {
     let (stdin_tx, stdin_rx) = futures_channel::mpsc::unbounded();
     tokio::spawn(read_stdin(stdin_tx));
 
-    let cert_file = File::open("certs/localhost.pem").unwrap();
+    /* 
+    let cert_file = File::open("certs/localhost.crt.der").unwrap();
     let mut cert_reader = BufReader::new(cert_file);
 
     let mut cert_data = Vec::new();
@@ -35,10 +38,51 @@ async fn main() {
 
     let mut root_cert_store = RootCertStore::empty();
     root_cert_store.add(cert).unwrap();
+    */
+
+    // CERT
+
+    let cert_file = File::open("certs/client-cert.pem").unwrap();
+    let mut cert_reader = BufReader::new(cert_file);
+
+    let certs: Vec<CertificateDer<'static>> =
+        CertificateDer::pem_reader_iter(cert_reader)
+            .filter_map(Result::ok)
+            .collect();
+
+    let mut root_store = RootCertStore::empty();
+    let root_ca_file = File::open("certs/rootCA.pem").expect("❌ Impossibile aprire la root CA");
+    let mut reader = BufReader::new(root_ca_file);
+
+    for cert in rustls_pemfile::certs(&mut reader).expect("❌ Errore nella lettura della root CA") {
+        root_store.add(CertificateDer::from(cert)).unwrap();
+    }
+     
+    // KEY
+
+    let key_file = File::open("certs/client-key.pem").expect("Errore nell'aprire la chiave privata");
+    let mut key_reader = BufReader::new(key_file);
+    
+    let keys = pkcs8_private_keys(&mut key_reader)
+        .expect("Errore nella lettura della chiave PKCS#8");
+
+    let private_key = if let Some(key) = keys.first() {
+        PrivateKeyDer::from(PrivatePkcs8KeyDer::from(key.clone()))
+    } else {
+        // Se non trova PKCS#8, prova con RSA (PKCS#1)
+        let mut key_reader = BufReader::new(File::open("certs/client-key.pem").unwrap());
+        let rsa_keys = rsa_private_keys(&mut key_reader)
+            .expect("Errore nella lettura della chiave RSA");
+
+        PrivateKeyDer::from(PrivatePkcs1KeyDer::from(
+            rsa_keys.first().expect("❌ Nessuna chiave privata trovata!").clone(),
+        ))
+    };
 
     let config = ClientConfig::builder()
-        .with_root_certificates(root_cert_store)
-        .with_no_client_auth();
+        .with_root_certificates(root_store)
+        .with_client_auth_cert(certs, private_key)
+        .unwrap();
 
     let connector = Connector::Rustls(Arc::new(config));
 

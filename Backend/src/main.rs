@@ -23,6 +23,8 @@ async fn main() {
         jwt_secret: TokenWrapper(jwt_secret),
     };
 
-    //run(app_state).await;
-    run_ws().await;
+    tokio::join!(
+        run(app_state),
+        run_ws(),
+    );
 }
