@@ -1,8 +1,3 @@
-use app_state::AppState;
-use router::{create_router_api};
-use serde::{Deserialize, Serialize};
-use tokio::net::TcpListener;
-
 pub mod app_state;
 mod database;
 mod middleware;
@@ -10,22 +5,38 @@ mod queries;
 mod router;
 mod routes;
 pub mod utilities;
-use axum::{
-    extract::{
-        ws::{self, WebSocketUpgrade, Message},
-        State,
-    },
-    http::Version,
-    routing::any,
-    Router,
-};
-use axum_server::tls_rustls::RustlsConfig;
-use std::{net::SocketAddr, path::PathBuf, os::unix::raw::time_t};
 
-use tokio::sync::broadcast;
-use tower_http::services::ServeDir;
+
+use app_state::AppState;
+use axum::{
+    Router,
+    extract::{
+        Request,
+        ws::{Message, WebSocket, WebSocketUpgrade},
+    },
+    response::IntoResponse,
+    routing::get,
+};
+use futures_util::pin_mut;
+use hyper::body::Incoming;
+use hyper_util::rt::{TokioExecutor, TokioIo};
+use router::create_router_api;
+use serde::{Deserialize, Serialize};
+use std::{
+    fs::File, io::BufReader, os::unix::raw::time_t, path::{Path, PathBuf}, sync::Arc
+};
+use tokio::net::TcpListener;
+use tokio_rustls::{
+    TlsAcceptor,
+    rustls::ServerConfig,
+    rustls::pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject, CertificateRevocationListDer},
+};
+use tower_service::Service;
+use tracing::{error, info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use bincode;
+use rustls::{server::WebPkiClientVerifier, RootCertStore};
+use rustls_pemfile::crls;
+
 
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -34,102 +45,179 @@ struct NetData {
     data: time_t,
 }
 
-
 pub async fn run(app_state: AppState) {
     let app = create_router_api(app_state);
-    let address = TcpListener::bind("0.0.0.0:4000").await.unwrap();
-
+    let address = TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(address, app.into_make_service()).await.unwrap();
-
 }
 
 pub async fn run_ws() {
 
+    rustls::crypto::ring::default_provider().install_default().expect("Failed to install rustls crypto provider");
+
     tracing_subscriber::registry()
-            .with(
-                tracing_subscriber::EnvFilter::try_from_default_env()
-                    .unwrap_or_else(|_| format!("{}=debug", env!("CARGO_CRATE_NAME")).into()),
-            )
-            .with(tracing_subscriber::fmt::layer())
-            .init();
-
-        let assets_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
-
-        // configure certificate and private key used by https
-        let config = RustlsConfig::from_pem_file(
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("certs")
-                .join("localhost.pem"),
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("certs")
-                .join("localhost-key.pem"),
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| format!("{}=debug", env!("CARGO_CRATE_NAME")).into()),
         )
-        .await
-        .unwrap();
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 
-        let app = Router::new()
-        .fallback_service(ServeDir::new(assets_dir).append_index_html_on_directories(true))
-        .route("/ws", any(ws_handler))
-        .with_state(broadcast::channel::<String>(16).0);
+    
 
-        let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-        tracing::debug!("listening on {}", addr);
+    let rustls_config = rustls_server_config(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("certs")
+            .join("server-key.pem"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("certs")
+            .join("server-cert.pem"),
+    );
 
-        let mut server = axum_server::bind_rustls(addr, config);
+    let tls_acceptor = TlsAcceptor::from(rustls_config);
+    let bind = "[::1]:3001";
+    let tcp_listener = TcpListener::bind(bind).await.unwrap();
+    info!(
+        "HTTPS server api: https://localhost:3000 or websocket: wss://localhost:3001/ws"
+    );
 
-        // IMPORTANT: This is required to advertise our support for HTTP/2 websockets to the client.
-        // If you use axum::serve, it is enabled by default.
-        server.http_builder().http2().enable_connect_protocol();
+    // Aggiungiamo una route per il websocket
+    let app = Router::new()
+        .route("/ws", get(ws_handler));
 
-        server.serve(app.into_make_service()).await.unwrap();
+    pin_mut!(tcp_listener);
+    loop {
+        let tower_service = app.clone();
+        let tls_acceptor = tls_acceptor.clone();
+
+        let (cnx, addr) = tcp_listener.accept().await.unwrap();
+
+        tokio::spawn(async move {
+            let Ok(stream) = tls_acceptor.accept(cnx).await else {
+                error!("errore durante l'handshake TLS dalla connessione {}", addr);
+                return;
+            };
+            println!("Handshake successfull");
+
+            let stream = TokioIo::new(stream);
+
+            let hyper_service = hyper::service::service_fn(move |request: Request<Incoming>| {
+                tower_service.clone().call(request)
+            });
+
+            let ret = hyper_util::server::conn::auto::Builder::new(TokioExecutor::new())
+                .serve_connection_with_upgrades(stream, hyper_service)
+                .await;
+
+            if let Err(err) = ret {
+                warn!("errore servendo la connessione da {}: {}", addr, err);
+            }
+        });
+    }
 }
 
-async fn ws_handler(
-    ws: WebSocketUpgrade,
-    version: Version,
-    State(sender): State<broadcast::Sender<String>>,
-) -> axum::response::Response {
-    tracing::debug!("accepted a WebSocket using {version:?}");
-    let mut receiver = sender.subscribe();
-    ws.on_upgrade(|mut ws| async move {
-        loop {
-            tokio::select! {
-                // Since `ws` is a `Stream`, it is by nature cancel-safe.
-                res = ws.recv() => {
-                    match res {
-                        /*Some(Ok(ws::Message::Text(s))) => {
-                            println!("s: {:?}", s);
-                            let _ = sender.send(s.to_string());
-                        }*/
-                        Some(Ok(message)) => { 
-                            match message {
-                                Message::Binary(bin) => {
-                                    match bincode::deserialize::<NetData>(&bin) {
-                                        Ok(net_data) => println!("Dati ricevuti: {:?}", net_data),
-                                        Err(e) => eprintln!("Errore di deserializzazione: {}", e),
-                                    }
-                                }
-                                _ => {
-                                    println!("Messaggio non binario ricevuto: {:?}", message);
-                                }
-                            }   
-                        }
-                        Some(Err(e)) => tracing::debug!("client disconnected abruptly: {e}"),
-                        None => break,
-                    }
-                }
 
-                // Tokio guarantees that `broadcast::Receiver::recv` is cancel-safe.
-                res = receiver.recv() => {
-                    match res {
-                        Ok(msg) => if let Err(e) = ws.send(ws::Message::Text(msg.into())).await {
-                            tracing::debug!("client disconnected abruptly: {e}");
-                        }
-                        Err(_) => continue,
-                    }
+// Handler per il WebSocket: esegue l'upgrade della connessione
+async fn ws_handler(ws: WebSocketUpgrade) -> impl IntoResponse {
+    ws.on_upgrade(handle_websocket)
+}
+
+// Funzione che gestisce il canale WebSocket una volta effettuato l'upgrade
+async fn handle_websocket(mut socket: WebSocket) {
+    // In questo esempio si fa un semplice echo dei messaggi di testo ricevuti
+    while let Some(result) = socket.recv().await {
+        match result {
+            Ok(Message::Text(text)) => {
+                println!("Messaggio ricevuto: {}", text);
+
+                if socket
+                    .send(Message::Text(format!("echo: {}", text).into()))
+                    .await
+                    .is_err()
+                {
+                    // Se il client ha chiuso la connessione o c'è un errore, esci dal ciclo
+                    break;
                 }
             }
-            
+            Ok(message) =>{
+                if socket
+                .send(Message::Text(format!("echo: {:?}", message).into()))
+                .await
+                .is_err()
+                {
+                    // Se il client ha chiuso la connessione o c'è un errore, esci dal ciclo
+                    break;
+                }            
+            }
+            Ok(Message::Close(_)) => break,
+            _ => {}
         }
-    })
+    }
+}
+
+// Configurazione TLS per il server
+fn rustls_server_config(key: impl AsRef<Path>, cert: impl AsRef<Path>) -> Arc<ServerConfig> {
+    /*
+    let cert_file = File::open(cert).expect("Errore nell'aprire il certificato");
+    let mut cert_reader = BufReader::new(cert_file);
+
+    let certs: Vec<CertificateDer<'static>> = certs(&mut cert_reader)
+        .unwrap()
+        .into_iter()
+        .map(CertificateDer::from)
+        .collect();
+    */
+    /*
+    // Stampare l'Issuer del primo certificato
+    if let Some(certNo) = certs.first() {
+        let parsed = parse_x509_certificate(certNo.as_ref());
+        match parsed {
+            Ok((_, cert)) => {
+                println!("✅ Issuer: {}", cert.issuer());
+                println!("🔍 Subject: {}", cert.subject());
+            }
+            Err(err) => println!("❌ Errore nella lettura del certificato: {:?}", err),
+        }
+    }*/
+    let certs = CertificateDer::pem_file_iter(cert)
+        .unwrap()
+        .map(|cert| cert.unwrap())
+        .collect();
+
+    println!("{:?}", PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("certs").join("server-key.pem"));
+    let key = PrivateKeyDer::from_pem_file(key).unwrap();
+
+    let mut client_auth_roots = RootCertStore::empty();
+    let root_ca_file = File::open("CA/CA.pem").expect("Impossibile aprire la root CA");
+    let mut reader = BufReader::new(root_ca_file);
+    for cert in rustls_pemfile::certs(&mut reader).expect("Errore nella lettura della root CA") {
+        client_auth_roots.add(CertificateDer::from(cert)).unwrap();
+    }    
+
+    let crls = load_crls();
+    let client_auth_verifier = WebPkiClientVerifier::builder(client_auth_roots.into())
+                    .with_crls(crls)
+                    .build()
+                    .unwrap();
+
+    let mut config = ServerConfig::builder()
+        .with_client_cert_verifier(client_auth_verifier)
+        .with_single_cert(certs, key)
+        .expect("certificato/chiave non validi");
+
+    config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
+
+    Arc::new(config)
+}
+
+
+fn load_crls() -> Vec<CertificateRevocationListDer<'static>> {
+    let crl_file = File::open("CA/CA.crl").expect("❌ Impossibile aprire la CRL");
+    let mut reader = BufReader::new(crl_file);
+
+    crls(&mut reader)
+        .expect("❌ Errore nella lettura della CRL")
+        .into_iter()
+        .map(CertificateRevocationListDer::from)
+        .collect()
 }

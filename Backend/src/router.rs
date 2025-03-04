@@ -23,10 +23,3 @@ pub fn create_router_api(app_state: AppState) -> Router {
         .route("/api/auth/signin", post(login))
         .with_state(app_state)
 }
-
-
-pub fn create_router_wss(app_state: AppState) -> Router {
-    Router::new()
-        .route("/wss", post(logout))
-        .with_state(app_state)
-}
