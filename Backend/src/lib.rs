@@ -36,6 +36,8 @@ use tracing::{error, info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use rustls::{server::WebPkiClientVerifier, RootCertStore};
 use rustls_pemfile::crls;
+use bincode;
+
 
 
 
@@ -44,6 +46,7 @@ struct NetData {
     id: u32,
     data: time_t,
 }
+
 
 pub async fn run(app_state: AppState) {
     let app = create_router_api(app_state);
@@ -128,8 +131,6 @@ async fn handle_websocket(mut socket: WebSocket) {
     while let Some(result) = socket.recv().await {
         match result {
             Ok(Message::Text(text)) => {
-                println!("Messaggio ricevuto: {}", text);
-
                 if socket
                     .send(Message::Text(format!("echo: {}", text).into()))
                     .await
@@ -139,15 +140,12 @@ async fn handle_websocket(mut socket: WebSocket) {
                     break;
                 }
             }
-            Ok(message) =>{
-                if socket
-                .send(Message::Text(format!("echo: {:?}", message).into()))
-                .await
-                .is_err()
-                {
-                    // Se il client ha chiuso la connessione o c'è un errore, esci dal ciclo
-                    break;
-                }            
+            Ok(Message::Binary(bin)) =>{
+                match bincode::deserialize::<NetData>(&bin) {
+                    Ok(net_data) => println!("Data received: {:?}", net_data),
+                    Err(e) => eprintln!("Deserialization error: {}", e),
+                }
+                
             }
             Ok(Message::Close(_)) => break,
             _ => {}
@@ -157,28 +155,7 @@ async fn handle_websocket(mut socket: WebSocket) {
 
 // Configurazione TLS per il server
 fn rustls_server_config(key: impl AsRef<Path>, cert: impl AsRef<Path>) -> Arc<ServerConfig> {
-    /*
-    let cert_file = File::open(cert).expect("Errore nell'aprire il certificato");
-    let mut cert_reader = BufReader::new(cert_file);
-
-    let certs: Vec<CertificateDer<'static>> = certs(&mut cert_reader)
-        .unwrap()
-        .into_iter()
-        .map(CertificateDer::from)
-        .collect();
-    */
-    /*
-    // Stampare l'Issuer del primo certificato
-    if let Some(certNo) = certs.first() {
-        let parsed = parse_x509_certificate(certNo.as_ref());
-        match parsed {
-            Ok((_, cert)) => {
-                println!("✅ Issuer: {}", cert.issuer());
-                println!("🔍 Subject: {}", cert.subject());
-            }
-            Err(err) => println!("❌ Errore nella lettura del certificato: {:?}", err),
-        }
-    }*/
+    
     let certs = CertificateDer::pem_file_iter(cert)
         .unwrap()
         .map(|cert| cert.unwrap())

@@ -38,7 +38,7 @@ async fn main() {
             .collect();
 
     let mut root_store = RootCertStore::empty();
-    let root_ca_file = File::open("../Backend/CA/CA.pem").expect("❌ Impossibile aprire la root CA");
+    let root_ca_file = File::open("certs/CA.pem").expect("❌ Impossibile aprire la root CA");
     let mut reader = BufReader::new(root_ca_file);
 
     for cert in rustls_pemfile::certs(&mut reader).expect("❌ Errore nella lettura della root CA") {
