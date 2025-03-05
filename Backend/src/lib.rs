@@ -21,23 +21,16 @@ use futures_util::pin_mut;
 use hyper::body::Incoming;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use router::create_router_api;
-use std::{
-    fs::File, io::BufReader, path::{Path, PathBuf}, sync::Arc
-};
+use std::path::PathBuf;
 use tokio::net::TcpListener;
-use tokio_rustls::{
-    TlsAcceptor,
-    rustls::ServerConfig,
-    rustls::pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject, CertificateRevocationListDer},
-};
+use tokio_rustls::TlsAcceptor;
 use tower_service::Service;
 use tracing::{error, info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use rustls::{server::WebPkiClientVerifier, RootCertStore};
-use rustls_pemfile::crls;
 use bincode;
 
 use common::types::Packet;
+use common::certs::rustls_server_config;
 
 
 pub async fn run(app_state: AppState) {
@@ -59,7 +52,6 @@ pub async fn run_ws() {
         .init();
 
     
-
     let rustls_config = rustls_server_config(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("certs")
@@ -147,49 +139,4 @@ async fn handle_websocket(mut socket: WebSocket) {
             _ => {}
         }
     }
-}
-
-// Configurazione TLS per il server
-fn rustls_server_config(key: impl AsRef<Path>, cert: impl AsRef<Path>) -> Arc<ServerConfig> {
-    
-    let certs = CertificateDer::pem_file_iter(cert)
-        .unwrap()
-        .map(|cert| cert.unwrap())
-        .collect();
-
-    let key = PrivateKeyDer::from_pem_file(key).unwrap();
-
-    let mut client_auth_roots = RootCertStore::empty();
-    let root_ca_file = File::open("CA/CA.pem").expect("Impossibile aprire la root CA");
-    let mut reader = BufReader::new(root_ca_file);
-    for cert in rustls_pemfile::certs(&mut reader).expect("Errore nella lettura della root CA") {
-        client_auth_roots.add(CertificateDer::from(cert)).unwrap();
-    }    
-
-    let crls = load_crls();
-    let client_auth_verifier = WebPkiClientVerifier::builder(client_auth_roots.into())
-                    .with_crls(crls)
-                    .build()
-                    .unwrap();
-
-    let mut config = ServerConfig::builder()
-        .with_client_cert_verifier(client_auth_verifier)
-        .with_single_cert(certs, key)
-        .expect("certificato/chiave non validi");
-
-    config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
-
-    Arc::new(config)
-}
-
-
-fn load_crls() -> Vec<CertificateRevocationListDer<'static>> {
-    let crl_file = File::open("CA/CA.crl").expect("❌ Impossibile aprire la CRL");
-    let mut reader = BufReader::new(crl_file);
-
-    crls(&mut reader)
-        .expect("❌ Errore nella lettura della CRL")
-        .into_iter()
-        .map(CertificateRevocationListDer::from)
-        .collect()
 }
