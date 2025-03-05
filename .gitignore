@@ -2,6 +2,7 @@ Backend/.env
 Backend/queries
 Backend/target/
 Device/target/
+target
 
 # Ignora anche altri file temporanei di editor (come quelli di VS Code)
 .vscode/

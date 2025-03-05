@@ -1,22 +1,17 @@
 use futures_util::{StreamExt, future, pin_mut};
 use rustls::{pki_types::{pem::PemObject, CertificateDer, PrivateKeyDer, PrivatePkcs1KeyDer, PrivatePkcs8KeyDer}, ClientConfig, RootCertStore};
-use serde::{Deserialize, Serialize};
 use std::{
     env,
     fs::File,
     io::BufReader,
-    os::unix::raw::time_t,
     sync::Arc,
 };
-use tokio_tungstenite::{Connector, connect_async_tls_with_config, tungstenite::protocol::Message};
-use rustls_pemfile::{pkcs8_private_keys, rsa_private_keys};  // Per leggere PEM
+use common::{Header, Payload, build_packet, calculate_header};
+
+use tokio_tungstenite::{connect_async_tls_with_config, tungstenite::protocol::Message, Connector};
+use rustls_pemfile::{pkcs8_private_keys, rsa_private_keys};
 
 
-#[derive(Serialize, Deserialize, Debug)]
-struct NetData {
-    id: u32,
-    data: time_t,
-}
 
 #[tokio::main]
 async fn main() {
@@ -25,50 +20,14 @@ async fn main() {
         .unwrap_or_else(|| panic!("this program requires at least one argument"));
 
     let (stdin_tx, stdin_rx) = futures_channel::mpsc::unbounded();
-    tokio::spawn(read_stdin(stdin_tx));
+    tokio::spawn(network_scanner(stdin_tx));
 
-    // CERT
-
-    let cert_file = File::open("certs/client-cert.pem").unwrap();
-    let mut cert_reader = BufReader::new(cert_file);
-
-    let certs: Vec<CertificateDer<'static>> =
-        CertificateDer::pem_reader_iter(cert_reader)
-            .filter_map(Result::ok)
-            .collect();
-
-    let mut root_store = RootCertStore::empty();
-    let root_ca_file = File::open("certs/CA.pem").expect("❌ Impossibile aprire la root CA");
-    let mut reader = BufReader::new(root_ca_file);
-
-    for cert in rustls_pemfile::certs(&mut reader).expect("❌ Errore nella lettura della root CA") {
-        root_store.add(CertificateDer::from(cert)).unwrap();
-    }
-
-
-    // KEY
-
-    let key_file = File::open("certs/client-key-decrypted.pem").expect("Errore nell'aprire la chiave privata");
-    let mut key_reader = BufReader::new(key_file);
-    
-    let keys = pkcs8_private_keys(&mut key_reader)
-        .expect("Errore nella lettura della chiave PKCS#8");
-
-    let private_key = if let Some(key) = keys.first() {
-        PrivateKeyDer::from(PrivatePkcs8KeyDer::from(key.clone()))
-    } else {
-        // Se non trova PKCS#8, prova con RSA (PKCS#1)
-        let mut key_reader = BufReader::new(File::open("certs/client-key-decrypted.pem").unwrap());
-        let rsa_keys = rsa_private_keys(&mut key_reader)
-            .expect("Errore nella lettura della chiave RSA");
-
-        PrivateKeyDer::from(PrivatePkcs1KeyDer::from(
-            rsa_keys.first().expect("❌ Nessuna chiave privata trovata!").clone(),
-        ))
-    };
+    let certs = load_certs().await;
+    let root_ca = load_root_ca().await;
+    let private_key = load_key().await;
 
     let config = ClientConfig::builder()
-        .with_root_certificates(root_store)
+        .with_root_certificates(root_ca)
         .with_client_auth_cert(certs, private_key)
         .unwrap();
 
@@ -85,7 +44,7 @@ async fn main() {
     let ws_to_stdout = read.for_each(|message| async {
         match message {
             Ok(msg) => match msg {
-                Message::Binary(bin) => match bincode::deserialize::<NetData>(&bin) {
+                Message::Binary(bin) => match bincode::deserialize::<Header>(&bin) {
                     Ok(net_data) => println!("Received (Binary): {:?}", net_data),
                     Err(e) => eprintln!("Errore di deserializzazione binaria: {}", e),
                 },
@@ -99,14 +58,69 @@ async fn main() {
     future::select(stdin_to_ws, ws_to_stdout).await;
 }
 
-async fn read_stdin(tx: futures_channel::mpsc::UnboundedSender<Message>) {
-    let net_data_instance = NetData {
-        id: 42,
-        data: 123456789,
+
+async fn network_scanner(tx: futures_channel::mpsc::UnboundedSender<Message>){
+
+    let payload = Payload {
+        number_of_devices: 3
     };
-    let serialized = bincode::serialize(&net_data_instance).expect("Errore nella serializzazione");
+    let header = calculate_header(1, 0, 0, [0x00, 0x14, 0x22, 0x01, 0x23, 0x45]).await;
+    let packet = build_packet(header, payload).await;
+
+    let serialized = bincode::serialize(&packet).expect("Errore nella serializzazione");
     let msg = Message::Binary(serialized.into());
-    loop {
-        tx.unbounded_send(msg.clone()).unwrap();
+
+    tx.unbounded_send(msg.clone()).unwrap();
+}
+
+
+
+async fn load_certs() -> Vec<CertificateDer<'static>>{
+    let cert_file = File::open("certs/client-cert.pem").unwrap();
+    let cert_reader = BufReader::new(cert_file);
+
+    let certs: Vec<CertificateDer<'static>> =
+        CertificateDer::pem_reader_iter(cert_reader)
+            .filter_map(Result::ok)
+            .collect();
+
+    certs
+}
+
+async fn load_root_ca() -> RootCertStore{
+
+    let mut root_store = RootCertStore::empty();
+    let root_ca_file = File::open("certs/CA.pem").expect("❌ Impossibile aprire la root CA");
+    let mut reader = BufReader::new(root_ca_file);
+
+    for cert in rustls_pemfile::certs(&mut reader).expect("❌ Errore nella lettura della root CA") {
+        root_store.add(CertificateDer::from(cert)).unwrap();
     }
+
+    root_store
+}
+
+
+async fn load_key() -> PrivateKeyDer<'static>{
+
+    let key_file = File::open("certs/client-key-decrypted.pem").expect("Errore nell'aprire la chiave privata");
+    let mut key_reader = BufReader::new(key_file);
+
+    let keys = pkcs8_private_keys(&mut key_reader)
+        .expect("Errore nella lettura della chiave PKCS#8");
+
+    let private_key = if let Some(key) = keys.first() {
+        PrivateKeyDer::from(PrivatePkcs8KeyDer::from(key.clone()))
+    } else {
+        // Se non trova PKCS#8, prova con RSA (PKCS#1)
+        let mut key_reader = BufReader::new(File::open("certs/client-key-decrypted.pem").unwrap());
+        let rsa_keys = rsa_private_keys(&mut key_reader)
+            .expect("Errore nella lettura della chiave RSA");
+
+        PrivateKeyDer::from(PrivatePkcs1KeyDer::from(
+            rsa_keys.first().expect("❌ Nessuna chiave privata trovata!").clone(),
+        ))
+    };
+
+    private_key
 }

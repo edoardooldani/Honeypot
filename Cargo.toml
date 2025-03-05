@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "Backend",
+    "Device",
+    "common"
+]

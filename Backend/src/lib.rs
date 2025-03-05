@@ -12,7 +12,7 @@ use axum::{
     Router,
     extract::{
         Request,
-        ws::{Message, WebSocket, WebSocketUpgrade},
+        ws::{Message, WebSocket, WebSocketUpgrade}
     },
     response::IntoResponse,
     routing::get,
@@ -21,9 +21,8 @@ use futures_util::pin_mut;
 use hyper::body::Incoming;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use router::create_router_api;
-use serde::{Deserialize, Serialize};
 use std::{
-    fs::File, io::BufReader, os::unix::raw::time_t, path::{Path, PathBuf}, sync::Arc
+    fs::File, io::BufReader, path::{Path, PathBuf}, sync::Arc
 };
 use tokio::net::TcpListener;
 use tokio_rustls::{
@@ -38,14 +37,7 @@ use rustls::{server::WebPkiClientVerifier, RootCertStore};
 use rustls_pemfile::crls;
 use bincode;
 
-
-
-
-#[derive(Serialize, Deserialize, Debug)]
-struct NetData {
-    id: u32,
-    data: time_t,
-}
+use common::{Packet, verify_checksum};
 
 
 pub async fn run(app_state: AppState) {
@@ -99,15 +91,13 @@ pub async fn run_ws() {
             let Ok(stream) = tls_acceptor.accept(cnx).await else {
                 error!("errore durante l'handshake TLS dalla connessione {}", addr);
                 return;
-            };
-            println!("Handshake successfull");
-
+            };    
+            
             let stream = TokioIo::new(stream);
-
             let hyper_service = hyper::service::service_fn(move |request: Request<Incoming>| {
                 tower_service.clone().call(request)
             });
-
+            
             let ret = hyper_util::server::conn::auto::Builder::new(TokioExecutor::new())
                 .serve_connection_with_upgrades(stream, hyper_service)
                 .await;
@@ -121,7 +111,8 @@ pub async fn run_ws() {
 
 
 // Handler per il WebSocket: esegue l'upgrade della connessione
-async fn ws_handler(ws: WebSocketUpgrade) -> impl IntoResponse {
+async fn ws_handler(ws: WebSocketUpgrade,
+) -> impl IntoResponse {
     ws.on_upgrade(handle_websocket)
 }
 
@@ -141,8 +132,13 @@ async fn handle_websocket(mut socket: WebSocket) {
                 }
             }
             Ok(Message::Binary(bin)) =>{
-                match bincode::deserialize::<NetData>(&bin) {
-                    Ok(net_data) => println!("Data received: {:?}", net_data),
+                match bincode::deserialize::<Packet>(&bin) {
+                    Ok(packet) => {
+                        if verify_checksum(packet.clone()).await{
+                            println!("Checksum verified!: {:?}", packet);
+                        }
+
+                    },
                     Err(e) => eprintln!("Deserialization error: {}", e),
                 }
                 

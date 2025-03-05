@@ -5,6 +5,7 @@ edition = "2024"
 
 
 [dependencies]
+common = { path = "../common" }
 axum = { version = "0.8.1", features = ["macros", "ws", "http2"] }
 axum-extra = { version = "0.9.3", features = ["typed-header"] }
 axum-server = { version = "0.6", features = ["tls-rustls"] }
