@@ -37,7 +37,7 @@ use rustls::{server::WebPkiClientVerifier, RootCertStore};
 use rustls_pemfile::crls;
 use bincode;
 
-use common::{Packet, verify_checksum};
+use common::types::Packet;
 
 
 pub async fn run(app_state: AppState) {
@@ -133,9 +133,9 @@ async fn handle_websocket(mut socket: WebSocket) {
             }
             Ok(Message::Binary(bin)) =>{
                 match bincode::deserialize::<Packet>(&bin) {
-                    Ok(packet) => {
-                        if verify_checksum(packet.clone()).await{
-                            println!("Checksum verified!: {:?}", packet);
+                    Ok(mut packet) => {
+                        if !packet.verify_checksum(){
+                            eprintln!("Checksum verification error!: {:?}", packet.header.id);
                         }
 
                     },
@@ -157,7 +157,6 @@ fn rustls_server_config(key: impl AsRef<Path>, cert: impl AsRef<Path>) -> Arc<Se
         .map(|cert| cert.unwrap())
         .collect();
 
-    println!("{:?}", PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("certs").join("server-key.pem"));
     let key = PrivateKeyDer::from_pem_file(key).unwrap();
 
     let mut client_auth_roots = RootCertStore::empty();

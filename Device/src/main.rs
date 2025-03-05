@@ -6,11 +6,10 @@ use std::{
     io::BufReader,
     sync::Arc,
 };
-use common::{Header, Payload, build_packet, calculate_header};
+use common::{types::{Header, Payload}, packet::{build_packet, calculate_header}};
 
 use tokio_tungstenite::{connect_async_tls_with_config, tungstenite::protocol::Message, Connector};
 use rustls_pemfile::{pkcs8_private_keys, rsa_private_keys};
-
 
 
 #[tokio::main]
