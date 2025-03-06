@@ -5,7 +5,7 @@ use axum::{
 };
 
 use bincode;
-use common::types::Packet;
+use common::types::{Packet, Payload, ProcessPayload};
 
 
 pub async fn ws_handler(ws: WebSocketUpgrade,
@@ -29,12 +29,17 @@ async fn handle_websocket(mut socket: WebSocket) {
                 }
             }
             Ok(Message::Binary(bin)) =>{
+                
                 match bincode::deserialize::<Packet>(&bin) {
                     Ok(mut packet) => {
-                        if !packet.verify_checksum(){
-                            eprintln!("Checksum verification error!: {:?}", packet.header.id);
-                        }
+                        if let Some(header) = &packet.header.checksum {
+                            if !packet.verify_checksum() {
+                                eprintln!("Checksum verification error!: {:?}", packet.header.id);
+                            }
 
+                            println!("Packet: {:?}", packet);
+                        }
+                        
                     },
                     Err(e) => eprintln!("Deserialization error: {}", e),
                 }

@@ -31,6 +31,4 @@ tower-service = "0.3.2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 rustls = { version = "0.23" }
-rustls-pemfile = "1.0"   # Libreria per leggere file PEM
-
 bincode = "1.3"

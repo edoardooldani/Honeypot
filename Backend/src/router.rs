@@ -24,7 +24,7 @@ use hyper_util::rt::{TokioExecutor, TokioIo};
 use futures_util::pin_mut;
 use hyper::body::Incoming;
 
-use common::certs::rustls_server_config;
+use common::tls::rustls_server_config;
 
 
 pub fn create_router_api(app_state: AppState) -> Router {

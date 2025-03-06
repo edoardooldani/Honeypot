@@ -1,4 +1,4 @@
-use crate::types::{Header, Payload, Packet};
+use crate::types::{Header, ProcessPayload, Packet};
 use std::time::{SystemTime, UNIX_EPOCH};
 use sha2::{Sha256, Digest};
 
@@ -19,7 +19,7 @@ impl Packet {
         checksum_received==checksum_calculated_array
     }
 
-    pub async fn calculate_checksum(&mut self) {
+    pub fn calculate_checksum(&mut self) {
 
         let payload_bytes = serde_json::to_vec(&self.clone()).expect("Errore serializzazione payload");
     
@@ -33,17 +33,17 @@ impl Packet {
 }
 
 
-pub async fn build_packet(header: Header, payload: Payload) -> Packet{
+pub fn build_packet(header: Header, payload: ProcessPayload) -> Packet{
     let mut packet_instance = Packet {
         header,
         payload
     };
-    packet_instance.calculate_checksum().await;
+    packet_instance.calculate_checksum();
     packet_instance
 }
 
 
-pub async fn calculate_header(id: u32, data_type: u8, priority: u8, mac_address: [u8; 6]) -> Header {
+pub fn calculate_header(id: u32, data_type: u8, priority: u8, mac_address: [u8; 6]) -> Header {
 
     let start = SystemTime::now();
     let since_the_epoch = start.duration_since(UNIX_EPOCH)

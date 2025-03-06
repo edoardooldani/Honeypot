@@ -7,18 +7,9 @@ mod routes;
 pub mod utilities;
 pub mod ws;
 
-
 use app_state::AppState;
-use axum::{
-    extract::ws::{Message, WebSocket, WebSocketUpgrade},
-    response::IntoResponse,
-};
-
 use router::{create_router_api, create_router_wss};
 use tokio::net::TcpListener;
-use bincode;
-
-use common::types::Packet;
 
 
 pub async fn run(app_state: AppState) {
