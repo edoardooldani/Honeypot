@@ -2,12 +2,12 @@ use std::{
     fs::File, io::BufReader, path::Path, sync::Arc
 };
 use tokio_rustls::{
-    rustls::ServerConfig,
+    rustls::{ServerConfig, ClientConfig},
     rustls::pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject, CertificateRevocationListDer},
+    rustls::{server::WebPkiClientVerifier, RootCertStore}
 };
-use rustls::{server::WebPkiClientVerifier, RootCertStore};
-use rustls::ClientConfig;
 use rustls_pemfile::crls;
+
 
 pub fn rustls_client_config(key: impl AsRef<Path>, cert: impl AsRef<Path>) -> ClientConfig {
     let certs = load_cert(cert);

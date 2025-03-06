@@ -2,6 +2,7 @@ use dotenvy::dotenv;
 use honeypot::{app_state::AppState, run, run_ws, utilities::token_wrapper::TokenWrapper};
 use sea_orm::Database;
 
+
 #[tokio::main]
 async fn main() {
     dotenv().ok();
@@ -22,6 +23,7 @@ async fn main() {
         db,
         jwt_secret: TokenWrapper(jwt_secret),
     };
+
 
     tokio::join!(
         run(app_state),
