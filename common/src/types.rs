@@ -48,3 +48,50 @@ pub struct Packet {
 }
 
 
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeviceType {
+    Honeypot = 1,
+    Process = 2,
+    EBPF = 3,
+}
+
+impl DeviceType {
+    pub fn from_u8(value: u8) -> Option<Self> {
+        match value {
+            1 => Some(DeviceType::Honeypot),
+            2 => Some(DeviceType::Process),
+            3 => Some(DeviceType::EBPF),
+            _ => None, // Valore non valido
+        }
+    }
+
+    pub fn to_u8(&self) -> u8 {
+        *self as u8
+    }
+}
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PriorityLevel {
+    Low = 0,
+    Medium = 1,
+    High = 2,
+    Critical = 3,
+}
+
+impl PriorityLevel {
+    pub fn from_u8(value: u8) -> Option<Self> {
+        match value {
+            0 => Some(PriorityLevel::Low),
+            1 => Some(PriorityLevel::Medium),
+            2 => Some(PriorityLevel::High),
+            3 => Some(PriorityLevel::Critical),
+            _ => None,
+        }
+    }
+
+    pub fn to_u8(&self) -> u8 {
+        *self as u8
+    }
+}

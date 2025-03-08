@@ -1,5 +1,8 @@
 use crate::{
-    app_state::{AppState, WssAppState}, middleware::require_authentication::require_authentication, routes::{devices::create_device::create_device, users::{create_user::create_user, login::login, logout::logout}}, ws::ws_handler
+    app_state::{AppState, WssAppState}, 
+    middleware::require_authentication::require_authentication, 
+    routes::{devices::create_device::create_device, users::{create_user::create_user, login::login, logout::logout}}, 
+    ws::ws_handler
 
 };
 use axum::{
@@ -99,8 +102,15 @@ pub async fn create_router_wss(wss_state: Arc<WssAppState>) {
                 let session_id = generate_server_session_id(session);
 
                 let mut connections = wss_state.connections.lock().await;
+
+                if connections.contains_key(&device_name) {
+                    warn!("❌ Device already connected: {}!", device_name);
+                    // Must notify close connection but couldn't do it
+                    return
+                }
+
                 connections.insert(device_name.clone(), session_id);
-                println!("✅ Connessione registrata: {} - ID iniziale: {:?}", device_name, session_id);
+                info!("✅ Connected with: {} - Session ID: {:?}", device_name, session_id);
 
             }
 

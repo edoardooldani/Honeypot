@@ -32,7 +32,7 @@ async fn main() {
     let config = rustls_client_config(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("certs")
-            .join("client-key-decrypted.pem"),
+            .join("client-key.pem"),
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("certs")
             .join("client-cert.pem"),
@@ -99,11 +99,12 @@ fn get_processes(tx: futures_channel::mpsc::UnboundedSender<Message>, session_id
         Some(mac) => mac_address = mac,
         None => return,
     }
-
+    loop{}
     match processes::pids_by_type(processes::ProcFilter::All) {
+        
         Ok(pids) => {
             println!("There are currently {} processes active", pids.len());
-
+            
             for pid in pids {
 
                 let process_name = match name(pid as i32) {

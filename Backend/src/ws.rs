@@ -8,7 +8,7 @@ use axum::{
 use chrono::Utc;
 use futures_util::SinkExt;
 use bincode;
-use common::types::Packet;
+use common::types::{Packet, DeviceType, PriorityLevel};
 use tracing::{info, warn, error};
 
 use crate::app_state::WssAppState;
@@ -60,7 +60,24 @@ async fn handle_websocket(mut socket: WebSocket, wss_state: Arc<WssAppState>, de
                             close_socket_with_error(&mut socket, &device_name, "Invalid timestamp!").await;
                             break;
                         }
-                        // TO DO when devices will have mac registrered
+
+                        if DeviceType::from_u8(packet.header.data_type).is_none() {
+                            close_socket_with_error(
+                                &mut socket,
+                                &device_name,
+                                &format!("Invalid device type: {}", packet.header.data_type),
+                            ).await;
+                            break;
+                        }
+
+                        if PriorityLevel::from_u8(packet.header.priority).is_none() {
+                            close_socket_with_error(
+                                &mut socket,
+                                &device_name,
+                                &format!("Invalid priority: {}", packet.header.priority),
+                            ).await;
+                            break;
+                        }                        // TO DO when devices will have mac registrered
                         /* 
                         if !is_device_registered(&device_name).await {
                             close_socket_with_error(&mut socket, &device_name, "Device non registrato").await;
@@ -82,7 +99,7 @@ async fn handle_websocket(mut socket: WebSocket, wss_state: Arc<WssAppState>, de
                 {
                     let mut connections = wss_state.connections.lock().await;
                     connections.remove(&device_name);
-                    println!("❌ Connessione chiusa: {}", device_name);
+                    info!("❌ Connessione chiusa: {}", device_name);
                 }
             }
             _ => {}
