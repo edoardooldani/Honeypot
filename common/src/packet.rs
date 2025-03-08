@@ -2,7 +2,6 @@ use crate::types::{Header, ProcessPayload, Packet};
 use std::time::{SystemTime, UNIX_EPOCH};
 use sha2::{Sha256, Digest};
 
-
 impl Packet {
     pub fn verify_checksum(&mut self) -> bool {
         let checksum_received = self.header.checksum;

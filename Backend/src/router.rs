@@ -1,9 +1,5 @@
 use crate::{
-    ws::ws_handler,
-    app_state::AppState,
-    middleware::require_authentication::require_authentication,
-    routes::users::{create_user::create_user, login::login, logout::logout},
-    routes::devices::create_device::create_device,
+    app_state::{AppState, WssAppState}, middleware::require_authentication::require_authentication, routes::{devices::create_device::create_device, users::{create_user::create_user, login::login, logout::logout}}, ws::ws_handler
 
 };
 use axum::{
@@ -12,9 +8,10 @@ use axum::{
     Router,
     extract::Request
 };
+use rustls::pki_types::CertificateDer;
 
 // WSS
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
 use tower_service::Service;
@@ -23,8 +20,9 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use futures_util::pin_mut;
 use hyper::body::Incoming;
+use x509_parser::prelude::*;
 
-use common::tls::rustls_server_config;
+use common::tls::{rustls_server_config, generate_server_session_id};
 
 
 pub fn create_router_api(app_state: AppState) -> Router {
@@ -41,7 +39,7 @@ pub fn create_router_api(app_state: AppState) -> Router {
 }
 
 
-pub async fn create_router_wss() {
+pub async fn create_router_wss(wss_state: Arc<WssAppState>) {
 
     rustls::crypto::ring::default_provider().install_default().expect("Failed to install rustls crypto provider");
     tracing_subscriber::registry()
@@ -70,24 +68,48 @@ pub async fn create_router_wss() {
     );
 
     let app = Router::new()
-        .route("/ws", get(ws_handler));
+        .route("/ws", get(ws_handler))
+        .with_state(Arc::clone(&wss_state));
 
 
     pin_mut!(tcp_listener);
     loop {
         let tower_service = app.clone();
         let tls_acceptor = tls_acceptor.clone();
+        let wss_state = Arc::clone(&wss_state);
 
         let (cnx, addr) = tcp_listener.accept().await.unwrap();
 
+        let tls_acceptor = tls_acceptor.clone();
+
         tokio::spawn(async move {
+
+                //handle_ws_connection(stream, addr).await;
             let Ok(stream) = tls_acceptor.accept(cnx).await else {
                 error!("errore durante l'handshake TLS dalla connessione {}", addr);
                 return;
             };    
+
+            let session = stream.get_ref().1;
+            let device_name = session.peer_certificates()
+                .and_then(|certs| certs.first())
+                .and_then(|cert| extract_common_name(cert))
+                .unwrap_or_else(|| addr.to_string());
             
+
+            {
+                let session_id = generate_server_session_id(session);
+
+                let mut connections = wss_state.connections.lock().await;
+                connections.insert(device_name.clone(), session_id);
+                println!("✅ Connessione registrata: {} - ID iniziale: {:?}", device_name, session_id);
+
+            }
+
+            let device_name_clone = device_name.clone();
             let stream = TokioIo::new(stream);
-            let hyper_service = hyper::service::service_fn(move |request: Request<Incoming>| {
+            let hyper_service = hyper::service::service_fn(move |mut request: Request<Incoming>| {
+                request.extensions_mut().insert(device_name_clone.clone());
                 tower_service.clone().call(request)
             });
             
@@ -101,3 +123,16 @@ pub async fn create_router_wss() {
         });
     }
 }
+
+
+fn extract_common_name(cert: &CertificateDer) -> Option<String> {
+    let (_, parsed) = X509Certificate::from_der(cert.as_ref()).ok()?;
+    let subject = parsed.subject();
+    for attr in subject.iter_common_name() {
+        if let Ok(cn) = attr.as_str() {
+            return Some(cn.to_string());
+        }
+    }
+    None
+}
+

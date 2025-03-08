@@ -1,19 +1,24 @@
 use futures_util::{StreamExt, future, pin_mut};
 use std::{
     env,
-    sync::Arc,
+    sync::{Arc, Mutex},
     path::PathBuf
 };
 
-use common::{packet::{build_packet, calculate_header}, tls::rustls_client_config, types::{Header, Packet, Payload, ProcessPayload}};
-use tokio_tungstenite::{connect_async_tls_with_config, tungstenite::protocol::Message, Connector};
+use common::{
+    packet::{build_packet, calculate_header}, 
+    tls::{generate_client_session_id, rustls_client_config}, 
+    types::{Header, ProcessPayload}};
+use tokio_tungstenite::{connect_async_tls_with_config, tungstenite::protocol::Message, Connector, MaybeTlsStream};
 
 // Port scanner
-use libproc::{libproc::proc_pid::{name, pidpath}};
-use libproc::libproc::task_info::TaskInfo;
-use libproc::libproc::file_info::{ListFDs, ProcFDType};
-use libproc::proc_pid::pidinfo;
+use libproc::libproc::{
+    proc_pid::{name, pidpath, pidinfo}, 
+    task_info::TaskInfo,
+};
 use libproc::processes;
+use pnet::{datalink, util::MacAddr};
+
 
 
 
@@ -23,8 +28,6 @@ async fn main() {
         .nth(1)
         .unwrap_or_else(|| panic!("this program requires at least one argument"));
 
-    let (stdin_tx, stdin_rx) = futures_channel::mpsc::unbounded();
-    tokio::spawn(network_scanner(stdin_tx));
 
     let config = rustls_client_config(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -41,6 +44,27 @@ async fn main() {
         .await
         .expect("Failed to connect");
     println!("WebSocket handshake has been successfully completed");
+
+    let maybe_tls_stream = ws_stream.get_ref();
+    
+    let session_id = Arc::new(Mutex::new(0)); // Crea Arc<Mutex<u32>>
+
+    if let MaybeTlsStream::Rustls(tls_stream) = maybe_tls_stream {
+        let tls_session = tls_stream.get_ref().1;
+        
+        {
+            let mut id = session_id.lock().unwrap();
+            *id = generate_client_session_id(tls_session);
+        }
+
+        println!("Generated session_id: {}", *session_id.lock().unwrap());
+    } else {
+        return;
+    }
+
+
+    let (stdin_tx, stdin_rx) = futures_channel::mpsc::unbounded();
+    tokio::spawn(network_scanner(stdin_tx, Arc::clone(&session_id)));
 
     let (write, read) = ws_stream.split();
 
@@ -63,51 +87,38 @@ async fn main() {
 }
 
 
-async fn network_scanner(tx: futures_channel::mpsc::UnboundedSender<Message>){
-    /* 
-    let payload = Payload {
-        number_of_devices: 3
-    };
-    let header = calculate_header(1, 0, 0, [0x00, 0x14, 0x22, 0x01, 0x23, 0x45]).await;
-    let packet = build_packet(header, payload).await;
-
-    let serialized = bincode::serialize(&packet).expect("Errore nella serializzazione");
-    let msg = Message::Binary(serialized.into());
-    */
-
-    //tx.unbounded_send(msg.clone()).unwrap();
-
-    //loop {
-    let mut session_id: u32 = 0;
-    get_available_port(tx, &mut session_id);
-
-    //}
+async fn network_scanner(tx: futures_channel::mpsc::UnboundedSender<Message>, session_id: Arc<Mutex<u32>>) {
+    get_processes(tx, Arc::clone(&session_id));
 }
 
 
+fn get_processes(tx: futures_channel::mpsc::UnboundedSender<Message>, session_id: Arc<Mutex<u32>>) {
 
-
-fn get_available_port(tx: futures_channel::mpsc::UnboundedSender<Message>, session_id: &mut u32) {
+    let mac_address: [u8; 6];
+    match get_mac_address() {
+        Some(mac) => mac_address = mac,
+        None => return,
+    }
 
     match processes::pids_by_type(processes::ProcFilter::All) {
         Ok(pids) => {
             println!("There are currently {} processes active", pids.len());
-            
+
             for pid in pids {
-                
+
                 let process_name = match name(pid as i32) {
                     Ok(name) => name,
-                    Err(_) => String::from("Unknown"), // Default se errore
+                    Err(_) => String::from("Unknown"),
                 };
                 
                 let task_info = match pidinfo::<TaskInfo>(pid as i32, 0) {
                     Ok(info) => info,
-                    Err(_) => continue, // Skip se errore
+                    Err(_) => continue,
                 };
 
                 let process_path = match pidpath(pid as i32) {
                     Ok(path) => path,
-                    Err(_) => String::from("Unknown"), // Default se errore
+                    Err(_) => String::from("Unknown"),
                 };
 
                 let process_payload = ProcessPayload {
@@ -127,19 +138,53 @@ fn get_available_port(tx: futures_channel::mpsc::UnboundedSender<Message>, sessi
                     threadnum: task_info.pti_threadnum,
                     numrunning: task_info.pti_numrunning,
                     priority: task_info.pti_priority,
+                };           
+
+                let session_id_value = {
+                    let mut id = session_id.lock().unwrap();
+                    *id += 1;
+                    *id 
                 };  
 
-                let header = calculate_header(*session_id, 1, 0, [0x00, 0x14, 0x22, 0x01, 0x23, 0x45]);
+                let header = calculate_header(session_id_value, 1, 0, mac_address);
                 let packet = build_packet(header, process_payload);
 
                 let serialized = bincode::serialize(&packet).expect("Errore nella serializzazione");
                 let msg = Message::Binary(serialized.into());
 
-                tx.unbounded_send(msg.clone()).unwrap();
-
+                if let Err(e) = tx.unbounded_send(msg.clone()) {
+                    eprintln!("Errore nell'invio del messaggio WebSocket: {:?}", e);
+                    return;  // Evita di continuare se il canale è chiuso
+                }
             }
 
         }
         Err(err) => eprintln!("Error: {}", err),
     }
 }
+
+
+fn get_mac_address() -> Option<[u8; 6]> {
+    let interfaces = datalink::interfaces();
+
+    let preferred_interfaces = &["eth0", "wlan0", "en0", "can0", "modbus0"]; // Ethernet, Wi-Fi, CAN, Modbus
+    let exclude_prefixes = &["lo", "utun", "stf", "gif", "awdl", "llw", "docker", "br"];
+    
+    let mac = interfaces
+        .into_iter()
+        .filter(|iface| {
+            iface.mac.is_some()
+                && iface.mac.unwrap() != MacAddr(0, 0, 0, 0, 0, 0) // Esclude MAC 00:00:00:00:00:00
+                && !exclude_prefixes.iter().any(|&p| iface.name.starts_with(p))
+        })
+        .find(|iface| {
+            preferred_interfaces.contains(&iface.name.as_str()) || true
+        })
+        .and_then(|iface| {
+            let mac = iface.mac.unwrap(); // `MacAddr`
+            Some([mac.0, mac.1, mac.2, mac.3, mac.4, mac.5]) // Converti in [u8; 6]
+        });
+
+    mac
+}
+

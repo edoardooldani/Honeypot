@@ -1,6 +1,8 @@
 use dotenvy::dotenv;
-use honeypot::{app_state::AppState, run, run_ws, utilities::token_wrapper::TokenWrapper};
+use honeypot::{app_state::{AppState, WssAppState}, run, run_ws, utilities::token_wrapper::TokenWrapper};
 use sea_orm::Database;
+use std::{collections::HashMap, sync::Arc};
+use tokio::sync::Mutex;
 
 
 #[tokio::main]
@@ -24,9 +26,12 @@ async fn main() {
         jwt_secret: TokenWrapper(jwt_secret),
     };
 
+    let wss_state = Arc::new(WssAppState {
+        connections: Arc::new(Mutex::new(HashMap::new())),
+    });
 
     tokio::join!(
         run(app_state),
-        run_ws(),
+        run_ws(wss_state),
     );
 }

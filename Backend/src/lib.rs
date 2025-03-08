@@ -7,7 +7,9 @@ mod routes;
 pub mod utilities;
 pub mod ws;
 
-use app_state::AppState;
+use std::sync::Arc;
+
+use app_state::{AppState, WssAppState};
 use router::{create_router_api, create_router_wss};
 use tokio::net::TcpListener;
 
@@ -18,7 +20,7 @@ pub async fn run(app_state: AppState) {
     axum::serve(address, app.into_make_service()).await.unwrap();
 }
 
-pub async fn run_ws() {
-    create_router_wss().await;
+pub async fn run_ws(wss_state: Arc<WssAppState>) {
+    create_router_wss(wss_state).await;
 }
 

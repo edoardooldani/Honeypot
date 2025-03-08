@@ -1,12 +1,15 @@
 use std::{
     fs::File, io::BufReader, path::Path, sync::Arc
 };
+use rustls::{ServerConnection, ClientConnection};
 use tokio_rustls::{
     rustls::{ServerConfig, ClientConfig},
     rustls::pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject, CertificateRevocationListDer},
     rustls::{server::WebPkiClientVerifier, RootCertStore}
 };
 use rustls_pemfile::crls;
+use sha2::{Sha256, Digest};
+
 
 
 pub fn rustls_client_config(key: impl AsRef<Path>, cert: impl AsRef<Path>) -> ClientConfig {
@@ -90,31 +93,36 @@ fn load_root(path: &str) -> RootCertStore{
 
 
 
+pub fn generate_server_session_id(session: &ServerConnection) -> u32 {
+    let mut keying_material = [0u8; 32]; 
+    let label = b"session-id-export"; 
 
+    if let Err(e) = session.export_keying_material(&mut keying_material, label, None) {
+        eprintln!("❌ Errore nell'export_keying_material: {:?}", e);
+        return 0;
+    }
 
-/* 
-async fn load_key() -> PrivateKeyDer<'static>{
-
-    let key_file = File::open("certs/client-key-decrypted.pem").expect("Errore nell'aprire la chiave privata");
-    let mut key_reader = BufReader::new(key_file);
-
-    let keys = pkcs8_private_keys(&mut key_reader)
-        .expect("Errore nella lettura della chiave PKCS#8");
-
-    let private_key = if let Some(key) = keys.first() {
-        PrivateKeyDer::from(PrivatePkcs8KeyDer::from(key.clone()))
-    } else {
-        // Se non trova PKCS#8, prova con RSA (PKCS#1)
-        let mut key_reader = BufReader::new(File::open("certs/client-key-decrypted.pem").unwrap());
-        let rsa_keys = rsa_private_keys(&mut key_reader)
-            .expect("Errore nella lettura della chiave RSA");
-
-        PrivateKeyDer::from(PrivatePkcs1KeyDer::from(
-            rsa_keys.first().expect("❌ Nessuna chiave privata trovata!").clone(),
-        ))
-    };
-
-    private_key
+    // Hash dei dati esportati per generare un session_id unico
+    let mut hasher = Sha256::new();
+    hasher.update(&keying_material);
+    let result = hasher.finalize();
+    let bytes = &result[..4]; // Prendi i primi 4 byte per creare un u32
+    u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
 }
 
-    */
+
+pub fn generate_client_session_id(session: &ClientConnection) -> u32 {
+    let mut keying_material = [0u8; 32];
+    let label = b"session-id-export";
+
+    if let Err(e) = session.export_keying_material(&mut keying_material, label, None) {
+        eprintln!("❌ Errore nell'export_keying_material: {:?}", e);
+        return 0;
+    }
+
+    let mut hasher = Sha256::new();
+    hasher.update(&keying_material);
+    let result = hasher.finalize();
+    let bytes = &result[..4];
+    u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
+}
