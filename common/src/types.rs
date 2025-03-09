@@ -1,23 +1,28 @@
 use serde::{Deserialize, Serialize};
-use std::os::unix::raw::time_t;
 
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Header {
     pub id: u32,
-    pub timestamp: time_t,
+    pub timestamp: u64,
     pub data_type: u8,                  
     pub priority: u8,                   
     pub mac_address: [u8; 6],           
     pub checksum: Option<[u8; 32]>      
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Packet {
+    pub header: Header,
+
+    pub payload: PayloadType,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "type")]
-pub enum Payload {
-    ProcessPayload(ProcessPayload),
-    // Aggiungi altri tipi di payload qui se necessario
+//#[serde(tag = "type", content = "data")] 
+pub enum PayloadType {
+    Process(ProcessPayload),
+    Network(NetworkPayload),
 }
 
 
@@ -41,13 +46,15 @@ pub struct ProcessPayload {
     pub priority: i32,
 }
 
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Packet {
-    pub header: Header,
-    pub payload: ProcessPayload,
+pub struct NetworkPayload {
+    pub protocol: String,
+    pub src_ip: String,
+    pub src_port: u16,
+    pub dest_ip: String,
+    pub dest_port: u16,
 }
-
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeviceType {
@@ -71,6 +78,26 @@ impl DeviceType {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+
+pub enum DataType {
+    Network = 1,
+    Process = 2,
+}
+
+impl DataType {
+    pub fn from_u8(value: u8) -> Option<Self> {
+        match value {
+            1 => Some(DataType::Network),
+            2 => Some(DataType::Process),
+            _ => None, // Valore non valido
+        }
+    }
+
+    pub fn to_u8(&self) -> u8 {
+        *self as u8
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PriorityLevel {

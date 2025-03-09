@@ -1,6 +1,7 @@
-use crate::types::{Header, ProcessPayload, Packet};
+use crate::types::{Header, PayloadType, Packet};
 use std::time::{SystemTime, UNIX_EPOCH};
 use sha2::{Sha256, Digest};
+
 
 impl Packet {
     pub fn verify_checksum(&mut self) -> bool {
@@ -32,7 +33,7 @@ impl Packet {
 }
 
 
-pub fn build_packet(header: Header, payload: ProcessPayload) -> Packet{
+pub fn build_packet(header: Header, payload: PayloadType) -> Packet{
     let mut packet_instance = Packet {
         header,
         payload
@@ -50,7 +51,7 @@ pub fn calculate_header(id: u32, data_type: u8, priority: u8, mac_address: [u8; 
 
     let header_instance = Header {
         id,
-        timestamp: since_the_epoch.as_secs() as i64,
+        timestamp: since_the_epoch.as_secs() as u64,
         data_type,
         priority,
         mac_address,
