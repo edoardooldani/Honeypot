@@ -1,7 +1,7 @@
 use crate::{
     database::{
-        devices::Model as DeviceModel,
-        devices::{self},
+        models::devices::Model as DeviceModel,
+        models::devices::{self},
     },
     utilities::app_error::AppError,
 };

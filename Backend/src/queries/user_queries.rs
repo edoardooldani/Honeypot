@@ -1,7 +1,7 @@
 use crate::{
     database::{
-        users::Model as UserModel,
-        users::{self, Entity as Users},
+        models::users::Model as UserModel,
+        models::users::{self, Entity as Users},
     },
     utilities::app_error::AppError,
 };

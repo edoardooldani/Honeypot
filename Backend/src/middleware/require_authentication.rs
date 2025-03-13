@@ -1,4 +1,4 @@
-use crate::database::users::{self, Entity as Users};
+use crate::database::models::users::{self, Entity as Users};
 use axum::{
     body::Body,
     extract::State,

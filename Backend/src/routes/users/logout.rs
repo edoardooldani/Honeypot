@@ -2,7 +2,7 @@ use axum::{extract::State, http::StatusCode, Extension};
 use sea_orm::{DatabaseConnection, IntoActiveModel, Set};
 
 use crate::{
-    database::users, queries::user_queries::save_active_user, utilities::app_error::AppError,
+    database::models::users, queries::user_queries::save_active_user, utilities::app_error::AppError,
 };
 
 pub async fn logout(

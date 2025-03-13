@@ -19,7 +19,6 @@ use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
 use tower_service::Service;
 use tracing::{error, info, warn};
-use tracing_subscriber::EnvFilter;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use futures_util::pin_mut;
 use hyper::body::Incoming;
@@ -43,13 +42,6 @@ pub fn create_router_api(app_state: AppState) -> Router {
 
 
 pub async fn create_router_wss(wss_state: Arc<WssAppState>) {
-
-    rustls::crypto::ring::default_provider().install_default().expect("Failed to install rustls crypto provider");
-    tracing_subscriber::fmt()
-    .with_env_filter(EnvFilter::new("info")) // Configura il logging via variabile d'ambiente
-    .with_target(true) // Mostra il modulo di provenienza
-    .with_line_number(true) // Mostra il numero di riga
-    .init();
 
     
     let rustls_config = rustls_server_config(

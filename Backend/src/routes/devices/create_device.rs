@@ -1,8 +1,8 @@
 use super::{RequestCreateDevice, ResponseDataDevice, ResponseDevice};
-use crate::database::users;
+use crate::database::models::users;
 use crate::queries::device_queries;
 use crate::{
-    database::devices,
+    database::models::devices,
     utilities::app_error::AppError
     
 };

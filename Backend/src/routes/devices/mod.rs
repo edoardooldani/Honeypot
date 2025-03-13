@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::database::devices::{Status, DeviceType};
+use crate::database::models::devices::{Status, DeviceType};
 pub mod create_device;
 
 #[derive(Serialize, Deserialize)]

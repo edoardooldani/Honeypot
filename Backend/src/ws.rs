@@ -7,11 +7,10 @@ use axum::{
 use chrono::Utc;
 use futures_util::SinkExt;
 use bincode;
-use common::types::{Packet, DeviceType, PriorityLevel};
+use common::types::{DeviceType, Packet, PayloadType, PriorityLevel};
 use tracing::{info, warn, error};
 use tokio::time::{self, Duration};
-
-use crate::app_state::WssAppState;
+use crate::{app_state::WssAppState, queries::{process_queries::add_process_data, network_queries::add_network_data}};
 
 
 pub async fn ws_handler(
@@ -48,9 +47,7 @@ async fn handle_websocket(mut socket: WebSocket, wss_state: Arc<WssAppState>, de
                     break;
                 }
             } 
-            Ok(Message::Pong(_)) => {
-                info!("✅ Pong received from `{}`", device_name);
-            }
+            Ok(Message::Pong(_)) => {}
             Ok(Message::Close(_)) | Err(_) => {
                 break;
             }
@@ -97,8 +94,17 @@ async fn process_packet(wss_state: &Arc<WssAppState>, device_name: &str, bin: &[
         return Err(format!("Invalid priority level: {}", packet.header.priority));
     }
 
+    match &packet.payload {
+        PayloadType::Network(network_payload) => {
+            add_network_data(&wss_state.influx_client, device_name, network_payload).await?;
+        }
+        PayloadType::Process(process_payload) => {
+            add_process_data(&wss_state.influx_client, device_name, process_payload).await?;
+        }
+    }
+
     info!("📩 Valid message from `{}`: ID={} type={:?}", device_name, packet.header.id, packet.header.data_type);
-    
+
     Ok(())
 }
 
@@ -108,97 +114,3 @@ async fn close_socket_with_error(socket: &mut WebSocket, device_name: &str, reas
     let _ = socket.close().await;
     warn!("❌ Connessione chiusa: `{}`", device_name);
 }
-
-/* 
-async fn handle_websocket(mut socket: WebSocket, wss_state: Arc<WssAppState>, device_name: String) {
-
-    info!("✅ New WebSocket connection from: `{}`", device_name);
-
-    while let Some(result) = socket.recv().await {
-        match result {
-            Ok(Message::Text(_text)) => {
-                return;
-            }
-
-            Ok(Message::Binary(bin)) =>{                
-                match bincode::deserialize::<Packet>(&bin) {
-                    Ok(mut packet) => {
-                        if let Some(_header) = &packet.header.checksum {
-                            if !packet.verify_checksum() {
-                                close_socket_with_error(&mut socket, &device_name, "Invalid checksum!").await;
-                                break;
-                            }
-                        } else {
-                            close_socket_with_error(&mut socket, &device_name, "Missing checksum!").await;
-                            break;
-                        }
-
-                        let mut connections = wss_state.connections.lock().await;
-                        if let Some(session_id) = connections.get_mut(&device_name) {
-                            *session_id += 1;
-                            if packet.header.id != *session_id{
-                                close_socket_with_error(&mut socket, &device_name, "Invalid session id!").await;
-                                break;
-                            }
-                        }
-                        
-                        let current_timestamp = Utc::now().timestamp();
-                        if (current_timestamp - packet.header.timestamp).abs() > 180 {  // 3 minutes
-                            close_socket_with_error(&mut socket, &device_name, "Invalid timestamp!").await;
-                            break;
-                        }
-
-                        if DeviceType::from_u8(packet.header.data_type).is_none() {
-                            close_socket_with_error(
-                                &mut socket,
-                                &device_name,
-                                &format!("Invalid device type: {}", packet.header.data_type),
-                            ).await;
-                            break;
-                        }
-
-                        if PriorityLevel::from_u8(packet.header.priority).is_none() {
-                            close_socket_with_error(
-                                &mut socket,
-                                &device_name,
-                                &format!("Invalid priority: {}", packet.header.priority),
-                            ).await;
-                            break;
-                        }                        // TO DO when devices will have mac registrered
-                        /* 
-                        if !is_device_registered(&device_name).await {
-                            close_socket_with_error(&mut socket, &device_name, "Device non registrato").await;
-                            break;
-                        } else if !is_device_active(&device_name).await {
-                            close_socket_with_error(&mut socket, &device_name, "Device inattivo").await;
-                            break;
-                        }
-                        */
-                        println!("Device: {:?}, Message ID: {:?}, MAC: {:?}", device_name, packet.header.id, packet.header.mac_address);
-                    },
-                    Err(e) => {
-                        close_socket_with_error(&mut socket, &device_name, &format!("Deserialization error: {}", e)).await;
-                        break;
-                    }
-                }
-                
-            }
-            Ok(Message::Close(_)) => {
-                {
-                    let mut connections = wss_state.connections.lock().await;
-                    connections.remove(&device_name);
-                    info!("❌ Connessione chiusa: {}", device_name);
-                }
-            }
-            _ => {}
-        }
-    }
-}
-
-
-async fn close_socket_with_error(socket: &mut WebSocket, device_name: &str, reason: &str) {
-    error!("🛑 [{}] {}", device_name, reason);
-    let _ = socket.close().await;
-    warn!("❌ Connessione chiusa: {}", device_name);
-}
-    */

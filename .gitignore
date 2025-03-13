@@ -1,8 +1,12 @@
 Backend/.env
 Backend/queries
 Backend/target/
+
 Device/target/
 target
+
+AI/*.npy
+AI/*.keras
 
 # Ignora anche altri file temporanei di editor (come quelli di VS Code)
 .vscode/

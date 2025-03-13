@@ -1,7 +1,7 @@
 use super::{RequestCreateUser, ResponseDataUser, ResponseUser};
 use crate::queries::user_queries;
 use crate::{
-    database::users,
+    database::models::users,
     utilities::{
         app_error::AppError, hash::hash_password,
     },
