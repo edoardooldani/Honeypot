@@ -1,6 +1,5 @@
-import pandas as pd
-import numpy as np
-from sklearn.preprocessing import MinMaxScaler, LabelEncoder
+import numpy as np # type: ignore
+from sklearn.preprocessing import MinMaxScaler, LabelEncoder # type: ignore
 import hashlib
 from db import InfluxDB
 

@@ -8,6 +8,7 @@ use chrono::Utc;
 use futures_util::SinkExt;
 use bincode;
 use common::types::{DeviceType, Packet, PayloadType, PriorityLevel};
+use rdkafka::producer::FutureRecord;
 use tracing::{info, warn, error};
 use tokio::time::{self, Duration};
 use crate::{app_state::WssAppState, queries::{process_queries::add_process_data, network_queries::add_network_data}};
@@ -103,6 +104,22 @@ async fn process_packet(wss_state: &Arc<WssAppState>, device_name: &str, bin: &[
         }
     }
 
+    let topic = "honeypot_packets";
+    let message = serde_json::to_string(&packet).map_err(|e| format!("Serialization error: {}", e))?;
+    
+    let delivery_status = wss_state.kafka
+        .send(
+            FutureRecord::to(topic)
+                .key(device_name)
+                .payload(&message),
+            std::time::Duration::from_secs(5),
+        )
+        .await;
+
+    match delivery_status {
+        Ok(delivery) => info!("📩 Packet sent to Kafka: {:?}", delivery),
+        Err((e, _)) => error!("❌ Failed to send packet to Kafka: {:?}", e),
+    }    
     info!("📩 Valid message from `{}`: ID={} type={:?}", device_name, packet.header.id, packet.header.data_type);
 
     Ok(())

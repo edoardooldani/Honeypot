@@ -1,8 +1,7 @@
-import tensorflow as tf
-from tensorflow.keras.layers import Input, Dense, Concatenate, BatchNormalization, Dropout
-from tensorflow.keras.models import Model
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
-import numpy as np
+from tensorflow.keras.layers import Input, Dense, Concatenate, BatchNormalization, Dropout # type: ignore
+from tensorflow.keras.models import Model # type: ignore
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint # type: ignore
+import numpy as np # type: ignore
 
 
 # **2️⃣ Creiamo gli autoencoder**

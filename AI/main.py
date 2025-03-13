@@ -2,6 +2,19 @@ import time
 from prepare_data import prepare_data
 from train_model import train_model
 from detect_anomalies import detect_anomalies
+from confluent_kafka import Consumer, KafkaError
+from kafka import KafkaConsumer
+import json
+
+# Configura il consumer Kafka
+KAFKA_BROKER = "localhost:9092"  # Modifica se usi un server remoto
+KAFKA_TOPIC = "network_logs"  # Nome del topic che vuoi consumare
+
+consumer_conf = {
+    "bootstrap.servers": KAFKA_BROKER,
+    "group.id": "honeypot-consumer-group",
+    "auto.offset.reset": "earliest",  # Legge dall'inizio se è la prima connessione
+}
 
 def main():
     print("🔄 Inizio pipeline di analisi...\n")
@@ -26,5 +39,22 @@ def main():
 
     print("🎉 **Pipeline completata con successo!**")
 
+
+def kafka_server():
+
+    consumer = KafkaConsumer(
+    "honeypot_packets",
+    bootstrap_servers="localhost:9092",
+    auto_offset_reset="earliest",
+    group_id="honeypot_group",
+    value_deserializer=lambda x: json.loads(x.decode("utf-8"))
+    )
+
+    print("🎧 In ascolto su Kafka...") 
+    for message in consumer:
+        print(f"📥 Messaggio ricevuto: {message.value}")
+    
+
 if __name__ == "__main__":
-    main()
+    #main()
+    kafka_server()

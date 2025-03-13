@@ -6,6 +6,7 @@ mod router;
 mod routes;
 pub mod utilities;
 pub mod ws;
+pub mod conn;
 
 use std::sync::Arc;
 

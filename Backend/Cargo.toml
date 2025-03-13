@@ -35,3 +35,4 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"]
 rustls = { version = "0.23" }
 bincode = "1.3"
 x509-parser = "0.16"
+rdkafka = "0.37.0"

@@ -1,7 +1,6 @@
-import numpy as np
-import tensorflow as tf
-from tensorflow.keras.models import load_model
-from tensorflow.keras.layers import Dense
+import numpy as np # type: ignore
+from tensorflow.keras.models import load_model # type: ignore
+from tensorflow.keras.layers import Dense # type: ignore
 
 
 
