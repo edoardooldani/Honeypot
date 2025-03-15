@@ -1,28 +1,32 @@
 use futures_util::{StreamExt, future, pin_mut};
 use std::{
-    env, path::PathBuf, sync::{Arc, Mutex}
+    env,
+    path::PathBuf,
+    sync::{Arc, Mutex},
 };
 
 use common::{
-    packet::{build_packet, calculate_header}, 
-    tls::{generate_client_session_id, rustls_client_config}, 
-    types::{Header, NetworkPayload, PayloadType, ProcessPayload}};
-use tokio_tungstenite::{connect_async_tls_with_config, tungstenite::protocol::Message, Connector, MaybeTlsStream};
-
+    packet::{build_packet, calculate_header},
+    tls::{generate_client_session_id, rustls_client_config},
+    types::{Header, NetworkPayload, PayloadType, ProcessPayload},
+};
+use tokio_tungstenite::{
+    Connector, MaybeTlsStream, connect_async_tls_with_config, tungstenite::protocol::Message,
+};
 
 use libproc::libproc::{
-    proc_pid::{name, pidpath, pidinfo}, 
+    proc_pid::{name, pidinfo, pidpath},
     task_info::TaskInfo,
 };
 use libproc::processes;
-use pnet::util::MacAddr;
 use pnet::datalink::{self, Channel, NetworkInterface};
+use pnet::packet::Packet as pnetPacket;
 use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::udp::UdpPacket;
-use pnet::packet::Packet as pnetPacket;
-
+use pnet::util::MacAddr;
+use wss_client::{ClientConfig, WebSocketClient};
 
 #[tokio::main]
 async fn main() {
@@ -30,6 +34,31 @@ async fn main() {
         .nth(1)
         .unwrap_or_else(|| panic!("this program requires at least one argument"));
 
+    /* working example
+    let config = ClientConfig {
+        url: url.clone(),
+        client_key_path: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("certs")
+            .join("client-key.pem"),
+        client_cert_path: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("certs")
+            .join("client-cert.pem"),
+        buffer_size: 100,
+        reconnect_timeout_ms: 3000,
+    };
+
+    let mut client = WebSocketClient::new(config);
+
+    let message_handler = |header: Header| {
+        println!("Ricevuto messaggio: {:?}", header);
+    };
+
+    client
+        .run(message_handler)
+        .await
+        .expect("Errore nell'avvio del client");
+
+    */
 
     let config = rustls_client_config(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -48,13 +77,11 @@ async fn main() {
     println!("WebSocket handshake has been successfully completed");
 
     let maybe_tls_stream = ws_stream.get_ref();
-    
     let session_id = Arc::new(Mutex::new(0));
     //let session_id: Arc<AtomicU32>;
 
     if let MaybeTlsStream::Rustls(tls_stream) = maybe_tls_stream {
         let tls_session = tls_stream.get_ref().1;
-        
         {
             let mut id = session_id.lock().unwrap();
             *id = generate_client_session_id(tls_session);
@@ -65,14 +92,16 @@ async fn main() {
         return;
     }
 
-
     let (stdin_tx, stdin_rx) = futures_channel::mpsc::unbounded();
 
     let stdin_tx_pong = stdin_tx.clone();
     let stdin_tx_processes = stdin_tx.clone();
     let stdin_tx_network = stdin_tx.clone();
 
-    tokio::spawn(monitor_connections(stdin_tx_network, Arc::clone(&session_id)));
+    tokio::spawn(monitor_connections(
+        stdin_tx_network,
+        Arc::clone(&session_id),
+    ));
     tokio::spawn(get_processes(stdin_tx_processes, Arc::clone(&session_id)));
 
     let (write, read) = ws_stream.split();
@@ -90,10 +119,10 @@ async fn main() {
                     if let Err(e) = stdin_tx_pong.unbounded_send(Message::Pong(ping_data)) {
                         eprintln!("Errore nell'invio del PONG: {}", e);
                     }
-                },
+                }
                 _ => eprintln!("Tipo di messaggio non gestito"),
             },
-            
+
             Err(e) => eprintln!("Errore nel messaggio: {}", e),
         }
     });
@@ -102,11 +131,11 @@ async fn main() {
     future::select(stdin_to_ws, ws_to_stdout).await;
 }
 
-
-
-
 /// Monitorizza le nuove connessioni su una specifica interfaccia e le invia via WebSocket
-async fn monitor_connections(tx: futures_channel::mpsc::UnboundedSender<Message>, session_id: Arc<Mutex<u32>>) {
+async fn monitor_connections(
+    tx: futures_channel::mpsc::UnboundedSender<Message>,
+    session_id: Arc<Mutex<u32>>,
+) {
     let interface = get_primary_interface().expect("Interfaccia non trovata");
 
     let (_tx, mut rx) = match datalink::channel(&interface, Default::default()) {
@@ -128,7 +157,11 @@ async fn monitor_connections(tx: futures_channel::mpsc::UnboundedSender<Message>
 }
 
 /// Analizza i pacchetti per trovare nuove connessioni e inviarle al server WebSocket
-fn handle_packet(ethernet_packet: &EthernetPacket, tx: &futures_channel::mpsc::UnboundedSender<Message>, session_id: Arc<Mutex<u32>>) {
+fn handle_packet(
+    ethernet_packet: &EthernetPacket,
+    tx: &futures_channel::mpsc::UnboundedSender<Message>,
+    session_id: Arc<Mutex<u32>>,
+) {
     let mac_address: [u8; 6];
     match get_mac_address() {
         Some(mac) => mac_address = mac,
@@ -137,33 +170,35 @@ fn handle_packet(ethernet_packet: &EthernetPacket, tx: &futures_channel::mpsc::U
 
     match ethernet_packet.get_ethertype() {
         pnet::packet::ethernet::EtherTypes::Ipv4 => {
-            if let Some(ipv4_packet) = pnet::packet::ipv4::Ipv4Packet::new(ethernet_packet.payload()) {
+            if let Some(ipv4_packet) =
+                pnet::packet::ipv4::Ipv4Packet::new(ethernet_packet.payload())
+            {
                 match ipv4_packet.get_next_level_protocol() {
                     IpNextHeaderProtocols::Tcp => {
                         if let Some(tcp_packet) = TcpPacket::new(ipv4_packet.payload()) {
                             send_connection_info(
-                                tx, 
-                                session_id, 
-                                "TCP".to_owned(), 
+                                tx,
+                                session_id,
+                                "TCP".to_owned(),
                                 ipv4_packet.get_source().to_string(),
                                 tcp_packet.get_source(),
                                 ipv4_packet.get_destination().to_string(),
                                 tcp_packet.get_destination(),
-                                mac_address
+                                mac_address,
                             );
                         }
                     }
                     IpNextHeaderProtocols::Udp => {
                         if let Some(udp_packet) = UdpPacket::new(ipv4_packet.payload()) {
                             send_connection_info(
-                                tx, 
-                                session_id, 
-                                "UDP".to_owned(), 
+                                tx,
+                                session_id,
+                                "UDP".to_owned(),
                                 ipv4_packet.get_source().to_string(),
                                 udp_packet.get_source(),
                                 ipv4_packet.get_destination().to_string(),
                                 udp_packet.get_destination(),
-                                mac_address
+                                mac_address,
                             );
                         }
                     }
@@ -175,7 +210,6 @@ fn handle_packet(ethernet_packet: &EthernetPacket, tx: &futures_channel::mpsc::U
     }
 }
 
-
 /// Costruisce e invia il messaggio WebSocket con le informazioni della connessione
 fn send_connection_info(
     tx: &futures_channel::mpsc::UnboundedSender<Message>,
@@ -185,41 +219,44 @@ fn send_connection_info(
     src_port: u16,
     dest_ip: String,
     dest_port: u16,
-    mac_address: [u8; 6]
+    mac_address: [u8; 6],
 ) {
-    
     let network_payload = PayloadType::Network(NetworkPayload {
         protocol,
         src_ip,
         src_port,
         dest_ip,
-        dest_port
-    });           
+        dest_port,
+    });
     let data_type: u8 = 1;
-    send_message(tx.clone(), network_payload, Arc::clone(&session_id), data_type, mac_address);
+    send_message(
+        tx.clone(),
+        network_payload,
+        Arc::clone(&session_id),
+        data_type,
+        mac_address,
+    );
 }
 
-
-
-async fn get_processes(tx: futures_channel::mpsc::UnboundedSender<Message>, session_id: Arc<Mutex<u32>>) {
-
+async fn get_processes(
+    tx: futures_channel::mpsc::UnboundedSender<Message>,
+    session_id: Arc<Mutex<u32>>,
+) {
     let mac_address: [u8; 6];
     match get_mac_address() {
         Some(mac) => mac_address = mac,
         None => return,
     }
-    
+
     match processes::pids_by_type(processes::ProcFilter::All) {
-        
         Ok(pids) => {
             println!("There are currently {} processes active", pids.len());
             for pid in pids {
-                
                 let process_name = match name(pid as i32) {
                     Ok(name) => name,
                     Err(_) => String::from("Unknown"),
                 };
-                
+
                 let task_info = match pidinfo::<TaskInfo>(pid as i32, 0) {
                     Ok(info) => info,
                     Err(_) => continue,
@@ -247,22 +284,29 @@ async fn get_processes(tx: futures_channel::mpsc::UnboundedSender<Message>, sess
                     threadnum: task_info.pti_threadnum,
                     numrunning: task_info.pti_numrunning,
                     priority: task_info.pti_priority,
-                });           
+                });
 
                 let data_type: u8 = 2;
-                send_message(tx.clone(), process_payload, Arc::clone(&session_id), data_type, mac_address);
-                
+                send_message(
+                    tx.clone(),
+                    process_payload,
+                    Arc::clone(&session_id),
+                    data_type,
+                    mac_address,
+                );
             }
-
         }
         Err(err) => eprintln!("Error: {}", err),
     }
-
 }
 
-
-
-fn send_message(tx: futures_channel::mpsc::UnboundedSender<Message>, payload: PayloadType, session_id: Arc<Mutex<u32>>, data_type: u8, mac_address: [u8; 6]){
+fn send_message(
+    tx: futures_channel::mpsc::UnboundedSender<Message>,
+    payload: PayloadType,
+    session_id: Arc<Mutex<u32>>,
+    data_type: u8,
+    mac_address: [u8; 6],
+) {
     let msg = {
         let mut id = session_id.lock().unwrap();
         *id += 1;
@@ -277,19 +321,14 @@ fn send_message(tx: futures_channel::mpsc::UnboundedSender<Message>, payload: Pa
     if let Err(e) = tx.unbounded_send(msg) {
         eprintln!("Errore nell'invio del messaggio WebSocket: {:?}", e);
     }
-
-
-    
 }
-
-
 
 fn get_mac_address() -> Option<[u8; 6]> {
     let interfaces = datalink::interfaces();
 
     let preferred_interfaces = &["eth0", "wlan0", "en0", "can0", "modbus0"]; // Ethernet, Wi-Fi, CAN, Modbus
     let exclude_prefixes = &["lo", "utun", "stf", "gif", "awdl", "llw", "docker", "br"];
-    
+
     let mac = interfaces
         .into_iter()
         .filter(|iface| {
@@ -297,9 +336,7 @@ fn get_mac_address() -> Option<[u8; 6]> {
                 && iface.mac.unwrap() != MacAddr(0, 0, 0, 0, 0, 0) // Esclude MAC 00:00:00:00:00:00
                 && !exclude_prefixes.iter().any(|&p| iface.name.starts_with(p))
         })
-        .find(|iface| {
-            preferred_interfaces.contains(&iface.name.as_str()) || true
-        })
+        .find(|iface| preferred_interfaces.contains(&iface.name.as_str()) || true)
         .and_then(|iface| {
             let mac = iface.mac.unwrap(); // `MacAddr`
             Some([mac.0, mac.1, mac.2, mac.3, mac.4, mac.5]) // Converti in [u8; 6]
@@ -317,8 +354,10 @@ fn get_primary_interface() -> Option<NetworkInterface> {
         .into_iter()
         .filter(|iface| {
             !iface.ips.is_empty()
-            && !iface.is_loopback()
-            && preferred_interfaces.iter().any(|p| iface.name.starts_with(p))
+                && !iface.is_loopback()
+                && preferred_interfaces
+                    .iter()
+                    .any(|p| iface.name.starts_with(p))
         })
         .next()
 }
