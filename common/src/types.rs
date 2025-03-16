@@ -54,7 +54,6 @@ pub struct NetworkPayload {
     pub src_port: u16,
     pub dest_ip: String,
     pub dest_port: u16,
-    pub process_pid: i32,
 }
 
 
