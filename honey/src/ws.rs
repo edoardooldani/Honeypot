@@ -1,8 +1,10 @@
 use tokio_tungstenite::{tungstenite::protocol::Message, MaybeTlsStream};
 use futures_util::{pin_mut, future, StreamExt};
+use tracing::{error, info};
 use std::sync::{Arc, Mutex};
 use common::tls::generate_client_session_id;
-use crate::network_scanner::scan_local_network;
+use crate::listeners::datalink::scan_datalink;
+use crate::virtual_net::graph::NetworkGraph;
 
 
 pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>){
@@ -19,9 +21,16 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
 
     let (stdin_tx, stdin_rx) = futures_channel::mpsc::unbounded();
     let stdin_tx_pong = stdin_tx.clone();
-    let stdin_tx_network = stdin_tx.clone();
+    //let stdin_tx_scanner = stdin_tx.clone();
+    let stdin_tx_graph = stdin_tx.clone();
 
-    tokio::spawn(scan_local_network(stdin_tx_network, Arc::clone(&session_id)));
+    let graph = Arc::new(Mutex::new(NetworkGraph::new()));
+    //let graph_clone_scanner = Arc::clone(&graph);
+    let graph_clone = Arc::clone(&graph);
+
+    //tokio::spawn(scan_network(stdin_tx_scanner, Arc::clone(&session_id), graph_clone_scanner));
+    tokio::spawn(scan_datalink(stdin_tx_graph, Arc::clone(&session_id), graph_clone));
+
 
     let (mut write, read) = ws_stream.split();
     let stdin_to_ws = stdin_rx.map(Ok).forward(&mut write);
@@ -29,14 +38,14 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
     let ws_to_stdout = read.for_each(|message| async {
         match message {
             Ok(msg) => match msg {
-                Message::Binary(_bin) => println!("📥 Received Binary Data"),
+                Message::Binary(_bin) => info!("📥 Received Binary Data"),
                 Message::Ping(ping_data) => {
-                    println!("📡 Received PING, sending PONG...");
+                    info!("📡 Received PING, sending PONG...");
                     let _ = stdin_tx_pong.unbounded_send(Message::Pong(ping_data));
                 }
-                _ => eprintln!("⚠️ Unsupported Message Type"),
+                _ => error!("⚠️ Unsupported Message Type"),
             },
-            Err(e) => eprintln!("❌ Error in message: {}", e),
+            Err(e) => error!("❌ Error in message: {}", e),
         }
     });
     pin_mut!(stdin_to_ws, ws_to_stdout);

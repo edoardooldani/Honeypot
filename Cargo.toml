@@ -3,5 +3,5 @@ members = [
     "Backend",
     "Device",
     "common",
-    "Virtual"
+    "honey"
     ]

@@ -1,5 +1,5 @@
 use tracing_subscriber::EnvFilter;
-use Virtual::conn::start_websocket;
+use honey::conn::connect_websocket;
 
 #[tokio::main]
 async fn main() {
@@ -10,6 +10,6 @@ async fn main() {
     .with_line_number(true)
     .init();
 
-    start_websocket().await;
+    connect_websocket().await;
 }
 

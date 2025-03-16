@@ -6,7 +6,7 @@ use common::tls::rustls_client_config;
 use crate::ws::handle_websocket;
 
 
-pub async fn start_websocket() {
+pub async fn connect_websocket() {
     let url = env::args()
         .nth(1)
         .unwrap_or_else(|| panic!("this program requires at least one argument"));
