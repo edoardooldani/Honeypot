@@ -1,5 +1,7 @@
 [workspace]
+<<<<<<< Updated upstream
 members = ["Backend", "Device", "common", "wss_client"]
+=======
 members = [
     "Backend",
     "Device",
