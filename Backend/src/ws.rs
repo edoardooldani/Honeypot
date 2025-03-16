@@ -9,6 +9,7 @@ use futures_util::SinkExt;
 use bincode;
 use common::types::{DeviceType, Packet, PayloadType, PriorityLevel};
 use rdkafka::producer::FutureRecord;
+//use rdkafka::producer::FutureRecord;
 use tracing::{info, warn, error};
 use tokio::time::{self, Duration};
 use crate::{app_state::WssAppState, queries::{process_queries::add_process_data, network_queries::add_network_data}};
@@ -103,7 +104,7 @@ async fn process_packet(wss_state: &Arc<WssAppState>, device_name: &str, bin: &[
             add_process_data(&wss_state.influx_client, device_name, process_payload).await?;
         }
     }
-
+    
     let topic = "honeypot_packets";
     let message = serde_json::to_string(&packet).map_err(|e| format!("Serialization error: {}", e))?;
     
@@ -120,6 +121,9 @@ async fn process_packet(wss_state: &Arc<WssAppState>, device_name: &str, bin: &[
         Ok(delivery) => info!("📩 Packet sent to Kafka: {:?}", delivery),
         Err((e, _)) => error!("❌ Failed to send packet to Kafka: {:?}", e),
     }    
+
+    
+
     info!("📩 Valid message from `{}`: ID={} type={:?}", device_name, packet.header.id, packet.header.data_type);
 
     Ok(())
@@ -131,3 +135,4 @@ async fn close_socket_with_error(socket: &mut WebSocket, device_name: &str, reas
     let _ = socket.close().await;
     warn!("❌ Connessione chiusa: `{}`", device_name);
 }
+

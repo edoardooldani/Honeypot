@@ -1,53 +1,42 @@
-import numpy as np # type: ignore
-from tensorflow.keras.models import load_model # type: ignore
-from tensorflow.keras.layers import Dense # type: ignore
+
+import numpy as np
+from tensorflow.keras.models import load_model
+
+# ✅ Carichiamo i modelli
+network_encoder = load_model("network_encoder.keras")
+process_encoder = load_model("process_encoder.keras")
+hybrid_model = load_model("hybrid_model.keras")
 
 
+# 🔹 Ottieni la forma attesa dagli encoder
+EXPECTED_NETWORK_SHAPE = network_encoder.input_shape[1]  # Deve essere 5
+EXPECTED_PROCESS_SHAPE = process_encoder.input_shape[1]  # Deve essere 16
 
-def detect_anomalies():
-    # **📌 1️⃣ Carichiamo i modelli**
-    network_encoder = load_model("network_encoder.keras")
-    process_encoder = load_model("process_encoder.keras")
-    hybrid_model = load_model("hybrid_model.keras")
+print(EXPECTED_NETWORK_SHAPE)
+print(EXPECTED_PROCESS_SHAPE)
 
-    # **📌 2️⃣ Carichiamo i parametri di normalizzazione**
-    scaler_net = np.load("scaler_net.npy")
-    scaler_proc = np.load("scaler_proc.npy")
+def analyze_anomalies(data, data_type):
+    """Determina se un dato è un'anomalia basandosi sul modello ibrido."""
+    
+    if data_type == "Network":
+        latent_network = network_encoder.predict(data)
+        latent_process = np.zeros((1, EXPECTED_PROCESS_SHAPE))  # Placeholder per process
+    elif data_type == "Process":
+        latent_process = process_encoder.predict(data)
+        latent_network = np.zeros((1, EXPECTED_NETWORK_SHAPE))  # Placeholder per network
+    else:
+        print("⚠️ Tipo di dato sconosciuto.")
+        return
 
-    # **📌 3️⃣ Carichiamo i nuovi dati reali da analizzare (da InfluxDB o da file)**
-    # ⚠️ Qui dovresti sostituire i dati casuali con dati reali estratti dal database!
-    network_data = np.random.rand(10, len(scaler_net))  # 10 nuove righe, colonne uguali a scaler_net
-    process_data = np.random.rand(10, len(scaler_proc)) # 10 nuove righe, colonne uguali a scaler_proc
+    # 🔥 Controlliamo e adattiamo le dimensioni
+    if latent_network.shape[1] != EXPECTED_NETWORK_SHAPE:
+        print(f"⚠️ Dimensione errata per Network: atteso {EXPECTED_NETWORK_SHAPE}, trovato {latent_network.shape[1]}")
+        latent_network = latent_network[:, :EXPECTED_NETWORK_SHAPE]  # 🔥 Tronca o adatta
 
-    # **📌 4️⃣ Normalizziamo i dati con gli stessi parametri usati per l'addestramento**
-    network_data /= scaler_net
-    process_data /= scaler_proc
+    if latent_process.shape[1] != EXPECTED_PROCESS_SHAPE:
+        print(f"⚠️ Dimensione errata per Process: atteso {EXPECTED_PROCESS_SHAPE}, trovato {latent_process.shape[1]}")
+        latent_process = latent_process[:, :EXPECTED_PROCESS_SHAPE]  # 🔥 Tronca o adatta
 
-    # **📌 5️⃣ Otteniamo i codici latenti dai due autoencoder**
-    network_latent = network_encoder.predict(network_data)
-    process_latent = process_encoder.predict(process_data)
+    # 🔥 Ora il modello riceve sempre input con la forma giusta
+    return hybrid_model.predict([latent_network, latent_process])[0][0]
 
-    network_latent_adjusted = Dense(5, activation="relu")(network_latent)
-    process_latent_adjusted = Dense(14, activation="relu")(process_latent)
-
-    # Rileviamo le anomalie
-    anomaly_scores = hybrid_model.predict([network_latent_adjusted, process_latent_adjusted])
-
-
-    # **📌 7️⃣ Definiamo la soglia per le anomalie**
-    THRESHOLD = 0.7  # ⚠️ Può essere regolata in base ai falsi positivi/negativi
-
-    print("\n🔍 **Risultati dell'Analisi delle Anomalie:**\n")
-    for i, score in enumerate(anomaly_scores):
-        if score > THRESHOLD:
-            print(f"🚨 Anomalia rilevata nel campione {i}! Score: {score[0]:.4f}")
-        else:
-            print(f"✅ Campione {i} normale. Score: {score[0]:.4f}")
-
-    print("\n✅ Analisi completata!")
-
-
-
-
-if __name__ == "__main__":
-    detect_anomalies()

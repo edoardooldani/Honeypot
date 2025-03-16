@@ -54,7 +54,9 @@ pub struct NetworkPayload {
     pub src_port: u16,
     pub dest_ip: String,
     pub dest_port: u16,
+    pub process_pid: i32,
 }
+
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeviceType {
@@ -77,6 +79,7 @@ impl DeviceType {
         *self as u8
     }
 }
+
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 

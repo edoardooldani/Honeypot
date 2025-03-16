@@ -1,2 +1,8 @@
 [workspace]
 members = ["Backend", "Device", "common", "wss_client"]
+members = [
+    "Backend",
+    "Device",
+    "common",
+    "Virtual"]
+>>>>>>> Stashed changes

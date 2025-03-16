@@ -1,6 +1,6 @@
 import os
-from influxdb_client import InfluxDBClient, Point
-from influxdb_client.client.write_api import SYNCHRONOUS
+from influxdb_client import InfluxDBClient, Point  # type: ignore
+from influxdb_client.client.write_api import SYNCHRONOUS  # type: ignore
 
 # **CONFIGURAZIONE INFLUXDB**
 INFLUX_URL = os.getenv("INFLUX_URL", "http://localhost:8086")
@@ -38,7 +38,7 @@ class InfluxDB:
 
         except Exception as e:
             print(f"❌ Errore durante la query a InfluxDB: {e}")
-            return pd.DataFrame()  # Restituisce un DataFrame vuoto in caso di errore
+            return pd.DataFrame()  # Restituisce un DataFrame vuoto in caso di errore  
 
 
     def get_process_data(self, days=30):
@@ -64,6 +64,7 @@ class InfluxDB:
             else:
                 df = df_list
 
+            print(df)
             return df
 
         except Exception as e:

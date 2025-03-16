@@ -1,0 +1,5 @@
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-args=-undefined dynamic_lookup"]
+
+[build]
+rustflags = ["-C", "link-args=-undefined dynamic_lookup"]

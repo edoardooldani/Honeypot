@@ -1,5 +1,5 @@
 use crate::{
-    app_state::{AppState, WssAppState}, 
+    app_state::{ApiAppState, WssAppState}, 
     middleware::require_authentication::require_authentication, 
     routes::{devices::create_device::create_device, users::{create_user::create_user, login::login, logout::logout}}, 
     ws::ws_handler
@@ -27,17 +27,17 @@ use x509_parser::prelude::*;
 use common::tls::{rustls_server_config, generate_server_session_id};
 
 
-pub fn create_router_api(app_state: AppState) -> Router {
+pub fn create_router_api(api_state: ApiAppState) -> Router {
     Router::new()
         .route("/api/auth/logout", post(logout))
         .route("/api/device/register", post(create_device))
         .route_layer(middleware::from_fn_with_state(
-            app_state.clone(),
+            api_state.clone(),
             require_authentication,
         ))
         .route("/api/auth/signup", post(create_user))
         .route("/api/auth/signin", post(login))
-        .with_state(app_state)
+        .with_state(api_state)
 }
 
 

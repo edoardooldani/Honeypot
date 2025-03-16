@@ -4,14 +4,13 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint # type: ig
 import numpy as np # type: ignore
 
 
-# **2️⃣ Creiamo gli autoencoder**
-def build_autoencoder(input_dim):
+def build_autoencoder(input_dim, latent_dim):
     """Costruisce un autoencoder con batch normalization e dropout."""
     input_layer = Input(shape=(input_dim,))
     encoded = Dense(32, activation='relu')(input_layer)
     encoded = BatchNormalization()(encoded)
     encoded = Dense(16, activation='relu')(encoded)
-    encoded = Dense(8, activation='relu')(encoded)
+    encoded = Dense(latent_dim, activation='relu')(encoded)  # 🔹 Definiamo il numero di feature finali
 
     decoded = Dense(16, activation='relu')(encoded)
     decoded = Dense(32, activation='relu')(decoded)
@@ -23,8 +22,6 @@ def build_autoencoder(input_dim):
     return autoencoder, encoder
 
 
-
-print("✅ Modelli addestrati e salvati!")
 
 def train_model():
 
@@ -43,8 +40,12 @@ def train_model():
     N_FEATURES_NETWORK = network_data.shape[1]
     N_FEATURES_PROCESS = process_data.shape[1]
 
-    network_autoencoder, network_encoder = build_autoencoder(N_FEATURES_NETWORK)
-    process_autoencoder, process_encoder = build_autoencoder(N_FEATURES_PROCESS)
+    N_FEATURES_NETWORK = network_data.shape[1]
+    N_FEATURES_PROCESS = process_data.shape[1]
+
+    # 🔹 Creiamo gli autoencoder con il numero corretto di feature
+    network_autoencoder, network_encoder = build_autoencoder(N_FEATURES_NETWORK, 5)
+    process_autoencoder, process_encoder = build_autoencoder(N_FEATURES_PROCESS, 16)
 
     # **🔹 Compiliamo i modelli**
     network_autoencoder.compile(optimizer='adam', loss='mse')
