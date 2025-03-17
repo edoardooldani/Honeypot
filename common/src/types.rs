@@ -14,7 +14,6 @@ pub struct Header {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Packet {
     pub header: Header,
-
     pub payload: PayloadType,
 }
 
@@ -23,6 +22,7 @@ pub struct Packet {
 pub enum PayloadType {
     Process(ProcessPayload),
     Network(NetworkPayload),
+    ArpAlert(ArpAlertPayload),
 }
 
 
@@ -56,6 +56,11 @@ pub struct NetworkPayload {
     pub dest_port: u16,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ArpAlertPayload {
+    pub mac_address: [u8; 6],
+    pub ip_address: String,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeviceType {
@@ -85,6 +90,7 @@ impl DeviceType {
 pub enum DataType {
     Network = 1,
     Process = 2,
+    ArpAlert = 3
 }
 
 impl DataType {
@@ -92,6 +98,7 @@ impl DataType {
         match value {
             1 => Some(DataType::Network),
             2 => Some(DataType::Process),
+            3 => Some(DataType::ArpAlert),
             _ => None, // Valore non valido
         }
     }

@@ -2,7 +2,7 @@ use petgraph::graph::{Graph, NodeIndex};
 use std::collections::HashMap;
 use rand::Rng;
 
-use crate::listeners::network::find_ip_by_mac;
+use crate::listeners::sender::find_ip_by_mac;
 
 
 #[derive(Debug, Clone)]
@@ -18,7 +18,7 @@ impl Connection {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NetworkNode {
     pub mac_address: String,
     pub ip_address: Option<String>,
@@ -138,6 +138,7 @@ impl NetworkGraph {
     
         router
     }
+
 
     pub fn print_graph(&self) {
         for node_index in self.graph.node_indices() {

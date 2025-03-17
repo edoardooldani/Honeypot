@@ -1,7 +1,11 @@
-use pnet::datalink::{self, Channel, NetworkInterface};
+use pnet::datalink::{self, Channel, DataLinkSender, NetworkInterface};
 use pnet::packet::arp::{ArpOperations, ArpPacket, MutableArpPacket};
 use pnet::packet::ethernet::{EthernetPacket, MutableEthernetPacket, EtherTypes};
+use pnet::packet::ip::IpNextHeaderProtocols;
+use pnet::packet::ipv4::MutableIpv4Packet;
+use pnet::packet::tcp::{MutableTcpPacket, TcpFlags};
 use pnet::packet::Packet;
+use pnet::util::MacAddr;
 use std::net::Ipv4Addr;
 use std::time::Duration;
 use std::thread;
@@ -101,6 +105,75 @@ fn send_arp_request(tx: &mut dyn datalink::DataLinkSender, my_mac: pnet::util::M
     arp_packet.set_target_proto_addr(target_ip);
 
     ethernet_packet.set_payload(&arp_buffer);
+
+    tx.send_to(ethernet_packet.packet(), None).unwrap().unwrap();
+}
+
+
+pub fn send_arp_reply(tx: &mut dyn DataLinkSender, my_mac: pnet::util::MacAddr, my_ip: Ipv4Addr, target_mac: pnet::util::MacAddr, target_ip: Ipv4Addr) {
+
+    let mut ethernet_buffer = [0u8; 42];
+    let mut ethernet_packet = MutableEthernetPacket::new(&mut ethernet_buffer).unwrap();
+    ethernet_packet.set_destination(target_mac);
+    ethernet_packet.set_source(my_mac);
+    ethernet_packet.set_ethertype(EtherTypes::Arp);
+
+    let mut arp_buffer = [0u8; 28];
+    let mut arp_packet = MutableArpPacket::new(&mut arp_buffer).unwrap();
+    arp_packet.set_hardware_type(pnet::packet::arp::ArpHardwareTypes::Ethernet);
+    arp_packet.set_protocol_type(EtherTypes::Ipv4);
+    arp_packet.set_hw_addr_len(6);
+    arp_packet.set_proto_addr_len(4);
+    arp_packet.set_operation(ArpOperations::Reply);
+    arp_packet.set_sender_hw_addr(my_mac);
+    arp_packet.set_sender_proto_addr(my_ip);
+    arp_packet.set_target_hw_addr(target_mac);
+    arp_packet.set_target_proto_addr(target_ip);
+
+    ethernet_packet.set_payload(&arp_buffer);
+
+    println!("📤 Inviando ARP Reply: {} → {}", my_ip, target_ip);
+    tx.send_to(ethernet_packet.packet(), None).unwrap().unwrap();
+}
+
+
+pub fn send_tcp_syn_ack(
+    tx: &mut dyn DataLinkSender,
+    virtual_mac: MacAddr,
+    virtual_ip: Ipv4Addr,
+    sender_mac: MacAddr,
+    sender_ip: Ipv4Addr,
+    src_port: u16,
+    dst_port: u16
+) {
+    let mut ethernet_buffer = [0u8; 66]; // Ethernet (14) + IPv4 (20) + TCP (32)
+    let mut ethernet_packet = MutableEthernetPacket::new(&mut ethernet_buffer).unwrap();
+    ethernet_packet.set_destination(sender_mac);
+    ethernet_packet.set_source(virtual_mac);
+    ethernet_packet.set_ethertype(EtherTypes::Ipv4);
+
+    let mut ipv4_buffer = [0u8; 20];
+    let mut ipv4_packet = MutableIpv4Packet::new(&mut ipv4_buffer).unwrap();
+    ipv4_packet.set_version(4);
+    ipv4_packet.set_header_length(5);
+    ipv4_packet.set_total_length(40);
+    ipv4_packet.set_next_level_protocol(IpNextHeaderProtocols::Tcp);
+    ipv4_packet.set_source(virtual_ip);
+    ipv4_packet.set_destination(sender_ip);
+    ipv4_packet.set_ttl(64);
+
+    let mut tcp_buffer = [0u8; 32];
+    let mut tcp_packet = MutableTcpPacket::new(&mut tcp_buffer).unwrap();
+    tcp_packet.set_source(dst_port); // 🔹 Rispondiamo dallo stesso servizio
+    tcp_packet.set_destination(src_port);
+    tcp_packet.set_sequence(0); // 🔹 Genera un numero random se vuoi
+    tcp_packet.set_acknowledgement(1); // 🔹 Risponde con ACK=1
+    tcp_packet.set_flags(TcpFlags::SYN | TcpFlags::ACK);
+    tcp_packet.set_window(8192);
+    tcp_packet.set_data_offset(5);
+
+    ethernet_packet.set_payload(ipv4_packet.packet());
+    ipv4_packet.set_payload(tcp_packet.packet());
 
     tx.send_to(ethernet_packet.packet(), None).unwrap().unwrap();
 }

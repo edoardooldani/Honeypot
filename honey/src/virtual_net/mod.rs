@@ -1,3 +1,3 @@
 pub mod graph;
-pub mod node;
+pub mod virtual_node;
 pub mod arp_tracker;

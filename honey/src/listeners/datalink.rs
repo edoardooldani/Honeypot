@@ -2,24 +2,25 @@ use pnet::datalink::{self, Channel};
 use pnet::packet::ethernet::EthernetPacket;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use std::sync::{Arc, Mutex};
-use crate::listeners::network::get_primary_interface;
+use crate::listeners::sender::get_primary_interface;
 use crate::virtual_net::arp_tracker::{detect_arp_scanner, ArpTracker};
-use crate::virtual_net::{graph::{NetworkGraph, NodeType}, node::handle_virtual_packet};
+use crate::virtual_net::virtual_node::{handle_virtual_packet, handle_virtual_responses};
+use crate::virtual_net::graph::{NetworkGraph, NodeType};
 
 
 pub async fn scan_datalink(
-    _tx: futures_channel::mpsc::UnboundedSender<Message>, 
-    _session_id: Arc<Mutex<u32>>, 
+    tx: futures_channel::mpsc::UnboundedSender<Message>, 
+    session_id: Arc<Mutex<u32>>, 
     graph: Arc<Mutex<NetworkGraph>>) {
 
     let interface = get_primary_interface().expect("Nessuna interfaccia valida trovata");
 
-    let (_tx, mut rx) = match datalink::channel(&interface, Default::default()) {
-        Ok(Channel::Ethernet(_, rx)) => ((), rx),
+    let (mut tx_datalink, mut rx) = match datalink::channel(&interface, Default::default()) {
+        Ok(Channel::Ethernet(tx_datalink, rx)) => (tx_datalink, rx),
         Ok(_) => panic!("Tipo di canale non supportato"),
         Err(e) => panic!("Errore nell'apertura del canale: {}", e),
     };
-
+    
     let arp_tracker = Arc::new(Mutex::new(ArpTracker::new()));
 
     println!("📡 In ascolto del traffico di rete...");
@@ -46,17 +47,36 @@ pub async fn scan_datalink(
                     
                     graph.add_connection(&src_mac, &dest_mac, &protocol, bytes);
 
-                    if let Some(dest_node) = graph.nodes.get(&dest_mac) {
-                        let node = &graph.graph[*dest_node];
 
-                        if node.node_type == NodeType::Virtual || dest_mac == "ff:ff:ff:ff:ff:ff" {
-                            let router = graph.find_router();
-                            handle_virtual_packet(&dest_mac, &src_mac, bytes, &protocol, router);
-                            
+                    if let Some(dest_node) = graph.nodes.get(&dest_mac) {
+                        let virtual_node = &graph.graph[*dest_node];
+
+                        if dest_mac == "ff:ff:ff:ff:ff:ff" {
+                            if let Some(router_mac) = graph.find_router().map(|router| router.mac_address.clone()) {
+
+                                if src_mac != router_mac {
+                                    handle_virtual_responses(&graph, &mut *tx_datalink, &ethernet_packet, &src_mac);
+                                }
+                            }                             
+                        } 
+                        else if virtual_node.node_type == NodeType::Virtual{
+                            handle_virtual_packet(
+                                &ethernet_packet, 
+                    &virtual_node.mac_address, 
+                    &virtual_node.ip_address.clone().expect("Ip virtual node must be known"), 
+                    &src_mac, &mut *tx_datalink
+                            );
                         }
+                        
                     }
                     
-                    detect_arp_scanner(ethernet_packet, Arc::clone(&arp_tracker), &mut graph, local_mac.clone());
+                    detect_arp_scanner(
+                        tx.clone(), 
+                        session_id.clone(),
+                        &ethernet_packet, 
+                        Arc::clone(&arp_tracker), 
+                        &mut graph, 
+                        local_mac.clone());
                     
                 }
             }
@@ -86,3 +106,4 @@ pub fn get_local_mac() -> Option<String> {
         .find(|iface| iface.mac.is_some())
         .map(|iface| format!("{}", iface.mac.unwrap()))
 }
+
