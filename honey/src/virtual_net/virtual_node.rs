@@ -2,35 +2,6 @@ use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, e
 use crate::listeners::sender::{send_arp_reply, send_tcp_syn_ack};
 use std::{net::Ipv4Addr, str::FromStr};
 
-use super::graph::{NetworkGraph, NetworkNode, NodeType};
-use pnet::datalink;
-
-
-pub fn handle_virtual_responses(
-    graph: &NetworkGraph,
-    tx_datalink: &mut dyn datalink::DataLinkSender,
-    ethernet_packet: &EthernetPacket,
-    src_mac: &str,
-) {
-    // 🔹 Trova tutti i nodi virtuali
-    let virtual_nodes: Vec<&NetworkNode> = graph
-        .graph
-        .node_weights()
-        .filter(|node| node.node_type == NodeType::Virtual)
-        .collect();
-
-    for virtual_node in virtual_nodes {
-        println!("\nEthernet: {:?}", ethernet_packet);
-        println!("Virtual node: {:?}", virtual_node);
-        handle_virtual_packet(
-            &ethernet_packet,
-            &virtual_node.mac_address,
-            &virtual_node.ip_address.clone().expect("Ip virtual node must be known"),
-            &src_mac,
-            &mut *tx_datalink
-        );
-    }
-}
 
 pub fn handle_virtual_packet(
     ethernet_packet: &EthernetPacket,
@@ -49,7 +20,7 @@ pub fn handle_virtual_packet(
 
         EtherTypes::Arp => {
             if let Some(arp_packet) = ArpPacket::new(ethernet_packet.payload()) {
-                if arp_packet.get_operation() == ArpOperations::Request {
+                if arp_packet.get_operation() == ArpOperations::Request && arp_packet.get_target_proto_addr() == virtual_ip {
                     let sender_ip = arp_packet.get_sender_proto_addr();
                     send_arp_reply(tx, virtual_mac, virtual_ip, sender_mac, sender_ip);
                 }

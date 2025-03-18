@@ -58,8 +58,9 @@ pub struct NetworkPayload {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ArpAlertPayload {
-    pub mac_address: [u8; 6],
+    pub mac_addresses: Vec<[u8; 6]>,
     pub ip_address: String,
+    pub arp_attack_type: u8,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -123,6 +124,29 @@ impl PriorityLevel {
             1 => Some(PriorityLevel::Medium),
             2 => Some(PriorityLevel::High),
             3 => Some(PriorityLevel::Critical),
+            _ => None,
+        }
+    }
+
+    pub fn to_u8(&self) -> u8 {
+        *self as u8
+    }
+}
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArpAttackType {
+    ArpScanning = 0,
+    ArpPoisoning = 1,
+    ArpFlooding = 2,
+}
+
+impl ArpAttackType {
+    pub fn from_u8(value: u8) -> Option<Self> {
+        match value {
+            0 => Some(ArpAttackType::ArpScanning),
+            1 => Some(ArpAttackType::ArpPoisoning),
+            2 => Some(ArpAttackType::ArpFlooding),
             _ => None,
         }
     }

@@ -12,7 +12,7 @@ use rdkafka::producer::FutureRecord;
 //use rdkafka::producer::FutureRecord;
 use tracing::{info, warn, error};
 use tokio::time::{self, Duration};
-use crate::{app_state::WssAppState, queries::{process_queries::add_process_data, network_queries::add_network_data}};
+use crate::{app_state::WssAppState, queries::{arp_alert_queries::add_arp_alert_data, network_queries::add_network_data, process_queries::add_process_data}};
 
 
 pub async fn ws_handler(
@@ -102,6 +102,9 @@ async fn process_packet(wss_state: &Arc<WssAppState>, device_name: &str, bin: &[
         }
         PayloadType::Process(process_payload) => {
             add_process_data(&wss_state.influx_client, device_name, process_payload).await?;
+        }
+        PayloadType::ArpAlert(arp_alert_payload) => {
+            add_arp_alert_data(&wss_state.influx_client, device_name, arp_alert_payload).await?;
         }
     }
     

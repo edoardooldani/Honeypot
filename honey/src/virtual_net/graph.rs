@@ -1,5 +1,6 @@
 use petgraph::graph::{Graph, NodeIndex};
-use std::collections::HashMap;
+use pnet::util::MacAddr;
+use std::{collections::HashMap, net::Ipv4Addr};
 use rand::Rng;
 
 use crate::listeners::sender::find_ip_by_mac;
@@ -51,7 +52,7 @@ impl NetworkGraph {
         if let Some(&existing_node) = self.nodes.get(&mac_address) {
             return existing_node;
         }
-
+        
         let ip_addr = match ip_address {
             Some(ip) => Some(ip),
             None => find_ip_by_mac(&mac_address),
@@ -131,12 +132,15 @@ impl NetworkGraph {
         }
     }
     
-    pub fn find_router(&self) -> Option<&NetworkNode> {
-        let router = self.graph.node_weights().find(|node| {
-            node.node_type == NodeType::Router
-        });
-    
-        router
+    pub fn is_router(&self, mac: MacAddr) -> bool {
+        self.nodes.values().any(|&idx| {
+            let node = &self.graph[idx];
+            node.node_type == NodeType::Router && node.mac_address == mac.to_string()
+        })
+    }
+
+    pub fn find_virtual_node_by_ip(&self, ip: Ipv4Addr) -> Option<&NetworkNode> {
+        self.graph.node_weights().find(|node| node.node_type == NodeType::Virtual && node.ip_address == Some(ip.to_string()))
     }
 
 
