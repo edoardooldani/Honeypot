@@ -88,7 +88,7 @@ async fn ensure_buckets_exists(client: &InfluxClient) -> Result<(), String> {
     match buckets_response {
         Ok(buckets) => {
             let bucket_names: Vec<String> = buckets.buckets.iter().map(|b| b.name.clone()).collect();
-            let required_buckets = vec!["network", "process"];
+            let required_buckets = vec!["network", "process", "arp", "tcp"];
 
             let missing_buckets: Vec<&str> = required_buckets
                 .into_iter()

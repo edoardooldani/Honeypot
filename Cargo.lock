@@ -1148,6 +1148,7 @@ dependencies = [
  "common",
  "futures-channel",
  "futures-util",
+ "lazy_static",
  "libproc",
  "once_cell",
  "petgraph",

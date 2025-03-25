@@ -1,15 +1,23 @@
-use pnet::datalink::{self, Channel, DataLinkSender, NetworkInterface};
+use pnet::datalink::{self, Channel, DataLinkSender};
 use pnet::packet::arp::{ArpOperations, ArpPacket, MutableArpPacket};
 use pnet::packet::ethernet::{EthernetPacket, MutableEthernetPacket, EtherTypes};
+use pnet::packet::icmp::echo_reply::MutableEchoReplyPacket;
+use pnet::packet::icmp::echo_request::EchoRequestPacket;
+use pnet::packet::icmp::{checksum, IcmpPacket, IcmpTypes};
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::MutableIpv4Packet;
 use pnet::packet::tcp::{MutableTcpPacket, TcpFlags};
 use pnet::packet::Packet;
 use pnet::util::MacAddr;
+use std::collections::HashSet;
 use std::net::Ipv4Addr;
 use std::time::Duration;
 use std::thread;
 use std::sync::{Arc, Mutex};
+use lazy_static::lazy_static;
+
+
+use crate::utilities::network::get_primary_interface;
 
 
 
@@ -73,17 +81,6 @@ pub fn find_ip_by_mac(target_mac: &str) -> Option<String> {
     None
 }
 
-pub fn get_primary_interface() -> Option<NetworkInterface> {
-    let interfaces = datalink::interfaces();
-
-    interfaces
-        .into_iter()
-        .filter(|iface| !iface.is_loopback() && !iface.ips.is_empty())
-        .find(|iface| iface.mac.is_some())
-}
-
-
-
 
 fn send_arp_request(tx: &mut dyn datalink::DataLinkSender, my_mac: pnet::util::MacAddr, my_ip: Ipv4Addr, target_ip: Ipv4Addr) {
     let mut ethernet_buffer = [0u8; 42];
@@ -109,8 +106,20 @@ fn send_arp_request(tx: &mut dyn datalink::DataLinkSender, my_mac: pnet::util::M
     tx.send_to(ethernet_packet.packet(), None).unwrap().unwrap();
 }
 
+lazy_static! {
+    static ref SENT_ARP_REPLIES: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
+}
 
 pub fn send_arp_reply(tx: &mut dyn DataLinkSender, my_mac: pnet::util::MacAddr, my_ip: Ipv4Addr, target_mac: pnet::util::MacAddr, target_ip: Ipv4Addr) {
+    let key = format!("{}->{}", my_ip, target_ip);
+
+    // Evita di inviare più risposte per lo stesso IP
+    let mut sent_replies = SENT_ARP_REPLIES.lock().unwrap();
+    if sent_replies.contains(&key) {
+        println!("⚠️ ARP Reply già inviata per {}", key);
+        return;
+    }
+    sent_replies.insert(key);
 
     let mut ethernet_buffer = [0u8; 42];
     let mut ethernet_packet = MutableEthernetPacket::new(&mut ethernet_buffer).unwrap();
@@ -132,7 +141,7 @@ pub fn send_arp_reply(tx: &mut dyn DataLinkSender, my_mac: pnet::util::MacAddr, 
 
     ethernet_packet.set_payload(&arp_buffer);
 
-    println!("📤 Inviando ARP Reply: {} → {}", my_ip, target_ip);
+    println!("📤 Inviando ARP Reply UNA SOLA VOLTA: {} → {}", my_ip, target_ip);
     tx.send_to(ethernet_packet.packet(), None).unwrap().unwrap();
 }
 
@@ -176,4 +185,51 @@ pub fn send_tcp_syn_ack(
     ipv4_packet.set_payload(tcp_packet.packet());
 
     tx.send_to(ethernet_packet.packet(), None).unwrap().unwrap();
+}
+
+
+pub fn send_icmp_reply(
+    tx: &mut dyn DataLinkSender,
+    ethernet_packet: &EthernetPacket,
+    ipv4_packet: &pnet::packet::ipv4::Ipv4Packet,
+    virtual_mac: MacAddr,
+    virtual_ip: Ipv4Addr,
+    sender_mac: MacAddr,
+    echo_request: &EchoRequestPacket
+) {
+
+    let mut icmp_reply_buffer = vec![0u8; echo_request.packet().len()];
+    let mut icmp_reply = MutableEchoReplyPacket::new(&mut icmp_reply_buffer).unwrap();
+
+    icmp_reply.set_icmp_type(IcmpTypes::EchoReply);
+    icmp_reply.set_identifier(echo_request.get_identifier());
+    icmp_reply.set_sequence_number(echo_request.get_sequence_number());
+    icmp_reply.set_payload(echo_request.payload());
+
+    let icmp_packet = IcmpPacket::new(icmp_reply.packet()).unwrap();
+    let checksum_value = checksum(&icmp_packet);
+    icmp_reply.set_checksum(checksum_value);
+
+    let mut ipv4_buffer = vec![0u8; 20 + icmp_reply.packet().len()];
+    let mut ipv4_reply = MutableIpv4Packet::new(&mut ipv4_buffer).unwrap();
+    ipv4_reply.set_version(4);
+    ipv4_reply.set_header_length(5);
+    ipv4_reply.set_total_length((20 + icmp_reply.packet().len()) as u16);
+    ipv4_reply.set_ttl(64);
+    ipv4_reply.set_next_level_protocol(pnet::packet::ip::IpNextHeaderProtocols::Icmp);
+    ipv4_reply.set_source(virtual_ip);
+    ipv4_reply.set_destination(ipv4_packet.get_source());
+    ipv4_reply.set_payload(icmp_reply.packet());
+
+    // Buffer per il pacchetto Ethernet
+    let mut ethernet_buffer = vec![0u8; 14 + ipv4_reply.packet().len()];
+    let mut ethernet_reply = MutableEthernetPacket::new(&mut ethernet_buffer).unwrap();
+    ethernet_reply.set_destination(ethernet_packet.get_source());
+    ethernet_reply.set_source(virtual_mac);
+    ethernet_reply.set_ethertype(EtherTypes::Ipv4);
+    ethernet_reply.set_payload(ipv4_reply.packet());
+
+    // Invia il pacchetto sulla rete
+    tx.send_to(&ethernet_buffer, None);
+
 }

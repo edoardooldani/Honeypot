@@ -3,7 +3,7 @@ use pnet::util::MacAddr;
 use std::{collections::HashMap, net::Ipv4Addr};
 use rand::Rng;
 
-use crate::listeners::sender::find_ip_by_mac;
+use crate::network::sender::find_ip_by_mac;
 
 
 #[derive(Debug, Clone)]
@@ -50,6 +50,11 @@ impl NetworkGraph {
 
     pub fn add_node(&mut self, mac_address: String, ip_address: Option<String>, node_type: NodeType) -> NodeIndex {
         if let Some(&existing_node) = self.nodes.get(&mac_address) {
+            // Se il nodo esiste, aggiorna solo se l'IP è assente
+            let node = &mut self.graph[existing_node];
+            if node.ip_address.is_none() && ip_address.is_some() {
+                node.ip_address = ip_address.clone();
+            }
             return existing_node;
         }
         
@@ -57,22 +62,23 @@ impl NetworkGraph {
             Some(ip) => Some(ip),
             None => find_ip_by_mac(&mac_address),
         };
-
+    
         let mut node = NetworkNode {
             mac_address: mac_address.clone(),
             ip_address: ip_addr.clone(),
             node_type,
         };
-
+    
+        // Identifica il router se ha un IP .254
         if let Some(ref ip) = ip_addr {
             if ip.ends_with(".254") {
                 node.node_type = NodeType::Router;
             }
         }
-
+    
         let node_index = self.graph.add_node(node);
         self.nodes.insert(mac_address, node_index);
-
+    
         self.add_virtual_node();
         node_index
     }
@@ -97,7 +103,7 @@ impl NetworkGraph {
 
     fn generate_virtual_ip(&self) -> String {
         let mut rng = rand::rng();
-        let mut last_octet = rng.random_range(30..100);
+        let mut last_octet = rng.random_range(100..130);
         let base_ip = "192.168.1".to_string();
 
         loop {
@@ -165,6 +171,27 @@ impl NetworkGraph {
             );
         }
     }
+
+    pub fn print_real_nodes(&self) {
+        println!("\n📌 **Report finale dei nodi reali nel grafo:**");
+        for (mac, &node_index) in &self.nodes {
+            let node = &self.graph[node_index];
+            if node.node_type == NodeType::Real {
+                println!("🟢 Nodo Reale: MAC={} | IP={:?}", node.mac_address, node.ip_address);
+            }
+        }
+    }
+
+    pub fn print_virtual_nodes(&self) {
+        println!("\n📌 **Report finale dei nodi VIRTUALI nel grafo:**");
+        for (mac, &node_index) in &self.nodes {
+            let node = &self.graph[node_index];
+            if node.node_type == NodeType::Virtual {
+                println!("⭕️ Nodo Virtuale: MAC={} | IP={:?}", node.mac_address, node.ip_address);
+            }
+        }
+    }
+
 }
 
 

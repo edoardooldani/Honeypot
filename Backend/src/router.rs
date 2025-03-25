@@ -54,7 +54,7 @@ pub async fn create_router_wss(wss_state: Arc<WssAppState>) {
     );
 
     let tls_acceptor = TlsAcceptor::from(rustls_config);
-    let bind = "[::1]:3001";
+    let bind = "0.0.0.0:3001";
     let tcp_listener = TcpListener::bind(bind).await.unwrap();
     info!(
         "HTTPS server api: https://localhost:3000 or websocket: wss://localhost:3001/ws"

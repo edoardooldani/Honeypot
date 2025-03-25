@@ -238,7 +238,7 @@ basicConstraints = CA:FALSE
 keyUsage = nonRepudiation, digitalSignature, keyEncipherment
 
 [ alt_names ]
-DNS.1 = localhost
+DNS.1 = 192.168.1.51
 
 [ v3_ca ]
 

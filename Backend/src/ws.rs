@@ -9,10 +9,9 @@ use futures_util::SinkExt;
 use bincode;
 use common::types::{DeviceType, Packet, PayloadType, PriorityLevel};
 use rdkafka::producer::FutureRecord;
-//use rdkafka::producer::FutureRecord;
 use tracing::{info, warn, error};
 use tokio::time::{self, Duration};
-use crate::{app_state::WssAppState, queries::{arp_alert_queries::add_arp_alert_data, network_queries::add_network_data, process_queries::add_process_data}};
+use crate::{app_state::WssAppState, queries::{arp_alert_queries::add_arp_alert_data, network_queries::add_network_data, process_queries::add_process_data, tcp_alert_queries::add_tcp_alert_data}};
 
 
 pub async fn ws_handler(
@@ -106,8 +105,11 @@ async fn process_packet(wss_state: &Arc<WssAppState>, device_name: &str, bin: &[
         PayloadType::ArpAlert(arp_alert_payload) => {
             add_arp_alert_data(&wss_state.influx_client, device_name, arp_alert_payload).await?;
         }
+        PayloadType::TcpAlert(tcp_alert_payload) => {
+            add_tcp_alert_data(&wss_state.influx_client, device_name, tcp_alert_payload).await?;
+        }
     }
-    
+    /* 
     let topic = "honeypot_packets";
     let message = serde_json::to_string(&packet).map_err(|e| format!("Serialization error: {}", e))?;
     
@@ -124,7 +126,7 @@ async fn process_packet(wss_state: &Arc<WssAppState>, device_name: &str, bin: &[
         Ok(delivery) => info!("📩 Packet sent to Kafka: {:?}", delivery),
         Err((e, _)) => error!("❌ Failed to send packet to Kafka: {:?}", e),
     }    
-
+    */
     
 
     info!("📩 Valid message from `{}`: ID={} type={:?}", device_name, packet.header.id, packet.header.data_type);

@@ -23,6 +23,7 @@ pub enum PayloadType {
     Process(ProcessPayload),
     Network(NetworkPayload),
     ArpAlert(ArpAlertPayload),
+    TcpAlert(TcpAlertPayload)
 }
 
 
@@ -63,6 +64,14 @@ pub struct ArpAlertPayload {
     pub arp_attack_type: u8,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TcpAlertPayload {
+    pub mac_address: [u8; 6],
+    pub ip_address: String,
+    pub dest_port: u16,
+    pub tcp_attack_type: u8,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeviceType {
     Honeypot = 1,
@@ -91,7 +100,8 @@ impl DeviceType {
 pub enum DataType {
     Network = 1,
     Process = 2,
-    ArpAlert = 3
+    ArpAlert = 3,
+    TcpAlert = 4,
 }
 
 impl DataType {
@@ -147,6 +157,24 @@ impl ArpAttackType {
             0 => Some(ArpAttackType::ArpScanning),
             1 => Some(ArpAttackType::ArpPoisoning),
             2 => Some(ArpAttackType::ArpFlooding),
+            _ => None,
+        }
+    }
+
+    pub fn to_u8(&self) -> u8 {
+        *self as u8
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TcpAttackType {
+    TcpSyn = 0,
+}
+
+impl TcpAttackType {
+    pub fn from_u8(value: u8) -> Option<Self> {
+        match value {
+            0 => Some(TcpAttackType::TcpSyn),
             _ => None,
         }
     }

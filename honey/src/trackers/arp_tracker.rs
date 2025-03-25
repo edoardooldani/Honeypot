@@ -10,7 +10,11 @@ use pnet::packet::ethernet::EthernetPacket;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::warn;
 
-use super::graph::{NetworkGraph, NodeType};
+use crate::utilities::network::mac_string_to_bytes;
+use crate::virtual_net::graph::{NetworkGraph, NodeType};
+
+
+pub type AlertTracker = Arc<Mutex<HashMap<String, Instant>>>;
 
 pub struct ArpRequestTracker {
     requests: HashMap<String, HashSet<String>>, // MAC -> IP richiesti
@@ -52,6 +56,7 @@ pub fn detect_arp_attacks(
     ethernet_packet: &EthernetPacket, 
     arp_req_tracker: Arc<Mutex<ArpRequestTracker>>, 
     arp_res_tracker: Arc<Mutex<ArpRepliesTracker>>, 
+    alert_tracker: AlertTracker,
     graph: &mut NetworkGraph, 
     self_mac: String){
     
@@ -70,16 +75,25 @@ pub fn detect_arp_attacks(
                     if node.node_type != NodeType::Router {
 
                         if node.mac_address != self_mac {
-                            warn!("⚠️ Attenzione: potenziale scansione Nmap da {}\n", src_mac);
-
-                            let arp_alert_payload = PayloadType::ArpAlert(ArpAlertPayload { 
-                                mac_addresses: vec![mac_string_to_bytes(&node.mac_address)], 
-                                ip_address: node.ip_address.clone().unwrap_or_else(|| "Unknown".to_string()),
-                                arp_attack_type: ArpAttackType::ArpScanning.to_u8()
-                            });
-                                                                                                        
-                            let mac_bytes = mac_string_to_bytes(&self_mac);
-                            send_arp_alert(tx, arp_alert_payload, session_id, DataType::ArpAlert.to_u8(), mac_bytes);
+                            let mut alerts = alert_tracker.lock().unwrap();
+                            let now = Instant::now();
+                            let key = node.mac_address.clone();
+                            let timeout = Duration::from_secs(300); // 5 minuti
+                        
+                            if alerts.get(&key).map_or(true, |&last| now.duration_since(last) > timeout) {
+                                warn!("⚠️ Attenzione: potenziale scansione Nmap da {}\n", src_mac);
+                        
+                                let arp_alert_payload = PayloadType::ArpAlert(ArpAlertPayload { 
+                                    mac_addresses: vec![mac_string_to_bytes(&node.mac_address)], 
+                                    ip_address: node.ip_address.clone().unwrap_or_else(|| "Unknown".to_string()),
+                                    arp_attack_type: ArpAttackType::ArpScanning.to_u8()
+                                });
+                        
+                                let mac_bytes = mac_string_to_bytes(&self_mac);
+                                send_arp_alert(tx.clone(), arp_alert_payload, session_id.clone(), DataType::ArpAlert.to_u8(), mac_bytes);
+                        
+                                alerts.insert(key, now);
+                            }
                         }
                             
                         
@@ -126,7 +140,7 @@ impl ArpRepliesTracker {
         let mac_bytes: Box<[u8; 6]> = Box::new(mac_string_to_bytes(&mac));
         mac_set.insert(mac_bytes);
 
-        if mac_set.len() > 1 {
+        if mac != self_mac && mac_set.len() > 1 {
             warn!("⚠️ Possible ARP poisoning: IP {:?} associated to more than one mac: {:?}", ip, mac_set);
 
             let arp_alert_payload = PayloadType::ArpAlert(ArpAlertPayload { 
@@ -151,8 +165,8 @@ impl ArpRepliesTracker {
 
         let count = self.arp_reply_count.entry(mac.clone()).or_insert(0);
         *count += 1;
-
-        if *count > 50 {
+        
+        if mac != self_mac && *count > 50 {
             warn!("🚨 Possible ARP flooding: Mac {} sent {} ARP Replies!", mac, count);
 
             let arp_alert_payload = PayloadType::ArpAlert(ArpAlertPayload { 
@@ -191,15 +205,3 @@ fn send_arp_alert(
     }
 }
 
-
-fn mac_string_to_bytes(mac: &str) -> [u8; 6] {
-    let bytes: Vec<u8> = mac
-        .split(':')
-        .filter_map(|s| u8::from_str_radix(s, 16).ok())
-        .collect();
-    if bytes.len() == 6 {
-        [bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5]]
-    } else {
-        [0, 0, 0, 0, 0, 0]
-    }
-}

@@ -1,0 +1,19 @@
+CREATE TABLE users (id INT AUTO_INCREMENT PRIMARY KEY, email VARCHAR(255) UNIQUE NOT NULL, password VARCHAR(255) NOT NULL, token TEXT, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
+
+CREATE TABLE devices (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, mac_address VARCHAR(255) UNIQUE NOT NULL, device_type INT NOT NULL, status INT NOT NULL, CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) ON UPDATE NO ACTION ON DELETE NO ACTION);
+
+
+
+
+INFLUX:
+
+influx config create --config-name default \
+  --host-url http://localhost:8086 \
+  --org "honeypot" \
+  --token "tuo_token_api" \
+  --active
+
+influx bucket create --name network --org "honeypot" --retention 120d
+influx bucket create --name process --org "honeypot" --retention 120d
+influx bucket create --name arp --org "honeypot" --retention 120d
+influx bucket create --name tcp --org "honeypot" --retention 120d

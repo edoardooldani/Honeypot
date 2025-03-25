@@ -3,7 +3,7 @@ use futures_util::{pin_mut, future, StreamExt};
 use tracing::{error, info};
 use std::sync::{Arc, Mutex};
 use common::tls::generate_client_session_id;
-use crate::listeners::datalink::scan_datalink;
+use crate::network::receiver::scan_datalink;
 use crate::virtual_net::graph::NetworkGraph;
 
 
@@ -43,7 +43,7 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
                     info!("📡 Received PING, sending PONG...");
                     let _ = stdin_tx_pong.unbounded_send(Message::Pong(ping_data));
                 }
-                _ => error!("⚠️ Unsupported Message Type"),
+                _ => error!("⚠️ Unsupported Message Type: {:?}", msg),
             },
             Err(e) => error!("❌ Error in message: {}", e),
         }
