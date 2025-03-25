@@ -97,6 +97,7 @@ impl NetworkGraph {
 
         let node_index = self.graph.add_node(node);
         self.nodes.insert(assigned_mac, node_index);
+        self.print_virtual_nodes();
         node_index
     }
 

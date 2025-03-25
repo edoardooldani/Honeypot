@@ -101,7 +101,6 @@ pub async fn scan_datalink(
                         let graph_node = &graph.graph[*dest_node];
 
                         if graph_node.node_type == NodeType::Virtual{
-                            println!("Virtual node");
                             handle_virtual_packet(
                                 &ethernet_packet, 
                     &graph_node.mac_address, 
