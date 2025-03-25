@@ -165,7 +165,6 @@ fn detect_attacks(
                         if icmp_packet.get_icmp_type() == IcmpTypes::EchoRequest {
                             if let Some(echo_request) = EchoRequestPacket::new(icmp_packet.packet()) {
                                 //send_icmp_reply(tx, ethernet_packet, &ipv4_packet, virtual_mac, virtual_ip, sender_mac, &echo_request);
-                                graph.print_virtual_nodes();
                                 println!("echo req: {:?}", echo_request);
                             }
                         }

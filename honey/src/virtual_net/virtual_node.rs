@@ -18,7 +18,6 @@ pub fn handle_broadcast(
             if arp_packet.get_operation() == ArpOperations::Request {
                 let requested_ip = arp_packet.get_target_proto_addr();
                 let sender_mac = ethernet_packet.get_source(); 
-                graph.print_virtual_nodes();
 
                 // Don't answer to router
                 if !graph.is_router(sender_mac) {  
