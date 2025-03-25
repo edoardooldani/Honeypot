@@ -156,7 +156,6 @@ fn detect_attacks(
         );
     }
     if ethernet_packet.get_ethertype() == EtherTypes::Ipv4 {
-        println!("Ether packet: {:?}", ethernet_packet);
 
         if let Some(ipv4_packet) = Ipv4Packet::new(ethernet_packet.payload()) {
             let next_protocol = ipv4_packet.get_next_level_protocol();
