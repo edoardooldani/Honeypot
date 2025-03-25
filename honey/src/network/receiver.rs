@@ -52,7 +52,7 @@ pub async fn scan_datalink(
         match rx.next() {
             Ok(packet) => {
                 if let Some(ethernet_packet) = EthernetPacket::new(packet) {
-
+                    println!("Packet: {:?}", ethernet_packet);
                     let src_mac = ethernet_packet.get_source().to_string();
                     
                     if src_mac == local_mac {
