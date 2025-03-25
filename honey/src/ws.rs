@@ -21,14 +21,11 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
 
     let (stdin_tx, stdin_rx) = futures_channel::mpsc::unbounded();
     let stdin_tx_pong = stdin_tx.clone();
-    //let stdin_tx_scanner = stdin_tx.clone();
     let stdin_tx_graph = stdin_tx.clone();
 
     let graph = Arc::new(Mutex::new(NetworkGraph::new()));
-    //let graph_clone_scanner = Arc::clone(&graph);
     let graph_clone = Arc::clone(&graph);
 
-    //tokio::spawn(scan_network(stdin_tx_scanner, Arc::clone(&session_id), graph_clone_scanner));
     tokio::spawn(scan_datalink(stdin_tx_graph, Arc::clone(&session_id), graph_clone));
 
 
@@ -40,7 +37,7 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
             Ok(msg) => match msg {
                 Message::Binary(_bin) => info!("📥 Received Binary Data"),
                 Message::Ping(ping_data) => {
-                    info!("📡 Received PING, sending PONG...");
+                    info!("📡 Received PING, sending PONG... {:?}", ping_data);
                     let _ = stdin_tx_pong.unbounded_send(Message::Pong(ping_data));
                 }
                 _ => error!("⚠️ Unsupported Message Type: {:?}", msg),
