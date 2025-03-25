@@ -63,11 +63,7 @@ pub async fn scan_datalink(
                     let bytes = packet.len() as u64;
             
                     let protocol = ethernet_packet.get_ethertype();
-                    
-                    if dest_mac == local_mac{
-                        println!("Packet: {:?}, protocol: {:?}", ethernet_packet, protocol);
 
-                    }
                     let mut src_ip: Option<String> = None;
                     let mut dest_ip: Option<String> = None;
 
@@ -148,6 +144,7 @@ fn detect_attacks(
     tcp_syn_tracker: Arc<Mutex<TcpSynDetector>>,
 ) {
     if ethernet_packet.get_ethertype() == EtherTypes::Arp {
+        println!("Ether packet: {:?}", ethernet_packet);
         detect_arp_attacks(
             tx.clone(), 
             session_id.clone(),
