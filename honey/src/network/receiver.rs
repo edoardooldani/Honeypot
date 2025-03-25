@@ -52,7 +52,6 @@ pub async fn scan_datalink(
         match rx.next() {
             Ok(packet) => {
                 if let Some(ethernet_packet) = EthernetPacket::new(packet) {
-                    println!("Packet: {:?}", ethernet_packet);
                     let src_mac = ethernet_packet.get_source().to_string();
                     
                     if src_mac == local_mac {
@@ -60,10 +59,15 @@ pub async fn scan_datalink(
                     }
 
                     let dest_mac = ethernet_packet.get_destination().to_string();
+                    
                     let bytes = packet.len() as u64;
             
                     let protocol = ethernet_packet.get_ethertype();
+                    
+                    if dest_mac == local_mac{
+                        println!("Packet: {:?}, protocol: {:?}", ethernet_packet, protocol);
 
+                    }
                     let mut src_ip: Option<String> = None;
                     let mut dest_ip: Option<String> = None;
 
