@@ -112,14 +112,14 @@ lazy_static! {
 
 pub fn send_arp_reply(tx: &mut dyn DataLinkSender, my_mac: pnet::util::MacAddr, my_ip: Ipv4Addr, target_mac: pnet::util::MacAddr, target_ip: Ipv4Addr) {
     let key = format!("{}->{}", my_ip, target_ip);
-
+/* 
     // Evita di inviare più risposte per lo stesso IP
     let mut sent_replies = SENT_ARP_REPLIES.lock().unwrap();
     if sent_replies.contains(&key) {
         println!("⚠️ ARP Reply già inviata per {}", key);
         return;
     }
-    sent_replies.insert(key);
+    sent_replies.insert(key);*/
 
     let mut ethernet_buffer = [0u8; 42];
     let mut ethernet_packet = MutableEthernetPacket::new(&mut ethernet_buffer).unwrap();
