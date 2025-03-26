@@ -1,11 +1,11 @@
 use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
-use tokio::sync::mpsc;
+use tokio::{io, sync::mpsc};
 use std::{collections::HashMap, net::Ipv4Addr, time::Duration};
 use rand::Rng;
-use tun::Configuration;
+use tun::{platform::Device, Configuration};
 
-use crate::network::{receiver::tun_listener, sender::find_ip_by_mac};
+use crate::network::sender::find_ip_by_mac;
 
 
 #[derive(Debug, Clone)]
@@ -84,7 +84,14 @@ impl NetworkGraph {
         let assigned_ip = self.generate_virtual_ip();
         let assigned_mac = generate_virtual_mac();
 
-        create_virtual_tun_interface(&assigned_ip);
+        match create_virtual_tun_interface(&assigned_ip) {
+            Ok(_) => {
+                println!("✅ Creato TUN per nodo {}", assigned_ip);
+            },
+            Err(e) => {
+                eprintln!("❌ Errore creazione TUN {}: {}", assigned_ip, e);
+            }
+        }
 
         let node = NetworkNode {
             mac_address: assigned_mac.clone(),
@@ -218,8 +225,11 @@ fn generate_virtual_mac() -> String {
 }
 
 
-fn create_virtual_tun_interface(ip: &str) {
-    let parsed_ip: Ipv4Addr = ip.parse().expect("Not valid IP");
+fn create_virtual_tun_interface(ip: &str) -> io::Result<Device> {
+    let parsed_ip: Ipv4Addr = ip.parse().map_err(|e| {
+        io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
+    })?;
+
     let last_octet = parsed_ip.octets()[3];
     let tun_name = format!("tun{}", last_octet);
 
@@ -230,39 +240,6 @@ fn create_virtual_tun_interface(ip: &str) {
         .netmask("255.255.255.0")
         .up();
 
-        match tun::create(&config) {
-            Ok(tun) => {
-                println!("✅ Interfaccia {} creata per {}", tun_name, ip);
-                let ip_clone = ip.to_string();
-    
-                let (tx, mut rx) = mpsc::channel(32); // Canale con buffer di 32 messaggi
-
-            // Usa tokio::spawn per eseguire il listener in modo asincrono
-            tokio::spawn(async move {
-                if let Err(e) = tun_listener(tun, ip_clone, tx).await {
-                    eprintln!("❌ Errore nel TUN listener: {}", e);
-                }
-            });
-
-            // Qui puoi aggiungere codice per fare altre operazioni mentre il thread di lettura lavora.
-            tokio::spawn(async move {
-                loop {
-                    match rx.recv().await {
-                        Some(message) => {
-                            // Fai qualcosa con il messaggio ricevuto
-                            println!("Messaggio ricevuto dal thread: {}", message);
-                        }
-                        None => {
-                            println!("Il canale è stato chiuso!");
-                            break;
-                        }
-                    }
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                }
-            });
-            }
-            Err(e) => {
-                eprintln!("❌ Errore nella creazione della TUN {}: {}", tun_name, e);
-            }
-    }
+    tun::create(&config)
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("TUN error: {}", e)))
 }

@@ -1,6 +1,8 @@
 use etherparse::{Icmpv4Type, SlicedPacket};
 use pnet::datalink::{self, Channel, Config};
 use pnet::packet::ethernet::{EtherTypes, EthernetPacket};
+use pnet::packet::icmp::echo_request::EchoRequestPacket;
+use pnet::packet::icmp::{IcmpPacket, IcmpTypes};
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::Packet;
@@ -8,12 +10,15 @@ use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tun::platform::Device;
 use std::collections::HashMap;
+use std::net::Ipv4Addr;
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
+use crate::network::sender::send_icmp_reply;
 use crate::utilities::network::{classify_mac_address, get_local_mac, get_primary_interface, get_src_dest_ip};
 use crate::trackers::arp_tracker::{detect_arp_attacks, AlertTracker, ArpRepliesTracker, ArpRequestTracker};
 use crate::trackers::tcp_tracker::{detect_tcp_syn_attack, TcpSynDetector};
-use crate::virtual_net::virtual_node::{handle_broadcast, handle_virtual_packet, respond_to_icmp_echo};
+use crate::virtual_net::virtual_node::{handle_broadcast, handle_virtual_packet};
 use crate::virtual_net::graph::{NetworkGraph, NodeType};
 use std::io::{self, Read};
 use std::time::Duration;
@@ -106,6 +111,10 @@ pub async fn scan_datalink(
                             );
                         }
                         
+                    }
+
+                    if let Err(e) = tx.unbounded_send(Message::Text("New network data from MAC".into())) {
+                        eprintln!("❌ Errore nell'invio del messaggio: {}", e);
                     }
                     
                     detect_attacks(
