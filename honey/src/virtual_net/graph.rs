@@ -191,6 +191,8 @@ impl NetworkGraph {
             let node = &self.graph[node_index];
             if node.node_type == NodeType::Virtual {
                 println!("⭕️ Nodo Virtuale: MAC={} | IP={:?}", node.mac_address, node.ip_address);
+                io::stdout().flush().unwrap();
+
             }
         }
     }
@@ -227,6 +229,8 @@ fn create_virtual_tun_interface(ip: &str) {
         io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
     }).expect("Errore nel parsing dell'indirizzo IP");
     println!("IP: {ip}");
+    io::stdout().flush().unwrap();
+
     let last_octet = parsed_ip.octets()[3];
     let tun_name = format!("tun{}", last_octet);
 
@@ -235,10 +239,10 @@ fn create_virtual_tun_interface(ip: &str) {
 
     let tun = Arc::new(
         Tun::builder()
-            .name(&tun_name)            // if name is empty, then it is set by kernel.
+            .name(&tun_name)            
             .address(ip_address)
             .netmask(netmask)
-            .up()                // or set it up manually using `sudo ip link set <tun-name> up`.
+            .up()                
             .build()
             .unwrap()
             .pop()
@@ -254,6 +258,8 @@ fn create_virtual_tun_interface(ip: &str) {
                 Ok(n) => {
                     if n > 0 {
                         println!("Lettura {} byte: {:?}", n, &buf[..n]);
+                        io::stdout().flush().unwrap();
+
                     }
                 }
                 Err(e) => {
