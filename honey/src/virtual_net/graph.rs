@@ -258,18 +258,15 @@ fn create_virtual_tun_interface(ip: &str) {
                 Ok(n) => {
                     if n > 0 {
                         info!("Lettura {} byte: {:?}", n, &buf[..n]);
-                        if let Some(ipv4) = Ipv4Header::from_slice(&buf[..n]).ok() {
-                            if ipv4.protocol() == etherparse::IpProtocol::Icmp {
-                                let (ipv4, remaining_payload) = Ipv4Header::from_slice(&buf[..n]).unwrap(); // separa la tupla
-                                
-                                // Accedi direttamente al campo `protocol` di Ipv4Header
-                                if ipv4.protocol == etherparse::IpProtocol::Icmp {
-                                    if let Ok(icmp_packet) = Icmpv4Packet::from_slice(remaining_payload) {
-                                        println!("icmp_packet: {:?}", icmp_packet);
-                                    }
-                                }
+                        let (ipv4, remaining_payload) = Ipv4Header::from_slice(&buf[..n]).unwrap();
+                        
+                        // Accedi direttamente al campo `protocol` di Ipv4Header
+                        if ipv4.protocol == etherparse::IpProtocol::Icmp {
+                            if let Ok(icmp_packet) = Icmpv4Packet::from_slice(remaining_payload) {
+                                println!("icmp_packet: {:?}", icmp_packet);
                             }
                         }
+                        
                     }
                 }
                 Err(e) => {
