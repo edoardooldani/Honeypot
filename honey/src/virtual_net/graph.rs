@@ -245,13 +245,30 @@ fn create_virtual_tun_interface(ip: &str) {
             .unwrap(),
     );
 
+    let tun_reader = Arc::clone(&tun);
     tokio::spawn(async move {
         let mut buf = [0u8; 1024]; // Buffer per la lettura dei pacchetti
 
         loop {
-            let n = tun.recv(&mut buf).await.expect("Errore nella lettura del dispositivo TUN");
-            println!("Lettura {} byte: {:?}", n, &buf[..n]);
+            match tun_reader.recv(&mut buf).await {
+                Ok(n) => {
+                    if n > 0 {
+                        println!("Lettura {} byte: {:?}", n, &buf[..n]);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Errore nella lettura del dispositivo TUN: {:?}", e);
+                    break;
+                }
+            }
         }
+    });
+
+    tokio::spawn(async move {
+        let buf = b"Data to be written"; // Dati da inviare
+
+        tun.send_all(buf).await.expect("Errore nell'invio dei dati TUN");
+        println!("Dati inviati: {:?}", buf);
     });
 
 }

@@ -38,5 +38,3 @@ x509-parser = "0.16"
 
 # Kafka queue
 rdkafka = "0.37.0"
-
-pyo3 = { version = "0.24", features = ["auto-initialize"] }
