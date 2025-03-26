@@ -2,7 +2,7 @@ use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, e
 use tracing::error;
 use crate::network::sender::{send_arp_reply, send_icmp_reply, send_tcp_syn_ack};
 use std::{io::Write, net::Ipv4Addr, str::FromStr};
-use etherparse::{Ipv4Header, IpNumber, Icmpv4Slice};
+use etherparse::{Icmpv4Slice, IpNumber, Ipv4Header, Ipv6Header};
 
 use super::graph::NetworkGraph;
 
@@ -171,17 +171,20 @@ pub fn respond_to_icmp_echo(tun: &mut Device, packet: &SlicedPacket) {
  */
 
 
-pub fn handle_tun_msg(buf: [u8; 1024], n: usize){
-    let (ipv4, remaining_payload) = Ipv4Header::from_slice(&buf[..n]).unwrap();
-
-    // Controlla il protocollo IP
-    if ipv4.protocol == IpNumber::ICMP {
-        // Se il protocollo è ICMP, tenta di decodificare il pacchetto ICMP
-        if let Ok(icmp_packet) = Icmpv4Slice::from_slice(remaining_payload) {
-            // Stampa il pacchetto ICMP
-            println!("icmp_packet: {:?}", icmp_packet);
-        } else {
-            eprintln!("❌ Errore nella decodifica del pacchetto ICMP.");
+ pub fn handle_tun_msg(buf: [u8; 1024], n: usize) {
+    if let Ok((ipv4, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
+        if ipv4.protocol == IpNumber::ICMP {
+            if let Ok(icmp_packet) = Icmpv4Slice::from_slice(remaining_payload) {
+                println!("icmp_packet: {:?}", icmp_packet);
+            } else {
+                eprintln!("❌ Errore nella decodifica del pacchetto ICMP.");
+            }
         }
     }
+    else if let Ok((ipv6, remaining_payload)) = Ipv6Header::from_slice(&buf[..n]) {
+        println!("Pacchetto IPv6 ricevuto, versione 6 non ancora gestita nel codice.");
+    } else {
+        eprintln!("❌ Errore: pacchetto con versione IP non supportata.");
+    }
+    
 }
