@@ -224,7 +224,7 @@ fn create_virtual_tun_interface(ip: &str) {
     let parsed_ip: Ipv4Addr = ip.parse().map_err(|e| {
         io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
     }).expect("Errore nel parsing dell'indirizzo IP");
-
+    println!("IP: {ip}");
     let last_octet = parsed_ip.octets()[3];
     let tun_name = format!("tun{}", last_octet);
 
@@ -234,12 +234,6 @@ fn create_virtual_tun_interface(ip: &str) {
         .netmask((255, 255, 255, 0))
         .destination((10, 0, 0, 1))
         .up();
-
-    #[cfg(target_os = "linux")]
-    config.platform_config(|config| {
-        // requiring root privilege to acquire complete functions
-        config.ensure_root_privileges(true);
-    });
 
     let mut dev = tun::create(&config).expect("Errore nella creazione del dispositivo TUN");
     let mut buf = [0; 4096];
