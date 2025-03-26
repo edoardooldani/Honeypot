@@ -2,8 +2,7 @@ use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
 use std::{collections::HashMap, net::Ipv4Addr};
 use rand::Rng;
-use tun::{platform::Device, Configuration};
-use std::io;
+use tun::Configuration;
 
 use crate::network::{receiver::tun_listener, sender::find_ip_by_mac};
 
@@ -53,7 +52,6 @@ impl NetworkGraph {
     pub fn add_node(&mut self, mac_address: String, mut ip_address: String, node_type: NodeType) -> NodeIndex {
         
         if let Some(&existing_node) = self.nodes.get(&mac_address) {
-            let node = &mut self.graph[existing_node];
             return existing_node;
         }
         
@@ -174,7 +172,7 @@ impl NetworkGraph {
 
     pub fn print_real_nodes(&self) {
         println!("\n📌 **Report finale dei nodi reali nel grafo:**");
-        for (mac, &node_index) in &self.nodes {
+        for (_, &node_index) in &self.nodes {
             let node = &self.graph[node_index];
             if node.node_type == NodeType::Real {
                 println!("🟢 Nodo Reale: MAC={} | IP={:?}", node.mac_address, node.ip_address);
@@ -184,7 +182,7 @@ impl NetworkGraph {
 
     pub fn print_virtual_nodes(&self) {
         println!("\n📌 **Report finale dei nodi VIRTUALI nel grafo:**");
-        for (mac, &node_index) in &self.nodes {
+        for (_, &node_index) in &self.nodes {
             let node = &self.graph[node_index];
             if node.node_type == NodeType::Virtual {
                 println!("⭕️ Nodo Virtuale: MAC={} | IP={:?}", node.mac_address, node.ip_address);
@@ -219,9 +217,8 @@ fn generate_virtual_mac() -> String {
 }
 
 
-fn create_virtual_tun_interface(ip: &str){
+fn create_virtual_tun_interface(ip: &str) {
     let parsed_ip: Ipv4Addr = ip.parse().expect("Not valid IP");
-
     let last_octet = parsed_ip.octets()[3];
     let tun_name = format!("tun{}", last_octet);
 
@@ -235,7 +232,14 @@ fn create_virtual_tun_interface(ip: &str){
     match tun::create(&config) {
         Ok(tun) => {
             println!("✅ Interfaccia {} creata per {}", tun_name, ip);
-            tun_listener(tun, ip.to_string());
+            tokio::spawn({
+                let ip = ip.to_string();
+                async move {
+                    if let Err(e) = tun_listener(tun, ip).await {
+                        eprintln!("Errore nel TUN listener: {}", e);
+                    }
+                }
+            });
         }
         Err(e) => {
             eprintln!("❌ Errore nella creazione della TUN {}: {}", tun_name, e);

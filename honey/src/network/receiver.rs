@@ -1,5 +1,4 @@
-use etherparse::ip_number::ICMP;
-use etherparse::{Icmpv4Type, SlicedPacket, TransportSlice};
+use etherparse::{Icmpv4Type, SlicedPacket};
 use pnet::datalink::{self, Channel, Config};
 use pnet::packet::ethernet::{EtherTypes, EthernetPacket};
 use pnet::packet::ip::IpNextHeaderProtocols;
@@ -195,36 +194,30 @@ fn detect_attacks(
 pub async fn tun_listener(mut tun: Device, assigned_ip: String) -> io::Result<()> {
     let async_tun = AsyncFd::new(tun.as_raw_fd())?;
 
-    tokio::spawn(async move {
-        let mut buf = [0u8; 1504];
-        loop {
-            let mut guard = match async_tun.readable().await {
-                Ok(g) => g,
-                Err(e) => {
-                    eprintln!("Errore AsyncFd.readable(): {:?}", e);
-                    break;
-                }
-            };
+    let mut buf = [0u8; 1504];
 
-            match tun.read(&mut buf) {
-                Ok(n) => {
-                    if let Ok(packet) = SlicedPacket::from_ip(&buf[..n]) {
-                        if let Some(etherparse::TransportSlice::Icmpv4(ref icmp)) = packet.transport {
-                            if let Icmpv4Type::EchoRequest { .. } = icmp.icmp_type() {
-                                respond_to_icmp_echo(&mut tun, &packet, &buf[..n]);
-                            }
+    loop {
+        let mut guard = async_tun.readable().await?;
+
+        match tun.read(&mut buf) {
+            Ok(n) => {
+                if let Ok(packet) = SlicedPacket::from_ip(&buf[..n]) {
+                    if let Some(etherparse::TransportSlice::Icmpv4(ref icmp)) = packet.transport {
+                        if let Icmpv4Type::EchoRequest { .. } = icmp.icmp_type() {
+                            println!("📥 Ping ICMP Echo Request ricevuto su {}!", assigned_ip);
+                            respond_to_icmp_echo(&mut tun, &packet, &buf[..n]);
                         }
                     }
                 }
-                Err(e) => {
-                    eprintln!("❌ Errore nella lettura della TUN {}: {:?}", assigned_ip, e);
-                    break;
-                }
             }
-
-            guard.clear_ready();
+            Err(e) => {
+                eprintln!("❌ Errore nella lettura della TUN {}: {:?}", assigned_ip, e);
+                break;
+            }
         }
-    });
+
+        guard.clear_ready();
+    }
 
     Ok(())
 }
