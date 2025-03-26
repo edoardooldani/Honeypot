@@ -27,4 +27,6 @@ libproc = "0.14"
 pnet = "0.35"
 tun = "0.7.13"
 etherparse = "0.17"
-tokio-tun = "0.13.2"
+
+#[cfg(target_os = "linux")]
+tokio-tun = { version = "0.13.2" , optional = true}

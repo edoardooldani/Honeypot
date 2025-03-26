@@ -1,9 +1,8 @@
-use etherparse::{IcmpEchoHeader, Icmpv4Header, Icmpv4Type, Ipv4Header, SlicedPacket, IpNumber::Icmp};
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, icmp::{echo_request::EchoRequestPacket, IcmpPacket, IcmpTypes}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tracing::error;
-use tun::Device;
 use crate::network::sender::{send_arp_reply, send_icmp_reply, send_tcp_syn_ack};
 use std::{io::Write, net::Ipv4Addr, str::FromStr};
+use etherparse::{Ipv4Header, IpNumber, Icmpv4Slice};
 
 use super::graph::NetworkGraph;
 
@@ -114,11 +113,11 @@ pub fn handle_virtual_packet(
 }
 
 
-
+/*
 pub fn respond_to_icmp_echo(tun: &mut Device, packet: &SlicedPacket) {
     // Estrai l'IP e i dati ICMP
-    let (src_ip, dst_ip, id, seq, icmp_payload) = match (&packet.ip, &packet.transport) {
-        (Some(etherparse::InternetSlice::Ipv4(ipv4, _)), Some(etherparse::TransportSlice::Icmpv4(icmp))) => {
+    let (src_ip, dst_ip, id, seq, icmp_payload) = match (&packet.ip_payload(), &packet.transport) {
+        (Some(etherparse::InternetSlice::Ipv4(ipv4)), Some(etherparse::TransportSlice::Icmpv4(icmp))) => {
             let (src_ip, dst_ip) = (ipv4.source_addr(), ipv4.destination_addr());
 
             match icmp.icmp_type() {
@@ -167,5 +166,22 @@ pub fn respond_to_icmp_echo(tun: &mut Device, packet: &SlicedPacket) {
         eprintln!("❌ Errore invio Echo Reply: {:?}", e);
     } else {
         println!("📤 Echo Reply inviato a {}", src_ip);
+    }
+}
+ */
+
+
+pub fn handle_tun_msg(buf: [u8; 1024], n: usize){
+    let (ipv4, remaining_payload) = Ipv4Header::from_slice(&buf[..n]).unwrap();
+
+    // Controlla il protocollo IP
+    if ipv4.protocol == IpNumber::ICMP {
+        // Se il protocollo è ICMP, tenta di decodificare il pacchetto ICMP
+        if let Ok(icmp_packet) = Icmpv4Slice::from_slice(remaining_payload) {
+            // Stampa il pacchetto ICMP
+            println!("icmp_packet: {:?}", icmp_packet);
+        } else {
+            eprintln!("❌ Errore nella decodifica del pacchetto ICMP.");
+        }
     }
 }
