@@ -6,7 +6,6 @@ use std::{collections::HashMap, net::{self, Ipv4Addr}, sync::Arc};
 use rand::Rng;
 use tun::{Device, Configuration};
 use tokio_tun::{TunBuilder, Tun};
-use etherparse::{Icmpv4Packet, Ipv4Header, Icmpv4Type};
 
 use crate::{network::sender::find_ip_by_mac, virtual_net::virtual_node::handle_tun_msg};
 
@@ -245,7 +244,7 @@ fn create_virtual_tun_interface(ip: &str) {
             .unwrap(),
     );
 
-    let tun_reader = Arc::clone(&tun);
+    let tun_reader: Arc<Tun> = Arc::clone(&tun);
     tokio::spawn(async move {
         let mut buf = [0u8; 1024]; // Buffer per la lettura dei pacchetti
 
