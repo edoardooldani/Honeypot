@@ -258,7 +258,9 @@ fn create_virtual_tun_interface(ip: &str) {
                 Ok(n) => {
                     if n > 0 {
                         info!("Lettura {} byte: {:?}", n, &buf[..n]);
-                        io::stdout().flush().await.unwrap(); // Flush immediato dopo ogni output
+                        if let Err(e) = io::stdout().flush().await {
+                            eprintln!("Errore nel flush dell'output: {:?}", e);
+                        }
                     }
                 }
                 Err(e) => {
