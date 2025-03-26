@@ -257,8 +257,16 @@ fn create_virtual_tun_interface(ip: &str) {
                 Ok(n) => {
                     if n > 0 {
                         info!("Lettura {} byte: {:?}", n, &buf[..n]);
-                        if let Err(e) = io::stdout().flush().await {
-                            eprintln!("Errore nel flush dell'output: {:?}", e);
+                        if let Some(ipv4) = Ipv4Header::from_slice(&buf[..n]).ok() {
+                            if ipv4.protocol() == etherparse::IpProtocol::Icmp {
+                                if let Ok(icmp_packet) = Icmpv4Packet::from_slice(&buf[ipv4.payload_range()]) {
+                                    // Verifica se è un Echo Request
+                                    if icmp_packet.icmp_type() == etherparse::Icmpv4Type::EchoRequest {
+                                        info!("📥 Ricevuto un ICMP Echo Request!");
+                                        // Qui puoi aggiungere la logica per rispondere con un ICMP Echo Reply
+                                    }
+                                }
+                            }
                         }
                     }
                 }

@@ -67,7 +67,7 @@ async fn handle_websocket(mut socket: WebSocket, wss_state: Arc<WssAppState>, de
 
 async fn process_packet(wss_state: &Arc<WssAppState>, device_name: &str, bin: &[u8]) -> Result<(), String> {
     let mut packet: Packet = bincode::deserialize(bin).map_err(|e| format!("Deserialization error: {}", e))?;
-
+    println!("PAcket: {:?}", packet);
     if !packet.verify_checksum() {
         return Err(format!("Invalid checksum (ID: {})", packet.header.id));
     }
