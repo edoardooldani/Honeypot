@@ -1,6 +1,7 @@
 use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
-use std::{collections::HashMap, net::Ipv4Addr};
+use tokio::sync::mpsc;
+use std::{collections::HashMap, net::Ipv4Addr, time::Duration};
 use rand::Rng;
 use tun::Configuration;
 
@@ -229,19 +230,41 @@ fn create_virtual_tun_interface(ip: &str) {
         .netmask("255.255.255.0")
         .up();
 
-    match tun::create(&config) {
-        Ok(tun) => {
-            println!("✅ Interfaccia {} creata per {}", tun_name, ip);
-            let ip_clone = ip.to_string();
-
-            tokio::spawn(async move {
-                if let Err(e) = tun_listener(tun, ip_clone).await {
-                    eprintln!("❌ Errore nel TUN listener: {}", e);
-                }
-            });
-        }
-        Err(e) => {
-            eprintln!("❌ Errore nella creazione della TUN {}: {}", tun_name, e);
-        }
+        match tun::create(&config) {
+            Ok(tun) => {
+                println!("✅ Interfaccia {} creata per {}", tun_name, ip);
+                let ip_clone = ip.to_string();
+    
+                // Crea il canale asincrono per comunicare tra il thread principale e il thread di lettura
+                let (tx, mut rx) = mpsc::channel(32); // Canale con buffer di 32 messaggi
+    
+                // Usa tokio::spawn per eseguire il listener in modo asincrono
+                tokio::spawn(async move {
+                    if let Err(e) = tun_listener(tun, ip_clone, tx).await {
+                        eprintln!("❌ Errore nel TUN listener: {}", e);
+                    }
+                });
+    
+                // Qui puoi aggiungere codice per fare altre operazioni mentre il thread di lettura lavora.
+                tokio::spawn(async move {
+                    loop {
+                        // Ricevi i messaggi dal thread di lettura
+                        match rx.recv().await {
+                            Some(message) => {
+                                // Fai qualcosa con il messaggio ricevuto
+                                println!("Messaggio ricevuto dal thread: {}", message);
+                            }
+                            None => {
+                                println!("Il canale è stato chiuso!");
+                                break;
+                            }
+                        }
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                    }
+                });
+            }
+            Err(e) => {
+                eprintln!("❌ Errore nella creazione della TUN {}: {}", tun_name, e);
+            }
     }
 }

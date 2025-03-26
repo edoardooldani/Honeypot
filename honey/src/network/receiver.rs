@@ -4,6 +4,7 @@ use pnet::packet::ethernet::{EtherTypes, EthernetPacket};
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::Packet;
+use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tun::platform::Device;
 use std::collections::HashMap;
@@ -189,7 +190,7 @@ fn detect_attacks(
 
 
 
-pub async fn tun_listener(mut tun: Device, assigned_ip: String) -> io::Result<()> {
+pub async fn tun_listener(mut tun: Device, assigned_ip: String, tx: mpsc::Sender<String>) -> io::Result<()> {
     let mut buf = [0u8; 1504];
 
     loop {
@@ -199,16 +200,26 @@ pub async fn tun_listener(mut tun: Device, assigned_ip: String) -> io::Result<()
                     if let Ok(packet) = SlicedPacket::from_ip(&buf[..n]) {
                         if let Some(etherparse::TransportSlice::Icmpv4(ref icmp)) = packet.transport {
                             if let Icmpv4Type::EchoRequest { .. } = icmp.icmp_type() {
-
-                                println!("Messaggio ricevuto");
+                                // Invia un messaggio al thread principale senza bloccare
+                                if let Err(e) = tx.send(format!("Ping ICMP Echo Request ricevuto su {}", assigned_ip)).await {
+                                    eprintln!("❌ Errore nell'invio del messaggio: {}", e);
+                                }
                             }
                         }
                     }
                 }
             }
             Err(e) => {
-                eprintln!("❌ Errore nella lettura del TUN {}: {:?}", assigned_ip, e);
-                break;
+                // Se l'errore è WouldBlock, semplicemente ignora e continua a tentare di leggere
+                if e.kind() == io::ErrorKind::WouldBlock {
+                    // Ignora il WouldBlock e continua a leggere
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                    continue;
+                } else {
+                    // Altri errori vengono trattati normalmente
+                    eprintln!("❌ Errore nella lettura del TUN {}: {:?}", assigned_ip, e);
+                    break;
+                }
             }
         }
 
