@@ -229,7 +229,6 @@ fn create_virtual_tun_interface(ip: &str) {
         io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
     }).expect("Errore nel parsing dell'indirizzo IP");
     println!("IP: {ip}");
-    io::stdout().flush().unwrap();
 
     let last_octet = parsed_ip.octets()[3];
     let tun_name = format!("tun{}", last_octet);
