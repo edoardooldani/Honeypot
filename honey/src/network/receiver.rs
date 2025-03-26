@@ -190,15 +190,10 @@ fn detect_attacks(
 }
 
 
-
-pub async fn tun_listener(mut tun: Device, assigned_ip: String) -> io::Result<()> {
-    let async_tun = AsyncFd::new(tun.as_raw_fd())?;
-
+pub fn tun_listener(mut tun: Device, assigned_ip: String) -> std::io::Result<()> {
     let mut buf = [0u8; 1504];
 
     loop {
-        let mut guard = async_tun.readable().await?;
-
         match tun.read(&mut buf) {
             Ok(n) => {
                 if let Ok(packet) = SlicedPacket::from_ip(&buf[..n]) {
@@ -215,8 +210,6 @@ pub async fn tun_listener(mut tun: Device, assigned_ip: String) -> io::Result<()
                 break;
             }
         }
-
-        guard.clear_ready();
     }
 
     Ok(())
