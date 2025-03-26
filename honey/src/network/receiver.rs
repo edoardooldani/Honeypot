@@ -9,7 +9,8 @@ use pnet::packet::Packet;
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tun::platform::Device;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::fs;
 use std::net::Ipv4Addr;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
@@ -197,9 +198,47 @@ fn detect_attacks(
     }
 }
 
+/* 
+
+pub async fn monitor_tun_interfaces(tx: futures_channel::mpsc::UnboundedSender<Message>) {
+    let tun_dir = "/sys/class/net";  // Percorso per le interfacce di rete
+    let mut monitored_interfaces = HashSet::new(); // Set per tenere traccia delle interfacce monitorate
+
+    loop {
+        let entries = fs::read_dir(tun_dir)
+            .expect("Errore nell'ottenere le interfacce di rete")
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name().to_str().unwrap_or("").starts_with("tun"))
+            .collect::<Vec<_>>();
+
+        for entry in entries {
+            let tun_name = entry.file_name().into_string().unwrap();
+
+            if !monitored_interfaces.contains(&tun_name) {
+                monitored_interfaces.insert(tun_name.clone());
+
+                let ip_suffix = tun_name.trim_start_matches("tun");
+                let ip_address = format!("192.168.1.{}", ip_suffix);
+
+                let tx_clone = tx.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = listen_on_tun_interface(tun_name.clone(),ip_address,  tx_clone).await {
+                        eprintln!("Errore nell'ascolto dell'interfaccia TUN {}: {:?}", tun_name, e);
+                    }
+                });
+            }
+        }
+
+        // Pausa per evitare il loop infinito a ciclo stretto
+        tokio::time::sleep(Duration::from_secs(5)).await;  // Aggiorna ogni 5 secondi
+    }
+}
 
 
-pub async fn tun_listener(mut tun: Device, assigned_ip: String, tx: mpsc::Sender<String>) -> io::Result<()> {
+// Funzione per ascoltare una singola interfaccia TUN
+async fn listen_on_tun_interface(tun_name: String, ip_address: String, tx: futures_channel::mpsc::UnboundedSender<Message>) -> io::Result<()> {
+    let tun = Device::open(&tun_name)?;
+
     let mut buf = [0u8; 1504];
 
     loop {
@@ -209,32 +248,25 @@ pub async fn tun_listener(mut tun: Device, assigned_ip: String, tx: mpsc::Sender
                     if let Ok(packet) = SlicedPacket::from_ip(&buf[..n]) {
                         if let Some(etherparse::TransportSlice::Icmpv4(ref icmp)) = packet.transport {
                             if let Icmpv4Type::EchoRequest { .. } = icmp.icmp_type() {
-                                // Invia un messaggio al thread principale senza bloccare
-                                if let Err(e) = tx.send(format!("Ping ICMP Echo Request ricevuto su {}", assigned_ip)).await {
-                                    eprintln!("❌ Errore nell'invio del messaggio: {}", e);
-                                }
+                                let _ = tx.unbounded_send(Message::Text(format!("Ping ICMP Echo Request ricevuto su {} con IP {}", tun_name, ip_address))).await;
                             }
                         }
                     }
                 }
             }
             Err(e) => {
-                // Se l'errore è WouldBlock, semplicemente ignora e continua a tentare di leggere
                 if e.kind() == io::ErrorKind::WouldBlock {
-                    // Ignora il WouldBlock e continua a leggere
                     tokio::time::sleep(Duration::from_millis(100)).await;
                     continue;
                 } else {
-                    // Altri errori vengono trattati normalmente
-                    eprintln!("❌ Errore nella lettura del TUN {}: {:?}", assigned_ip, e);
+                    eprintln!("Errore nella lettura di {}: {:?}", tun_name, e);
                     break;
                 }
             }
         }
-
-        // Aggiungiamo un piccolo sleep per evitare di consumare CPU inutilmente.
-        tokio::time::sleep(Duration::from_millis(100)).await;
     }
 
     Ok(())
 }
+    */
+    

@@ -22,12 +22,13 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
     let (stdin_tx, stdin_rx) = futures_channel::mpsc::unbounded();
     let stdin_tx_pong = stdin_tx.clone();
     let stdin_tx_graph = stdin_tx.clone();
+    let stdin_tx_tun = stdin_tx.clone();
+
 
     let graph = Arc::new(Mutex::new(NetworkGraph::new()));
     let graph_clone = Arc::clone(&graph);
 
     tokio::spawn(scan_datalink(stdin_tx_graph, Arc::clone(&session_id), graph_clone));
-
 
     let (mut write, read) = ws_stream.split();
     let stdin_to_ws = stdin_rx.map(Ok).forward(&mut write);

@@ -3,7 +3,9 @@ use pnet::util::MacAddr;
 use tokio::{io, sync::mpsc};
 use std::{collections::HashMap, net::Ipv4Addr, time::Duration};
 use rand::Rng;
-use tun::{platform::Device, Configuration};
+use tun::{Device, Configuration};
+use std::io::Read;
+
 
 use crate::network::sender::find_ip_by_mac;
 
@@ -84,14 +86,7 @@ impl NetworkGraph {
         let assigned_ip = self.generate_virtual_ip();
         let assigned_mac = generate_virtual_mac();
 
-        match create_virtual_tun_interface(&assigned_ip) {
-            Ok(_) => {
-                println!("✅ Creato TUN per nodo {}", assigned_ip);
-            },
-            Err(e) => {
-                eprintln!("❌ Errore creazione TUN {}: {}", assigned_ip, e);
-            }
-        }
+        create_virtual_tun_interface(&assigned_ip);
 
         let node = NetworkNode {
             mac_address: assigned_mac.clone(),
@@ -225,21 +220,34 @@ fn generate_virtual_mac() -> String {
 }
 
 
-fn create_virtual_tun_interface(ip: &str) -> io::Result<Device> {
+fn create_virtual_tun_interface(ip: &str) {
     let parsed_ip: Ipv4Addr = ip.parse().map_err(|e| {
         io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
-    })?;
+    }).expect("Errore nel parsing dell'indirizzo IP");
 
     let last_octet = parsed_ip.octets()[3];
     let tun_name = format!("tun{}", last_octet);
 
-    let mut config = Configuration::default();
+    let mut config = tun::Configuration::default();
     config
-        .name(&tun_name)
-        .address(ip)
-        .netmask("255.255.255.0")
+        .address((10, 0, 0, 9))
+        .netmask((255, 255, 255, 0))
+        .destination((10, 0, 0, 1))
         .up();
 
-    tun::create(&config)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("TUN error: {}", e)))
+    #[cfg(target_os = "linux")]
+    config.platform_config(|config| {
+        // requiring root privilege to acquire complete functions
+        config.ensure_root_privileges(true);
+    });
+
+    let mut dev = tun::create(&config).expect("Errore nella creazione del dispositivo TUN");
+    let mut buf = [0; 4096];
+
+    loop {
+        let amount = dev.read(&mut buf).expect("Errore nella lettura del dispositivo TUN");
+        println!("{:?}", &buf[0..amount]);
+
+    }
+
 }
