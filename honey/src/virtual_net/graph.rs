@@ -6,7 +6,7 @@ use rand::Rng;
 use tun::{Device, Configuration};
 use std::io::Read;
 use tokio_tun::{TunBuilder, Tun};
-
+use tokio::io::AsyncWriteExt;
 
 
 use crate::network::sender::find_ip_by_mac;
