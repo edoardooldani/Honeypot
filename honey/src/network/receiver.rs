@@ -1,10 +1,12 @@
 use etherparse::ip_number::ICMP;
-use etherparse::Icmpv4Type;
+use etherparse::{Icmpv4Type, SlicedPacket, TransportSlice};
 use pnet::datalink::{self, Channel, Config};
 use pnet::packet::ethernet::{EtherTypes, EthernetPacket};
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::Packet;
+use tokio::io;
+use tokio::io::unix::AsyncFd;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tun::platform::Device;
 use std::collections::HashMap;
@@ -16,6 +18,7 @@ use crate::trackers::tcp_tracker::{detect_tcp_syn_attack, TcpSynDetector};
 use crate::virtual_net::virtual_node::{handle_broadcast, handle_virtual_packet, respond_to_icmp_echo};
 use crate::virtual_net::graph::{NetworkGraph, NodeType};
 use std::io::Read;
+use std::os::unix::io::AsRawFd;
 
 pub async fn scan_datalink(
     tx: futures_channel::mpsc::UnboundedSender<Message>, 
@@ -189,20 +192,28 @@ fn detect_attacks(
 
 
 
-pub fn tun_listener(mut tun: Device, assigned_ip: String) {
-    std::thread::spawn(move || {
+pub async fn tun_listener(mut tun: Device, assigned_ip: String) -> io::Result<()> {
+    let async_tun = AsyncFd::new(tun.as_raw_fd())?;
+
+    tokio::spawn(async move {
         let mut buf = [0u8; 1504];
         loop {
+            let mut guard = match async_tun.readable().await {
+                Ok(g) => g,
+                Err(e) => {
+                    eprintln!("Errore AsyncFd.readable(): {:?}", e);
+                    break;
+                }
+            };
+
             match tun.read(&mut buf) {
                 Ok(n) => {
-                    if let Ok(packet) = etherparse::SlicedPacket::from_ip(&buf[..n]) {
-                        if let Some(etherparse::TransportSlice::Icmpv4(icmp)) = packet.transport.as_ref() {
+                    if let Ok(packet) = SlicedPacket::from_ip(&buf[..n]) {
+                        if let Some(etherparse::TransportSlice::Icmpv4(ref icmp)) = packet.transport {
                             if let Icmpv4Type::EchoRequest { .. } = icmp.icmp_type() {
-                                println!("📥 Ping ICMP Echo Request ricevuto!");
                                 respond_to_icmp_echo(&mut tun, &packet, &buf[..n]);
                             }
                         }
-                        
                     }
                 }
                 Err(e) => {
@@ -210,6 +221,10 @@ pub fn tun_listener(mut tun: Device, assigned_ip: String) {
                     break;
                 }
             }
+
+            guard.clear_ready();
         }
     });
+
+    Ok(())
 }
