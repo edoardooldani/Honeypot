@@ -4,8 +4,6 @@ use pnet::packet::ethernet::{EtherTypes, EthernetPacket};
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::Packet;
-use tokio::io;
-use tokio::io::unix::AsyncFd;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tun::platform::Device;
 use std::collections::HashMap;
@@ -17,7 +15,6 @@ use crate::trackers::tcp_tracker::{detect_tcp_syn_attack, TcpSynDetector};
 use crate::virtual_net::virtual_node::{handle_broadcast, handle_virtual_packet, respond_to_icmp_echo};
 use crate::virtual_net::graph::{NetworkGraph, NodeType};
 use std::io::Read;
-use std::os::unix::io::AsRawFd;
 
 pub async fn scan_datalink(
     tx: futures_channel::mpsc::UnboundedSender<Message>, 
@@ -190,7 +187,7 @@ fn detect_attacks(
 }
 
 
-pub fn tun_listener(mut tun: Device, assigned_ip: String) -> std::io::Result<()> {
+pub async fn tun_listener(mut tun: Device, assigned_ip: String) -> std::io::Result<()> {
     let mut buf = [0u8; 1504];
 
     loop {
@@ -200,7 +197,7 @@ pub fn tun_listener(mut tun: Device, assigned_ip: String) -> std::io::Result<()>
                     if let Some(etherparse::TransportSlice::Icmpv4(ref icmp)) = packet.transport {
                         if let Icmpv4Type::EchoRequest { .. } = icmp.icmp_type() {
                             println!("📥 Ping ICMP Echo Request ricevuto su {}!", assigned_ip);
-                            respond_to_icmp_echo(&mut tun, &packet, &buf[..n]);
+                            respond_to_icmp_echo(&mut tun, &packet);
                         }
                     }
                 }

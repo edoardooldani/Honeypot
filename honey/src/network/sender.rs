@@ -111,8 +111,9 @@ lazy_static! {
 }
 
 pub fn send_arp_reply(tx: &mut dyn DataLinkSender, my_mac: pnet::util::MacAddr, my_ip: Ipv4Addr, target_mac: pnet::util::MacAddr, target_ip: Ipv4Addr) {
+    /* 
     let key = format!("{}->{}", my_ip, target_ip);
-/* 
+
     // Evita di inviare più risposte per lo stesso IP
     let mut sent_replies = SENT_ARP_REPLIES.lock().unwrap();
     if sent_replies.contains(&key) {
@@ -194,7 +195,6 @@ pub fn send_icmp_reply(
     ipv4_packet: &pnet::packet::ipv4::Ipv4Packet,
     virtual_mac: MacAddr,
     virtual_ip: Ipv4Addr,
-    sender_mac: MacAddr,
     echo_request: &EchoRequestPacket
 ) {
 

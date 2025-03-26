@@ -95,7 +95,7 @@ pub fn handle_virtual_packet(
                             if icmp_packet.get_icmp_type() == IcmpTypes::EchoRequest {
                                 println!("Sending reply");
                                 if let Some(echo_request) = EchoRequestPacket::new(icmp_packet.packet()) {
-                                    send_icmp_reply(tx, ethernet_packet, &ipv4_packet, virtual_mac, virtual_ip, sender_mac, &echo_request);
+                                    send_icmp_reply(tx, ethernet_packet, &ipv4_packet, virtual_mac, virtual_ip, &echo_request);
 
                                 }
                             }
@@ -116,7 +116,7 @@ pub fn handle_virtual_packet(
 
 
 
-pub fn respond_to_icmp_echo(tun: &mut Device, packet: &SlicedPacket, original_buf: &[u8]) {
+pub fn respond_to_icmp_echo(tun: &mut Device, packet: &SlicedPacket) {
     // Estrai l'IP e i dati ICMP
     let (src_ip, dst_ip, id, seq, icmp_payload) = match (&packet.ip, &packet.transport) {
         (Some(etherparse::InternetSlice::Ipv4(ipv4, _)), Some(etherparse::TransportSlice::Icmpv4(icmp))) => {
@@ -134,7 +134,7 @@ pub fn respond_to_icmp_echo(tun: &mut Device, packet: &SlicedPacket, original_bu
 
     // Costruisci l'intestazione ICMP Echo Reply
     let echo_reply = Icmpv4Type::EchoReply(IcmpEchoHeader { id, seq });
-    let mut icmp_header = Icmpv4Header {
+    let icmp_header = Icmpv4Header {
         icmp_type: echo_reply,
         checksum: 0,
     };

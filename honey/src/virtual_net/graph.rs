@@ -1,6 +1,5 @@
 use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
-use tokio::task;
 use std::{collections::HashMap, net::Ipv4Addr};
 use rand::Rng;
 use tun::Configuration;
@@ -235,9 +234,9 @@ fn create_virtual_tun_interface(ip: &str) {
             println!("✅ Interfaccia {} creata per {}", tun_name, ip);
             let ip_clone = ip.to_string();
 
-            task::spawn_blocking(move || {
-                if let Err(e) = tun_listener(tun, ip_clone) {
-                    eprintln!("Errore nel TUN listener: {}", e);
+            tokio::spawn(async move {
+                if let Err(e) = tun_listener(tun, ip_clone).await {
+                    eprintln!("❌ Errore nel TUN listener: {}", e);
                 }
             });
         }
