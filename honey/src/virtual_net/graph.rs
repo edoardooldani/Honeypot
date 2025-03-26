@@ -5,6 +5,8 @@ use std::{collections::HashMap, net::Ipv4Addr, time::Duration};
 use rand::Rng;
 use tun::{Device, Configuration};
 use std::io::Read;
+use tokio_tun::{TunBuilder, Tun};
+
 
 
 use crate::network::sender::find_ip_by_mac;
@@ -228,19 +230,29 @@ fn create_virtual_tun_interface(ip: &str) {
     let last_octet = parsed_ip.octets()[3];
     let tun_name = format!("tun{}", last_octet);
 
-    let mut config = tun::Configuration::default();
-    config
-        .address(ip)
-        .netmask((255, 255, 255, 0))
-        .up();
+    let tun = TunBuilder::new()
+    .name(&tun_name)
+    .address(ip)
+    .netmask("255.255.255.0")
+    .up()
+    .expect("Errore nella creazione del dispositivo TUN");
 
-    let dev = tun::create(&config).expect("Errore nella creazione del dispositivo TUN");
-    let mut buf = [0; 4096];
-
-    loop {
-        let amount = dev.recv(&mut buf).expect("Errore nella lettura del dispositivo TUN");
-        println!("{:?}", &buf[0..amount]);
-
-    }
+    tokio::spawn(async move {
+        let mut buf = [0u8; 4096];
+    
+        loop {
+            match tun.read(&mut buf) {
+                Ok(amount) => {
+                    if amount > 0 {
+                        println!("Received packet: {:?}", &buf[0..amount]);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Errore nella lettura del dispositivo TUN: {:?}", e);
+                    break;
+                }
+            }
+        }
+    });
 
 }
