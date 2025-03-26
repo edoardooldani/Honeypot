@@ -1,28 +1,17 @@
-use etherparse::{Icmpv4Type, SlicedPacket};
 use pnet::datalink::{self, Channel, Config};
 use pnet::packet::ethernet::{EtherTypes, EthernetPacket};
-use pnet::packet::icmp::echo_request::EchoRequestPacket;
-use pnet::packet::icmp::{IcmpPacket, IcmpTypes};
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::Packet;
-use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::protocol::Message;
-use tun::platform::Device;
-use std::collections::{HashMap, HashSet};
-use std::fs;
-use std::net::Ipv4Addr;
-use std::str::FromStr;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use crate::network::sender::send_icmp_reply;
 use crate::utilities::network::{classify_mac_address, get_local_mac, get_primary_interface, get_src_dest_ip};
 use crate::trackers::arp_tracker::{detect_arp_attacks, AlertTracker, ArpRepliesTracker, ArpRequestTracker};
 use crate::trackers::tcp_tracker::{detect_tcp_syn_attack, TcpSynDetector};
 use crate::virtual_net::virtual_node::{handle_broadcast, handle_virtual_packet};
 use crate::virtual_net::graph::{NetworkGraph, NodeType};
-use std::io::{self, Read};
-use std::time::Duration;
 
 pub async fn scan_datalink(
     tx: futures_channel::mpsc::UnboundedSender<Message>, 
@@ -269,4 +258,3 @@ async fn listen_on_tun_interface(tun_name: String, ip_address: String, tx: futur
     Ok(())
 }
     */
-    

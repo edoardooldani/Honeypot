@@ -230,16 +230,15 @@ fn create_virtual_tun_interface(ip: &str) {
 
     let mut config = tun::Configuration::default();
     config
-        .name(tun_name)
         .address(ip)
         .netmask((255, 255, 255, 0))
         .up();
 
-    let mut dev = tun::create(&config).expect("Errore nella creazione del dispositivo TUN");
+    let dev = tun::create(&config).expect("Errore nella creazione del dispositivo TUN");
     let mut buf = [0; 4096];
 
     loop {
-        let amount = dev.read(&mut buf).expect("Errore nella lettura del dispositivo TUN");
+        let amount = dev.recv(&mut buf).expect("Errore nella lettura del dispositivo TUN");
         println!("{:?}", &buf[0..amount]);
 
     }

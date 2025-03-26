@@ -25,5 +25,5 @@ lazy_static = "1.4"
 
 libproc = "0.14"
 pnet = "0.35"
-tun = "0.5"
+tun = "0.7.13"
 etherparse = "0.13"

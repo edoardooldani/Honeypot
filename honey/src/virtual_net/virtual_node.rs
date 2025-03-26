@@ -1,7 +1,7 @@
 use etherparse::{IcmpEchoHeader, Icmpv4Header, Icmpv4Type, Ipv4Header, SlicedPacket, IpNumber::Icmp};
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, icmp::{echo_request::EchoRequestPacket, IcmpPacket, IcmpTypes}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tracing::error;
-use tun::platform::Device;
+use tun::Device;
 use crate::network::sender::{send_arp_reply, send_icmp_reply, send_tcp_syn_ack};
 use std::{io::Write, net::Ipv4Addr, str::FromStr};
 
