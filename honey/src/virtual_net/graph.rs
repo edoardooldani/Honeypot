@@ -230,9 +230,9 @@ fn create_virtual_tun_interface(ip: &str) {
 
     let mut config = tun::Configuration::default();
     config
-        .address((10, 0, 0, 9))
+        .name(tun_name)
+        .address(ip)
         .netmask((255, 255, 255, 0))
-        .destination((10, 0, 0, 1))
         .up();
 
     let mut dev = tun::create(&config).expect("Errore nella creazione del dispositivo TUN");
