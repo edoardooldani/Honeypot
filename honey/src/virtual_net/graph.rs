@@ -1,7 +1,7 @@
 use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
 use tokio::{io, sync::mpsc};
-use std::{collections::HashMap, net::{self, Ipv4Addr}, time::Duration};
+use std::{collections::HashMap, net::{self, Ipv4Addr}, sync::Arc, time::Duration};
 use rand::Rng;
 use tun::{Device, Configuration};
 use std::io::Read;
@@ -245,13 +245,12 @@ fn create_virtual_tun_interface(ip: &str) {
             .unwrap(),
     );
 
-    tokio::spawn(async move {    
-        let mut buf = [0u8; 1024];
+    tokio::spawn(async move {
+        let mut buf = [0u8; 1024]; // Buffer per la lettura dei pacchetti
 
         loop {
-
-            let n = tun.recv(&mut buf).await.unwrap();
-            println!("reading {} bytes: {:?}", n, &buf[..n]);
+            let n = tun.recv(&mut buf).await.expect("Errore nella lettura del dispositivo TUN");
+            println!("Lettura {} byte: {:?}", n, &buf[..n]);
         }
     });
 
