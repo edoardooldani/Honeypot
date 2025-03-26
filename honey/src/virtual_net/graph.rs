@@ -230,11 +230,12 @@ fn create_virtual_tun_interface(ip: &str) {
     let last_octet = parsed_ip.octets()[3];
     let tun_name = format!("tun{}", last_octet);
 
+    let ip_address = ip.parse::<Ipv4Addr>().expect("Ip invalido");
     let netmask = "255.255.255.0".parse::<Ipv4Addr>().expect("Errore nel parsing della netmask");
 
     let tun = TunBuilder::new()
     .name(&tun_name)
-    .address(ip)
+    .address(ip_address)
     .netmask(netmask)
     .up();
 
@@ -242,17 +243,9 @@ fn create_virtual_tun_interface(ip: &str) {
         let mut buf = [0u8; 4096];
     
         loop {
-            match tun.read(&mut buf) {
-                Ok(amount) => {
-                    if amount > 0 {
-                        println!("Received packet: {:?}", &buf[0..amount]);
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Errore nella lettura del dispositivo TUN: {:?}", e);
-                    break;
-                }
-            }
+            let mut buf = [0u8; 1024];
+            let n = tun.recv(&mut buf).await.unwrap();
+            println!("reading {} bytes: {:?}", n, &buf[..n]);
         }
     });
 
