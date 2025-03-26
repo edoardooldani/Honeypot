@@ -2,7 +2,7 @@ use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, e
 use tracing::error;
 use crate::network::sender::{send_arp_reply, send_icmp_reply, send_tcp_syn_ack};
 use std::{io::Write, net::Ipv4Addr, str::FromStr};
-use etherparse::{Icmpv4Slice, IpNumber, Ipv4Header, Ipv6Header};
+use etherparse::{Icmpv4Slice, Icmpv6Slice, IpNumber, Ipv4Header, Ipv6Header};
 
 use super::graph::NetworkGraph;
 
@@ -182,7 +182,16 @@ pub fn respond_to_icmp_echo(tun: &mut Device, packet: &SlicedPacket) {
         }
     }
     else if let Ok((ipv6, remaining_payload)) = Ipv6Header::from_slice(&buf[..n]) {
-        println!("Pacchetto IPv6 ricevuto, versione 6 non ancora gestita nel codice.");
+        if ipv6.next_header == IpNumber::IPV6_ICMP {
+            if let Ok(icmpv6_packet) = Icmpv6Slice::from_slice(remaining_payload) {
+                // Decodifica il pacchetto ICMPv6
+                println!("icmpv6_packet: {:?}", icmpv6_packet);
+            } else {
+                eprintln!("❌ Errore nella decodifica del pacchetto ICMPv6.");
+            }
+        } else {
+            println!("📡 source: {:?}, dest: {:?}", ipv6.source_addr(), ipv6.destination_addr());
+        }
     } else {
         eprintln!("❌ Errore: pacchetto con versione IP non supportata.");
     }

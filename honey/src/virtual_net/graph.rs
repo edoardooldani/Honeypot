@@ -252,7 +252,6 @@ fn create_virtual_tun_interface(ip: &str) {
             match tun_reader.recv(&mut buf).await {
                 Ok(n) => {
                     if n > 0 {
-                        info!("Lettura {} byte: {:?}", n, &buf[..n]);
                         handle_tun_msg(buf, n);
                     }
                 }
