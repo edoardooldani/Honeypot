@@ -5,7 +5,7 @@ use rand::Rng;
 use tun::{platform::Device, Configuration};
 use std::io;
 
-use crate::network::sender::find_ip_by_mac;
+use crate::network::{receiver::tun_listener, sender::find_ip_by_mac};
 
 
 #[derive(Debug, Clone)]
@@ -85,14 +85,7 @@ impl NetworkGraph {
         let assigned_ip = self.generate_virtual_ip();
         let assigned_mac = generate_virtual_mac();
 
-        match create_virtual_tun_interface(&assigned_ip) {
-            Ok(_) => {
-                println!("✅ Creato TUN per nodo {}", assigned_ip);
-            },
-            Err(e) => {
-                eprintln!("❌ Errore creazione TUN {}: {}", assigned_ip, e);
-            }
-        }
+        create_virtual_tun_interface(&assigned_ip);
 
         let node = NetworkNode {
             mac_address: assigned_mac.clone(),
@@ -226,10 +219,8 @@ fn generate_virtual_mac() -> String {
 }
 
 
-fn create_virtual_tun_interface(ip: &str) -> io::Result<Device> {
-    let parsed_ip: Ipv4Addr = ip.parse().map_err(|e| {
-        io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
-    })?;
+fn create_virtual_tun_interface(ip: &str){
+    let parsed_ip: Ipv4Addr = ip.parse().expect("Not valid IP");
 
     let last_octet = parsed_ip.octets()[3];
     let tun_name = format!("tun{}", last_octet);
@@ -241,6 +232,13 @@ fn create_virtual_tun_interface(ip: &str) -> io::Result<Device> {
         .netmask("255.255.255.0")
         .up();
 
-    tun::create(&config)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("TUN error: {}", e)))
+    match tun::create(&config) {
+        Ok(tun) => {
+            println!("✅ Interfaccia {} creata per {}", tun_name, ip);
+            tun_listener(tun, ip.to_string());
+        }
+        Err(e) => {
+            eprintln!("❌ Errore nella creazione della TUN {}: {}", tun_name, e);
+        }
+    }
 }

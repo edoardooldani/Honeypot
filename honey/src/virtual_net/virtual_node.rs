@@ -1,7 +1,10 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, icmp::{echo_request::EchoRequestPacket, IcmpPacket, IcmpTypes}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tracing::error;
+use tun::platform::Device;
 use crate::network::sender::{send_arp_reply, send_icmp_reply, send_tcp_syn_ack};
 use std::{net::Ipv4Addr, str::FromStr};
+use etherparse::{Ipv4Header, Icmpv4Header, Icmpv4Type, IcmpEchoHeader, SlicedPacket, IpNumber::Icmp};
+use std::io::Write;
 
 use super::graph::NetworkGraph;
 
@@ -108,5 +111,62 @@ pub fn handle_virtual_packet(
         _ => {
             error!("EtherType not supported: {:?}", ethernet_packet.get_ethertype());
         }
+    }
+}
+
+
+
+pub fn respond_to_icmp_echo(tun: &mut Device, packet: &SlicedPacket, original_buf: &[u8]) {
+    // Estrai l'IP e i dati ICMP
+    let (src_ip, dst_ip, id, seq, icmp_payload) = match (&packet.ip, &packet.transport) {
+        (Some(etherparse::InternetSlice::Ipv4(ipv4, _)), Some(etherparse::TransportSlice::Icmpv4(icmp))) => {
+            let (src_ip, dst_ip) = (ipv4.source_addr(), ipv4.destination_addr());
+
+            match icmp.icmp_type() {
+                Icmpv4Type::EchoRequest(echo) => {
+                    (src_ip, dst_ip, echo.id, echo.seq, icmp.payload())
+                }
+                _ => return, // Not an echo request
+            }
+        }
+        _ => return,
+    };
+
+    // Costruisci l'intestazione ICMP Echo Reply
+    let echo_reply = Icmpv4Type::EchoReply(IcmpEchoHeader { id, seq });
+    let mut icmp_header = Icmpv4Header {
+        icmp_type: echo_reply,
+        checksum: 0,
+    };
+
+    let mut icmp_buf = Vec::new();
+    icmp_header.write(&mut icmp_buf).unwrap();
+    icmp_buf.extend_from_slice(icmp_payload);
+
+    // Calcola checksum corretto
+    let checksum = etherparse::checksum::Sum16BitWords::new()
+        .add_slice(&icmp_buf)
+        .ones_complement();
+    icmp_buf[2] = (checksum >> 8) as u8;
+    icmp_buf[3] = (checksum & 0xFF) as u8;
+
+    // Costruisci header IPv4
+    let ip_header = Ipv4Header::new(
+        (20 + icmp_buf.len()) as u16,
+        64,
+        Icmp as u8,
+        dst_ip.octets(),
+        src_ip.octets(),
+    );
+
+    let mut reply_buf = Vec::new();
+    ip_header.write(&mut reply_buf).unwrap();
+    reply_buf.extend_from_slice(&icmp_buf);
+
+    // Invia il pacchetto sulla TUN
+    if let Err(e) = tun.write_all(&reply_buf) {
+        eprintln!("❌ Errore invio Echo Reply: {:?}", e);
+    } else {
+        println!("📤 Echo Reply inviato a {}", src_ip);
     }
 }
