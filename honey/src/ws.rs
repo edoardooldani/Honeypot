@@ -37,7 +37,7 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
             Ok(msg) => match msg {
                 Message::Binary(_bin) => info!("📥 Received Binary Data"),
                 Message::Ping(ping_data) => {
-                    info!("📡 Received PING, sending PONG... {:?}", ping_data);
+                    info!("📡 Received PING, sending PONG...");
                     let _ = stdin_tx_pong.unbounded_send(Message::Pong(ping_data));
                 }
                 _ => error!("⚠️ Unsupported Message Type: {:?}", msg),

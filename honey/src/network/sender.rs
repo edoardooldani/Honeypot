@@ -21,14 +21,14 @@ use crate::utilities::network::get_primary_interface;
 
 
 
-pub fn find_ip_by_mac(target_mac: &str) -> Option<String> {
+pub fn find_ip_by_mac(target_mac: &str) -> String {
     let interface = get_primary_interface().expect("Nessuna interfaccia valida trovata");
     let my_ip = match interface.ips.iter().find(|ip| ip.is_ipv4()) {
         Some(ip) => match ip.ip() {
             std::net::IpAddr::V4(ipv4) => ipv4,
-            _ => return None,
+            _ => return "0.0.0.0".to_string(),
         },
-        None => return None,
+        None => return "0.0.0.0".to_string(),
     };
 
     let my_mac = interface.mac.unwrap();
@@ -36,8 +36,8 @@ pub fn find_ip_by_mac(target_mac: &str) -> Option<String> {
 
     let (tx_datalink, mut rx) = match datalink::channel(&interface, Default::default()) {
         Ok(Channel::Ethernet(tx, rx)) => (tx, rx),
-        Ok(_) => return None,
-        Err(_) => return None,
+        Ok(_) => return "0.0.0.0".to_string(),
+        Err(_) => return "0.0.0.0".to_string(),
     };
 
     let tx_arc = Arc::new(Mutex::new(tx_datalink));
@@ -67,7 +67,7 @@ pub fn find_ip_by_mac(target_mac: &str) -> Option<String> {
                                 let sender_ip = arp_packet.get_sender_proto_addr().to_string();
 
                                 if sender_mac == target_mac {
-                                    return Some(sender_ip);
+                                    return sender_ip;
                                 }
                             }
                         }
@@ -78,7 +78,7 @@ pub fn find_ip_by_mac(target_mac: &str) -> Option<String> {
         }
     }
 
-    None
+    "0.0.0.0".to_string()
 }
 
 

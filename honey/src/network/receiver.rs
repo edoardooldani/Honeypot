@@ -64,12 +64,12 @@ pub async fn scan_datalink(
             
                     let protocol = ethernet_packet.get_ethertype();
 
-                    let mut src_ip: Option<String> = None;
-                    let mut dest_ip: Option<String> = None;
+                    let mut src_ip: String = "0.0.0.0".to_string();
+                    let mut dest_ip: String = "0.0.0.0".to_string();
 
                     if let Some((sc_ip, dst_ip)) = get_src_dest_ip(&ethernet_packet) {
-                        src_ip = Some(sc_ip.to_string());
-                        dest_ip= Some(dst_ip.to_string());
+                        src_ip = sc_ip.to_string();
+                        dest_ip= dst_ip.to_string();
                     }
 
                     let src_type = classify_mac_address(&src_mac);
@@ -77,14 +77,14 @@ pub async fn scan_datalink(
                     
                     let mut graph = graph.lock().unwrap();
 
-                    if let Some(dest_ip) = dest_ip.clone() {
+                    if dest_ip != "0.0.0.0" {
                         
                         if !graph.nodes.contains_key(&src_mac) {
                             graph.add_node(src_mac.clone(), src_ip.clone(), src_type);
                         }
                     
                         if dest_mac != "ff:ff:ff:ff:ff:ff" && !graph.nodes.contains_key(&dest_mac) {
-                            graph.add_node(dest_mac.clone(), Some(dest_ip.clone()), dest_type);
+                            graph.add_node(dest_mac.clone(), dest_ip.clone(), dest_type);
                         }
                     
                         if graph.nodes.contains_key(&src_mac) && graph.nodes.contains_key(&dest_mac) {
@@ -104,7 +104,7 @@ pub async fn scan_datalink(
                             handle_virtual_packet(
                                 &ethernet_packet, 
                     &graph_node.mac_address, 
-                    &graph_node.ip_address.clone().expect("Virtual node IP is always known!"), 
+                    &graph_node.ip_address.clone(), 
                     &src_mac, 
                                 &mut *tx_datalink
                             );
@@ -160,6 +160,7 @@ fn detect_attacks(
         if let Some(ipv4_packet) = Ipv4Packet::new(ethernet_packet.payload()) {
             let next_protocol = ipv4_packet.get_next_level_protocol();
             match next_protocol {
+                /*
                 IpNextHeaderProtocols::Icmp => {
                     println!("ICMP ");
                     if let Some(icmp_packet) = IcmpPacket::new(ipv4_packet.payload()) {
@@ -170,7 +171,7 @@ fn detect_attacks(
                             }
                         }
                     }
-                }
+                }*/
 
                 IpNextHeaderProtocols::Tcp => {
                     detect_tcp_syn_attack(

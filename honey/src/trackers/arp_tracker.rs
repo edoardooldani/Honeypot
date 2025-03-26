@@ -85,7 +85,7 @@ pub fn detect_arp_attacks(
                         
                                 let arp_alert_payload = PayloadType::ArpAlert(ArpAlertPayload { 
                                     mac_addresses: vec![mac_string_to_bytes(&node.mac_address)], 
-                                    ip_address: node.ip_address.clone().unwrap_or_else(|| "Unknown".to_string()),
+                                    ip_address: node.ip_address.clone(),
                                     arp_attack_type: ArpAttackType::ArpScanning.to_u8()
                                 });
                         

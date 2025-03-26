@@ -23,7 +23,7 @@ pub fn handle_broadcast(
                 if !graph.is_router(sender_mac) {  
                     if let Some(virtual_node) = graph.find_virtual_node_by_ip(requested_ip) {
                         let virtual_mac = MacAddr::from_str(&virtual_node.mac_address).expect("MAC non valido");
-                        let virtual_ip_str = virtual_node.ip_address.clone().expect("Virtual IP is always known");
+                        let virtual_ip_str = virtual_node.ip_address.clone();
                         
                         match virtual_ip_str.parse::<Ipv4Addr>() {
                             Ok(virtual_ip) => {
@@ -90,6 +90,7 @@ pub fn handle_virtual_packet(
                     IpNextHeaderProtocols::Icmp => {
                         if let Some(icmp_packet) = IcmpPacket::new(ipv4_packet.payload()) {
                             if icmp_packet.get_icmp_type() == IcmpTypes::EchoRequest {
+                                println!("Sending reply");
                                 if let Some(echo_request) = EchoRequestPacket::new(icmp_packet.packet()) {
                                     send_icmp_reply(tx, ethernet_packet, &ipv4_packet, virtual_mac, virtual_ip, sender_mac, &echo_request);
 
