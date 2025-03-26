@@ -14,7 +14,8 @@ use crate::trackers::arp_tracker::{detect_arp_attacks, AlertTracker, ArpRepliesT
 use crate::trackers::tcp_tracker::{detect_tcp_syn_attack, TcpSynDetector};
 use crate::virtual_net::virtual_node::{handle_broadcast, handle_virtual_packet, respond_to_icmp_echo};
 use crate::virtual_net::graph::{NetworkGraph, NodeType};
-use std::io::Read;
+use std::io::{self, Read};
+use std::time::Duration;
 
 pub async fn scan_datalink(
     tx: futures_channel::mpsc::UnboundedSender<Message>, 
@@ -187,26 +188,32 @@ fn detect_attacks(
 }
 
 
-pub async fn tun_listener(mut tun: Device, assigned_ip: String) -> std::io::Result<()> {
+
+pub async fn tun_listener(mut tun: Device, assigned_ip: String) -> io::Result<()> {
     let mut buf = [0u8; 1504];
 
     loop {
         match tun.read(&mut buf) {
             Ok(n) => {
-                if let Ok(packet) = SlicedPacket::from_ip(&buf[..n]) {
-                    if let Some(etherparse::TransportSlice::Icmpv4(ref icmp)) = packet.transport {
-                        if let Icmpv4Type::EchoRequest { .. } = icmp.icmp_type() {
-                            println!("📥 Ping ICMP Echo Request ricevuto su {}!", assigned_ip);
-                            respond_to_icmp_echo(&mut tun, &packet);
+                if n > 0 {
+                    if let Ok(packet) = SlicedPacket::from_ip(&buf[..n]) {
+                        if let Some(etherparse::TransportSlice::Icmpv4(ref icmp)) = packet.transport {
+                            if let Icmpv4Type::EchoRequest { .. } = icmp.icmp_type() {
+
+                                println!("Messaggio ricevuto");
+                            }
                         }
                     }
                 }
             }
             Err(e) => {
-                eprintln!("❌ Errore nella lettura della TUN {}: {:?}", assigned_ip, e);
+                eprintln!("❌ Errore nella lettura del TUN {}: {:?}", assigned_ip, e);
                 break;
             }
         }
+
+        // Aggiungiamo un piccolo sleep per evitare di consumare CPU inutilmente.
+        tokio::time::sleep(Duration::from_millis(100)).await;
     }
 
     Ok(())
