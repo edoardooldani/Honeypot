@@ -1,11 +1,13 @@
 use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
 use tokio::{io, sync::mpsc};
+use tracing::info;
 use std::{collections::HashMap, net::{self, Ipv4Addr}, sync::Arc, time::Duration};
 use rand::Rng;
 use tun::{Device, Configuration};
 use std::io::Read;
 use tokio_tun::{TunBuilder, Tun};
+
 use tokio::io::AsyncWriteExt;
 
 
@@ -191,8 +193,6 @@ impl NetworkGraph {
             let node = &self.graph[node_index];
             if node.node_type == NodeType::Virtual {
                 println!("⭕️ Nodo Virtuale: MAC={} | IP={:?}", node.mac_address, node.ip_address);
-                io::stdout().flush().unwrap();
-
             }
         }
     }
@@ -257,9 +257,8 @@ fn create_virtual_tun_interface(ip: &str) {
             match tun_reader.recv(&mut buf).await {
                 Ok(n) => {
                     if n > 0 {
-                        println!("Lettura {} byte: {:?}", n, &buf[..n]);
-                        io::stdout().flush().unwrap();
-
+                        info!("Lettura {} byte: {:?}", n, &buf[..n]);
+                        io::stdout().flush().await.unwrap(); // Flush immediato dopo ogni output
                     }
                 }
                 Err(e) => {
@@ -269,12 +268,4 @@ fn create_virtual_tun_interface(ip: &str) {
             }
         }
     });
-
-    tokio::spawn(async move {
-        let buf = b"Data to be written"; // Dati da inviare
-
-        tun.send_all(buf).await.expect("Errore nell'invio dei dati TUN");
-        println!("Dati inviati: {:?}", buf);
-    });
-
 }
