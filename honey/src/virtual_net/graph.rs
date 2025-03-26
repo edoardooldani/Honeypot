@@ -1,7 +1,7 @@
 use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
 use tokio::{io, sync::mpsc};
-use std::{collections::HashMap, net::Ipv4Addr, time::Duration};
+use std::{collections::HashMap, net::{self, Ipv4Addr}, time::Duration};
 use rand::Rng;
 use tun::{Device, Configuration};
 use std::io::Read;
@@ -230,12 +230,13 @@ fn create_virtual_tun_interface(ip: &str) {
     let last_octet = parsed_ip.octets()[3];
     let tun_name = format!("tun{}", last_octet);
 
+    let netmask = "255.255.255.0".parse::<Ipv4Addr>().expect("Errore nel parsing della netmask");
+
     let tun = TunBuilder::new()
     .name(&tun_name)
     .address(ip)
-    .netmask("255.255.255.0")
-    .up()
-    .expect("Errore nella creazione del dispositivo TUN");
+    .netmask(netmask)
+    .up();
 
     tokio::spawn(async move {
         let mut buf = [0u8; 4096];

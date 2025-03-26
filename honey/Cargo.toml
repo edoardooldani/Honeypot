@@ -27,4 +27,4 @@ libproc = "0.14"
 pnet = "0.35"
 tun = "0.7.13"
 etherparse = "0.13"
-tokio-tun = "0.13.2"
+tokio-tun = { version = "0.13.2", features = ["linux"] }
