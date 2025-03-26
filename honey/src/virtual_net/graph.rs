@@ -233,17 +233,23 @@ fn create_virtual_tun_interface(ip: &str) {
     let ip_address = ip.parse::<Ipv4Addr>().expect("Ip invalido");
     let netmask = "255.255.255.0".parse::<Ipv4Addr>().expect("Errore nel parsing della netmask");
 
-    let tun = TunBuilder::new()
-    .name(&tun_name)
-    .address(ip_address)
-    .netmask(netmask)
-    .up();
+    let tun = Arc::new(
+        Tun::builder()
+            .name(&tun_name)            // if name is empty, then it is set by kernel.
+            .address(ip_address)
+            .netmask(netmask)
+            .up()                // or set it up manually using `sudo ip link set <tun-name> up`.
+            .build()
+            .unwrap()
+            .pop()
+            .unwrap(),
+    );
 
-    tokio::spawn(async move {
-        let mut buf = [0u8; 4096];
-    
+    tokio::spawn(async move {    
+        let mut buf = [0u8; 1024];
+
         loop {
-            let mut buf = [0u8; 1024];
+
             let n = tun.recv(&mut buf).await.unwrap();
             println!("reading {} bytes: {:?}", n, &buf[..n]);
         }
