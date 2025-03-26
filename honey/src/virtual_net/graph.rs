@@ -7,6 +7,7 @@ use rand::Rng;
 use tun::{Device, Configuration};
 use std::io::Read;
 use tokio_tun::{TunBuilder, Tun};
+use etherparse::{Icmpv4Packet, Ipv4Header, Icmpv4Type};
 
 use tokio::io::AsyncWriteExt;
 
