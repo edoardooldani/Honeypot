@@ -253,32 +253,13 @@ impl NetworkGraph {
                 match tun_reader.recv(&mut buf).await {
                     Ok(n) => {
                         if n > 0 {
-                            match handle_tun_msg(
+                            handle_tun_msg(
                                 graph.clone(),
                                 buf, 
-                                n, 
                                 ipv4_address, 
                                 ipv6_address,
                                 MacAddr::from_str(&mac).expect("Mac not found")
-                        ).await {
-                                Ok(msg) => {
-                                    if !msg.is_empty(){
-                                        /* 
-                                        println!("Message to send: {:?}", msg);
-                                        // Log dell'invio tramite TUN
-                                        if let Err(e) = tun_writer.send(msg.as_slice()).await {
-                                            eprintln!("Error while sending packet: {:?}", e);
-                                        } else {
-                                            println!("Packet sent successfully!");
-                                        }
-                                        */
-                                    }
-                                    
-                                }
-                                Err(e) => {
-                                    eprintln!("Errore: {}", e);
-                                }
-                            }
+                            ).await;
                         }
                     }Err(e) => {        
                         eprintln!("Errore: {}", e);
