@@ -31,6 +31,8 @@ pub struct NetworkNode {
     pub node_type: NodeType,
 }
 
+#[derive(Debug, Clone)] // Usa derive per automaticamente implementare Clone
+
 pub struct NetworkGraph {
     pub graph: Graph<NetworkNode, Connection>,
     pub nodes: HashMap<String, NodeIndex>,
@@ -44,6 +46,7 @@ pub enum NodeType {
     Broadcast,
     Router
 }
+
 
 impl NetworkGraph {
     pub fn new() -> Self {
@@ -90,7 +93,7 @@ impl NetworkGraph {
 
         let assigned_mac = generate_virtual_mac();
 
-        create_virtual_tun_interface(&assigned_ip, &assigned_ipv6, assigned_mac.clone());
+        &self.create_virtual_tun_interface(&assigned_ip, &assigned_ipv6, assigned_mac.clone());
 
         let node = NetworkNode {
             mac_address: assigned_mac.clone(),
@@ -206,9 +209,82 @@ impl NetworkGraph {
         }
     }
 
+
+    fn create_virtual_tun_interface(&mut self, ipv4: &str, ipv6: &str, mac: String) {
+        let ipv4_address: Ipv4Addr = ipv4.parse().map_err(|e| {
+            io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
+        }).expect("Errore nel parsing dell'indirizzo IP");
+
+        let ipv6_address: Ipv6Addr = ipv6.parse().map_err(|e| {
+            io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
+        }).expect("Errore nel parsing dell'indirizzo IP");
+
+        println!("IP: {ipv4_address} IPv6: {ipv6_address}");
+
+        let last_octet = ipv4_address.octets()[3];
+        let tun_name = format!("tun{}", last_octet);
+
+        let netmask = "255.255.255.0".parse::<Ipv4Addr>().expect("Errore nel parsing della netmask");
+
+        let tun = Arc::new(
+            Tun::builder()
+                .name(&tun_name)            
+                .address(ipv4_address)
+                .netmask(netmask)
+                .up()                
+                .build()
+                .unwrap()
+                .pop()
+                .unwrap(),
+        );
+
+        let tun_reader: Arc<Tun> = Arc::clone(&tun);
+        let tun_writer: Arc<Tun>= tun.clone();
+
+        let graph = Arc::new(self.clone()); 
+
+        tokio::spawn(async move {
+            let mut buf = [0u8; 1024];
+
+            loop {
+                match tun_reader.recv(&mut buf).await {
+                    Ok(n) => {
+                        if n > 0 {
+                            match handle_tun_msg(
+                                graph,
+                                tun_reader.clone(),
+                                buf, 
+                                n, 
+                                ipv4_address, 
+                                ipv6_address,
+                                MacAddr::from_str(&mac).expect("Mac not found")
+                        ).await {
+                                Ok(msg) => {
+                                    if !msg.is_empty(){
+                                        println!("Message to send: {:?}", msg);
+                                        // Log dell'invio tramite TUN
+                                        if let Err(e) = tun_writer.send(msg.as_slice()).await {
+                                            eprintln!("Error while sending packet: {:?}", e);
+                                        } else {
+                                            println!("Packet sent successfully!");
+                                        }
+                                    }
+                                    
+                                }
+                                Err(e) => {
+                                    eprintln!("Errore: {}", e);
+                                }
+                            }
+                        }
+                    }Err(e) => {        
+                        eprintln!("Errore: {}", e);
+                    }
+                }
+            }
+        });
+    }
+
 }
-
-
 
 
 fn generate_virtual_mac() -> String {
@@ -231,76 +307,4 @@ fn generate_virtual_mac() -> String {
     );
 
     format!("{}:{}", prefix, suffix)
-}
-
-
-fn create_virtual_tun_interface(ipv4: &str, ipv6: &str, mac: String) {
-    let ipv4_address: Ipv4Addr = ipv4.parse().map_err(|e| {
-        io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
-    }).expect("Errore nel parsing dell'indirizzo IP");
-
-    let ipv6_address: Ipv6Addr = ipv6.parse().map_err(|e| {
-        io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
-    }).expect("Errore nel parsing dell'indirizzo IP");
-
-    println!("IP: {ipv4_address} IPv6: {ipv6_address}");
-
-    let last_octet = ipv4_address.octets()[3];
-    let tun_name = format!("tun{}", last_octet);
-
-    let netmask = "255.255.255.0".parse::<Ipv4Addr>().expect("Errore nel parsing della netmask");
-
-    let tun = Arc::new(
-        Tun::builder()
-            .name(&tun_name)            
-            .address(ipv4_address)
-            .netmask(netmask)
-            .up()                
-            .build()
-            .unwrap()
-            .pop()
-            .unwrap(),
-    );
-
-    let tun_reader: Arc<Tun> = Arc::clone(&tun);
-    let tun_writer: Arc<Tun>= tun.clone();
-
-    tokio::spawn(async move {
-        let mut buf = [0u8; 1024];
-
-        loop {
-            match tun_reader.recv(&mut buf).await {
-                Ok(n) => {
-                    if n > 0 {
-                        match handle_tun_msg(
-                            tun_reader.clone(),
-                            buf, 
-                            n, 
-                            ipv4_address, 
-                            ipv6_address,
-                            MacAddr::from_str(&mac).expect("Mac not found")
-                    ).await {
-                            Ok(msg) => {
-                                if !msg.is_empty(){
-                                    println!("Message to send: {:?}", msg);
-                                    // Log dell'invio tramite TUN
-                                    if let Err(e) = tun_writer.send(msg.as_slice()).await {
-                                        eprintln!("Error while sending packet: {:?}", e);
-                                    } else {
-                                        println!("Packet sent successfully!");
-                                    }
-                                }
-                                
-                            }
-                            Err(e) => {
-                                eprintln!("Errore: {}", e);
-                            }
-                        }
-                    }
-                }Err(e) => {        
-                    eprintln!("Errore: {}", e);
-                }
-            }
-        }
-    });
 }

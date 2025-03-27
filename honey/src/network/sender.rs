@@ -204,7 +204,8 @@ pub async fn build_tun_icmp_reply(
     ipv4_packet: &Ipv4Header,
     icmp_request: &EchoRequestPacket<'_>,
     ipv4_address: &Ipv4Addr,
-    local_mac: MacAddr
+    local_mac: MacAddr,
+    dst_mac: MacAddr
 ) -> Result<Vec<u8>, String> {
 
     let mut icmp_reply_buffer = vec![0u8; MutableEchoReplyPacket::minimum_packet_size() + icmp_request.payload().len()];
@@ -241,16 +242,14 @@ pub async fn build_tun_icmp_reply(
     println!("IPv4 to send: {:?}", ipv4_reply);
     */
 
-    send_ipv4_packet(ipv4_reply.packet().to_vec(), ipv4_packet.source,  local_mac).await.unwrap();
+    send_ipv4_packet(ipv4_reply.packet().to_vec(),  local_mac, dst_mac).await.unwrap();
 
     Ok(ipv4_reply.packet().to_vec())
 }
 
 
 
-pub async fn send_ipv4_packet(ipv4_packet: Vec<u8>, ip_address: [u8; 4], src_mac: MacAddr) -> Result<(), String> {
-    println!("Ip: {:?}", ip_address);
-    let dst_mac = get_mac_address(format!("{}.{}.{}.{}", ip_address[0], ip_address[1], ip_address[2], ip_address[3])).await.expect("Mac not found");
+pub async fn send_ipv4_packet(ipv4_packet: Vec<u8>, src_mac: MacAddr, dst_mac: MacAddr) -> Result<(), String> {
     let interface = get_primary_interface().expect("Primary interface not found");
 
     let channel = datalink::channel(&interface, Default::default())
