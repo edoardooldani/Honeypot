@@ -104,7 +104,7 @@ pub fn handle_virtual_packet(
 
 
  pub async fn handle_tun_msg(
-    graph: Arc<NetworkGraph>,  // Aggiungi il grafo come parametro
+    graph: Arc<NetworkGraph>,
     tun_reader: Arc<tokio_tun::Tun>, 
     buf: [u8; 1024], 
     n: usize, 
@@ -117,7 +117,7 @@ pub fn handle_virtual_packet(
         if ipv4.protocol == IpNumber::ICMP {
             if let icmp_packet = EchoRequestPacket::new(remaining_payload).expect("Failed to extract icmpv4 packet"){                
                 let addr = format!("{}.{}.{}.{}", ipv4.source[0], ipv4.source[1], ipv4.source[2], ipv4.source[3]);
-
+                graph.print_real_nodes();
                 let node = graph.find_virtual_node_by_ip(Ipv4Addr::from_str(&addr).expect("Error parsing ip addr")).expect("Node not found");
                 Ok(
                     build_tun_icmp_reply(
