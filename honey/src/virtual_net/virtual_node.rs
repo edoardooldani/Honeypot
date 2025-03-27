@@ -119,7 +119,7 @@ pub fn handle_virtual_packet(
         println!("\nReceived IPv4 packet: {:?}", ipv4.protocol);
 
         if ipv4.protocol == IpNumber::ICMP {
-            println!("ICMP")
+            println!("ICMP");
             if let icmp_packet = EchoRequestPacket::new(remaining_payload).expect("Failed to extract icmpv4 packet"){
                 println!("ICMP Packet: {:?}", icmp_packet);
                 
