@@ -269,7 +269,7 @@ pub fn send_icmpv6_reply(
     ipv6_reply.set_payload_length(icmpv6_packet.packet().len() as u16); 
     ipv6_reply.set_next_header(IpNextHeaderProtocols::Icmpv6); 
     ipv6_reply.set_hop_limit(64); 
-    ipv6_reply.set_source(ipv6_address); // L'indirizzo di origine è l'indirizzo di destinazione della richiesta
+    ipv6_reply.set_source(ipv6_address.clone()); // L'indirizzo di origine è l'indirizzo di destinazione della richiesta
     ipv6_reply.set_destination(ipv6_packet.source_addr()); // L'indirizzo di destinazione è l'indirizzo di origine della richiesta
     // Imposta il payload come il pacchetto ICMPv6
     ipv6_reply.set_payload(icmpv6_reply.packet());
