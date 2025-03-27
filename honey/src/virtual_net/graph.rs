@@ -280,8 +280,11 @@ fn create_virtual_tun_interface(ipv4: &str, ipv6: &str) {
                             ipv6_address
                         ).await {
                             Ok(msg) => {
-                                println!("Message to send: {:?}", msg);
-                                tun_writer.send(msg.as_slice());
+                                if !msg.is_empty(){
+                                    println!("Message to send: {:?}", msg);
+                                    tun_writer.send(msg.as_slice());
+                                }
+                                
                             }
                             Err(e) => {
                                 eprintln!("Errore: {}", e);
