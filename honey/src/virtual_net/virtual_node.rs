@@ -116,7 +116,7 @@ pub fn handle_virtual_packet(
 
  pub fn handle_tun_msg(tun: Arc<tokio_tun::Tun>, buf: [u8; 1024], n: usize, ipv4_address: Ipv4Addr, ipv6_address: Ipv6Addr) {
     if let Ok((ipv4, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
-        println!("\nReceived IPv4 packet");
+        println!("\nReceived IPv4 packet: {:?}", ipv4.protocol);
 
         if ipv4.protocol == IpNumber::ICMP {
 

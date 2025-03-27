@@ -254,6 +254,7 @@ pub async fn send_tun_icmp_reply(
     icmp_reply.set_sequence_number(icmp_request.get_sequence_number());
     icmp_reply.set_payload(icmp_request.payload());
 
+    println!("Mid icmp reply");
     let icmp_packet = IcmpPacket::new(icmp_reply.packet()).unwrap();
     let checksum_value = checksum(&icmp_packet);
     icmp_reply.set_checksum(checksum_value);
