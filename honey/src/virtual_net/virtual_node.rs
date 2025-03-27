@@ -112,11 +112,9 @@ pub fn handle_virtual_packet(
     virtual_mac: MacAddr,
 ) -> Result<Vec<u8>, String>  {
 
-    println!("Inside handle msg");
     if let Ok((ipv4, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
 
         if ipv4.protocol == IpNumber::ICMP {
-            println!("ICMP packet");
 
             match EchoRequestPacket::new(remaining_payload).expect("Failed to extract icmpv4 packet") {
 
@@ -139,8 +137,6 @@ pub fn handle_virtual_packet(
                 _ => return Err("❌ Errore nella decodifica del pacchetto ICMP.".to_string()),
             }
         } else {
-            println!("NOT ICMP packet");
-
             return Ok(vec![]);
         }
     }else {
