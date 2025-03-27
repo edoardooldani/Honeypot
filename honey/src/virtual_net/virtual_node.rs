@@ -114,7 +114,7 @@ pub fn handle_virtual_packet(
 
 
 
- pub fn handle_tun_msg(tun: Arc<tokio_tun::Tun>, buf: [u8; 1024], n: usize, ipv4_address: Ipv4Addr, ipv6_address: Ipv6Addr) {
+ pub async fn handle_tun_msg(tun: Arc<tokio_tun::Tun>, buf: [u8; 1024], n: usize, ipv4_address: Ipv4Addr, ipv6_address: Ipv6Addr) {
     if let Ok((ipv4, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
         println!("\nReceived IPv4 packet: {:?}", ipv4.protocol);
 
@@ -129,7 +129,7 @@ pub fn handle_virtual_packet(
                     &ipv4,
                     &icmp_packet,
                     &ipv4_address
-                );
+                ).await;
             } else {
                 eprintln!("❌ Errore nella decodifica del pacchetto ICMP.");
             }

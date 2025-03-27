@@ -107,7 +107,7 @@ impl NetworkGraph {
 
     fn generate_virtual_ip(&self) -> String {
         let mut rng = rand::rng();
-        let mut last_octet = rng.random_range(100..130);
+        let mut last_octet = rng.random_range(100..110);
         let base_ip = "192.168.1".to_string();
 
         loop {
@@ -270,7 +270,7 @@ fn create_virtual_tun_interface(ipv4: &str, ipv6: &str) {
             match tun_reader.recv(&mut buf).await {
                 Ok(n) => {
                     if n > 0 {
-                        handle_tun_msg(tun_reader.clone(), buf, n, ipv4_address, ipv6_address);
+                        handle_tun_msg(tun_reader.clone(), buf, n, ipv4_address, ipv6_address).await;
                     }
                 }
                 Err(e) => {
