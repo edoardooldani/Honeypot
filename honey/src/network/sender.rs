@@ -240,7 +240,7 @@ pub fn send_icmp_reply(
 }
 
 pub fn send_icmpv6_reply(
-    tun: Arc<Tun>,
+    tun: Arc<tokio_tun::Tun>,
     ipv6_packet: &Ipv6Header,
     icmpv6_request: &Icmpv6Slice,
 ) {
