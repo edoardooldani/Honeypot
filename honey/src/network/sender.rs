@@ -250,7 +250,7 @@ pub async fn build_tun_icmp_reply(
 
 pub async fn send_ipv4_packet(ipv4_packet: Vec<u8>, ip_address: [u8; 4], src_mac: MacAddr) -> Result<(), String> {
     println!("Ip: {:?}", ip_address);
-    let dst_mac = get_mac_address(format!("{}.{}.{}.{}", ip_address[0], ip_address[1], ip_address[2], ip_address[3])).await;
+    let dst_mac = get_mac_address(format!("{}.{}.{}.{}", ip_address[0], ip_address[1], ip_address[2], ip_address[3])).await.expect("Mac not found");
     let interface = get_primary_interface().expect("Primary interface not found");
 
     let channel = datalink::channel(&interface, Default::default())
