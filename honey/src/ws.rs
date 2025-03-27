@@ -1,6 +1,6 @@
 use tokio_tungstenite::{tungstenite::protocol::Message, MaybeTlsStream};
 use futures_util::{pin_mut, future, StreamExt};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use std::sync::{Arc, Mutex};
 use common::tls::generate_client_session_id;
 use crate::network::receiver::scan_datalink;
@@ -22,8 +22,6 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
     let (stdin_tx, stdin_rx) = futures_channel::mpsc::unbounded();
     let stdin_tx_pong = stdin_tx.clone();
     let stdin_tx_graph = stdin_tx.clone();
-    let stdin_tx_tun = stdin_tx.clone();
-
 
     let graph = Arc::new(Mutex::new(NetworkGraph::new()));
     let graph_clone = Arc::clone(&graph);
@@ -40,6 +38,9 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
                 Message::Ping(ping_data) => {
                     info!("📡 Received PING, sending PONG...");
                     let _ = stdin_tx_pong.unbounded_send(Message::Pong(ping_data));
+                },
+                Message::Close(_) => {
+                    warn!("❌ WebSocket connection closed by the peer");
                 }
                 _ => error!("⚠️ Unsupported Message Type: {:?}", msg),
             },

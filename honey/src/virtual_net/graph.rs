@@ -264,17 +264,24 @@ async fn create_virtual_tun_interface(
         match tun_reader.recv(&mut buf).await {
             Ok(n) => {
                 if n > 0 {
-                    handle_tun_msg(
-                        graph.clone(),
-                        buf, 
-                        n,
-                        ipv4_address, 
-                        ipv6_address,
-                        MacAddr::from_str(&mac).expect("Mac not found")
-                    ).await;
+                    match handle_tun_msg(graph.clone(), buf, n, ipv4_address, ipv6_address,MacAddr::from_str(&mac).expect("Mac not found")).await {
+                        Ok(msg) => {
+                            if !msg.is_empty(){
+                                
+                                println!("Message to send: {:?}", msg);
+
+                                if let Err(e) = tun_writer.send(msg.as_slice()).await {
+                                    eprintln!("Error while sending packet: {:?}", e);
+                                } else {
+                                    println!("Packet sent successfully!");
+                                }
+                                
+                            }
+                        }Err(e) => {        
+                            eprintln!("Errore: {}", e);
+                        }
+                    }
                 }
-            }Err(e) => {        
-                eprintln!("Errore: {}", e);
             }
         }
     }
