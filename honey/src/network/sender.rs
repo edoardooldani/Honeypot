@@ -233,12 +233,13 @@ pub async fn build_tun_icmp_reply(
     let checksum_value = pnet::packet::ipv4::checksum(&ipv4_reply.to_immutable());
     ipv4_reply.set_checksum(checksum_value);
 
+    /*
     println!("ICMP received: {:?}", icmp_request);
     println!("ICMP to send: {:?}", icmp_reply);
 
     println!("IPv4 received: {:?}", ipv4_packet);
     println!("IPv4 to send: {:?}", ipv4_reply);
-
+    */
 
     send_ipv4_packet(ipv4_reply.packet().to_vec(), ipv4_packet.source,  local_mac).await.unwrap();
 
@@ -248,8 +249,8 @@ pub async fn build_tun_icmp_reply(
 
 
 pub async fn send_ipv4_packet(ipv4_packet: Vec<u8>, ip_address: [u8; 4], src_mac: MacAddr) -> Result<(), String> {
-
-    let dst_mac = get_mac_address(format!("{}.{}.{}.{}", ip_address[0], ip_address[1], ip_address[2], ip_address[3])).expect("Mac not found");
+    println!("Ip: {:?}", ip_address);
+    let dst_mac = get_mac_address(format!("{}.{}.{}.{}", ip_address[0], ip_address[1], ip_address[2], ip_address[3])).await;
     let interface = get_primary_interface().expect("Primary interface not found");
 
     let channel = datalink::channel(&interface, Default::default())
@@ -322,7 +323,7 @@ pub fn send_tun_icmpv6_reply(
 
 
 
-pub fn get_mac_address(ip: String) -> Option<MacAddr> {
+pub async fn get_mac_address(ip: String) -> Option<MacAddr> {
     // Eseguiamo il comando 'arp' per ottenere la mappatura IP -> MAC
     let output = Command::new("arp")
         .arg("-n") // Aggiungiamo l'opzione per evitare di risolvere i nomi host (evita problemi su Linux)
