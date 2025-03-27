@@ -161,11 +161,14 @@ impl NetworkGraph {
         })
     }
 
+    pub fn find_node_by_ip(&self, ip: Ipv4Addr) -> Option<&NetworkNode> {
+        self.graph.node_weights().find(|node| node.ipv4_address == ip.to_string())
+    }
+
     pub fn find_virtual_node_by_ip(&self, ip: Ipv4Addr) -> Option<&NetworkNode> {
         self.graph.node_weights().find(|node| node.node_type == NodeType::Virtual && node.ipv4_address == ip.to_string())
     }
 
-    
 
     pub fn print_graph(&self) {
         for node_index in self.graph.node_indices() {
