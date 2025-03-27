@@ -88,17 +88,6 @@ pub fn handle_virtual_packet(
                             }
                         }
                     }
-                    IpNextHeaderProtocols::Icmp => {
-                        if let Some(icmp_packet) = IcmpPacket::new(ipv4_packet.payload()) {
-                            if icmp_packet.get_icmp_type() == IcmpTypes::EchoRequest {
-                                println!("Sending reply");
-                                if let Some(echo_request) = EchoRequestPacket::new(icmp_packet.packet()) {
-                                    send_icmp_reply(tx, ethernet_packet, &ipv4_packet, virtual_mac, virtual_ip, &echo_request);
-
-                                }
-                            }
-                        }
-                    }
                     _ => {
                         println!("Protocollo IP non supportato: {:?}", next_protocol);
                     }
