@@ -239,10 +239,10 @@ pub fn send_icmp_reply(
 
 }
 
-pub fn send_tun_icmp_reply(
+pub async fn send_tun_icmp_reply(
     tun: Arc<tokio_tun::Tun>,
     ipv4_packet: &Ipv4Header,
-    icmp_request: &EchoRequestPacket,
+    icmp_request: &EchoRequestPacket<'_>,
     ipv4_address: &Ipv4Addr
 ) {
 
@@ -272,7 +272,7 @@ pub fn send_tun_icmp_reply(
     ipv4_reply.set_payload(icmp_reply.packet());
 
     println!("Ipv4 reply: {:?}", ipv4_reply);
-    let bytes = tun.send(ipv4_reply.packet()).expect("Couldnt send ipv4 reply");
+    let bytes = tun.send(ipv4_reply.packet()).await;
     println!("Bytes: {:?}", bytes);
 }
 
