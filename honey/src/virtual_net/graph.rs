@@ -269,8 +269,9 @@ fn create_virtual_tun_interface(ipv4: &str, ipv6: &str) {
         let mut buf = [0u8; 1024]; // Buffer per la lettura dei pacchetti
 
         loop {
-            if let n = tun_reader.recv(&mut buf) {
-                if n > 0 {
+            match tun_reader.recv(&mut buf).await {
+                Ok(n) => {
+                    if n > 0 {
                         match handle_tun_msg(
                             tun_reader.clone(),
                             buf, 
@@ -290,7 +291,9 @@ fn create_virtual_tun_interface(ipv4: &str, ipv6: &str) {
                             }
                         }
                     }
-
+                }Err(e) => {        
+                    eprintln!("Errore: {}", e);
+                }
             }
         }
     });
