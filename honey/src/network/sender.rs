@@ -271,6 +271,7 @@ pub fn send_tun_icmp_reply(
 
     ipv4_reply.set_payload(icmp_reply.packet());
 
+    println!("Ipv4 reply: {:?}", ipv4_reply);
     tun.send(ipv4_reply.packet());
 }
 
