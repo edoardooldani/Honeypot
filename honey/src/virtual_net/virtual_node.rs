@@ -108,7 +108,8 @@ pub fn handle_virtual_packet(
     buf: [u8; 1024], 
     n: usize, 
     ipv4_address: Ipv4Addr, 
-    ipv6_address: Ipv6Addr
+    ipv6_address: Ipv6Addr,
+    virtual_mac: MacAddr
 ) -> Result<Vec<u8>, String>  {
     if let Ok((ipv4, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
 
@@ -119,7 +120,8 @@ pub fn handle_virtual_packet(
                     tun_reader.clone(),
                     &ipv4,
                     &icmp_packet,
-                    &ipv4_address
+                    &ipv4_address,
+                    virtual_mac
                     ).await?
                 )
 

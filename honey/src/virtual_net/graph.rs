@@ -2,7 +2,7 @@ use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
 use tokio::io;
 use tracing::info;
-use std::{collections::HashMap, net::{self, Ipv4Addr, Ipv6Addr}, sync::Arc};
+use std::{collections::HashMap, net::{self, Ipv4Addr, Ipv6Addr}, str::FromStr, sync::Arc};
 use rand::Rng;
 use tun::{Device, Configuration};
 use tokio_tun::{TunBuilder, Tun};
@@ -90,7 +90,7 @@ impl NetworkGraph {
 
         let assigned_mac = generate_virtual_mac();
 
-        create_virtual_tun_interface(&assigned_ip, &assigned_ipv6);
+        create_virtual_tun_interface(&assigned_ip, &assigned_ipv6, assigned_mac.clone());
 
         let node = NetworkNode {
             mac_address: assigned_mac.clone(),
@@ -234,7 +234,7 @@ fn generate_virtual_mac() -> String {
 }
 
 
-fn create_virtual_tun_interface(ipv4: &str, ipv6: &str) {
+fn create_virtual_tun_interface(ipv4: &str, ipv6: &str, mac: String) {
     let ipv4_address: Ipv4Addr = ipv4.parse().map_err(|e| {
         io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
     }).expect("Errore nel parsing dell'indirizzo IP");
@@ -277,7 +277,8 @@ fn create_virtual_tun_interface(ipv4: &str, ipv6: &str) {
                             buf, 
                             n, 
                             ipv4_address, 
-                            ipv6_address
+                            ipv6_address,
+                            MacAddr::from_str(&mac).expect("Mac not found")
                     ).await {
                             Ok(msg) => {
                                 if !msg.is_empty(){

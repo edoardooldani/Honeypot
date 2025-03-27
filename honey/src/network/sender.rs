@@ -1,5 +1,5 @@
 use etherparse::{IcmpEchoHeader, Icmpv4Slice, Icmpv6Slice, IpNumber, Ipv4Header, Ipv6FlowLabel, Ipv6Header};
-use pnet::datalink::{self, Channel, DataLinkSender};
+use pnet::datalink::{self, Channel, DataLinkSender, NetworkInterface};
 use pnet::packet::arp::{ArpOperations, ArpPacket, MutableArpPacket};
 use pnet::packet::ethernet::{EthernetPacket, MutableEthernetPacket, EtherTypes};
 use pnet::packet::icmp::echo_reply::MutableEchoReplyPacket;
@@ -16,8 +16,10 @@ use tokio::io::AsyncWriteExt;
 use tun::Tun;
 use std::collections::HashSet;
 use std::net::{Ipv4Addr, Ipv6Addr};
+use std::process::Command;
+use std::str::FromStr;
 use std::time::Duration;
-use std::thread;
+use std::{str, thread};
 use std::sync::{Arc, Mutex};
 use lazy_static::lazy_static;
 
@@ -201,7 +203,8 @@ pub async fn build_tun_icmp_reply(
     tun: Arc<tokio_tun::Tun>,
     ipv4_packet: &Ipv4Header,
     icmp_request: &EchoRequestPacket<'_>,
-    ipv4_address: &Ipv4Addr
+    ipv4_address: &Ipv4Addr,
+    local_mac: MacAddr
 ) -> Result<Vec<u8>, String> {
 
     let mut icmp_reply_buffer = vec![0u8; MutableEchoReplyPacket::minimum_packet_size() + icmp_request.payload().len()];
@@ -236,9 +239,42 @@ pub async fn build_tun_icmp_reply(
     println!("IPv4 received: {:?}", ipv4_packet);
     println!("IPv4 to send: {:?}", ipv4_reply);
 
+
+    send_ipv4_packet(ipv4_reply.packet().to_vec(), ipv4_packet.source,  local_mac).await.unwrap();
+
     Ok(ipv4_reply.packet().to_vec())
 }
 
+
+
+pub async fn send_ipv4_packet(ipv4_packet: Vec<u8>, ip_address: [u8; 4], src_mac: MacAddr) -> Result<(), String> {
+
+    let dst_mac = get_mac_address(format!("{}.{}.{}.{}", ip_address[0], ip_address[1], ip_address[2], ip_address[3])).expect("Mac not found");
+    let interface = get_primary_interface().expect("Primary interface not found");
+
+    let channel = datalink::channel(&interface, Default::default())
+    .map_err(|e| format!("Error creating network channel: {}", e))?;
+
+    let (mut tx, _rx) = match channel {
+        Channel::Ethernet(tx, _rx) => (tx, _rx), // If Ethernet channel
+        _ => return Err("Invalid channel type".to_string()), // Handle other types if necessary
+    };
+
+    let mut packet_buffer = vec![0u8; 42 + ipv4_packet.len()]; // Header Ethernet (42 bytes) + IPv4 payload
+    let mut ether_packet = MutableEthernetPacket::new(&mut packet_buffer).unwrap();
+
+    ether_packet.set_destination(dst_mac);
+    ether_packet.set_source(src_mac);
+    ether_packet.set_ethertype(pnet::packet::ethernet::EtherTypes::Ipv4);
+
+    // Imposta il payload come il pacchetto IPv4
+    ether_packet.set_payload(&ipv4_packet);
+
+    // Invia il pacchetto sulla rete
+    tx.send_to(ether_packet.packet(), None).expect("Cannot send msg");
+
+    Ok(())
+}
 
 
 /* 
@@ -283,3 +319,37 @@ pub fn send_tun_icmpv6_reply(
     //println!("\nSENT ipv6 packet: {:?}", ipv6_sent_packet);
     tun.send(    ipv6_sent_packet.packet());
 }*/
+
+
+
+pub fn get_mac_address(ip: String) -> Option<MacAddr> {
+    // Eseguiamo il comando 'arp' per ottenere la mappatura IP -> MAC
+    let output = Command::new("arp")
+        .arg("-n") // Aggiungiamo l'opzione per evitare di risolvere i nomi host (evita problemi su Linux)
+        .arg(ip)
+        .output();
+
+    match output {
+        Ok(output) => {
+            if !output.stdout.is_empty() {
+                let result = str::from_utf8(&output.stdout)
+                    .unwrap_or("")
+                    .to_string();
+
+                // Cerchiamo di estrarre l'indirizzo MAC dal risultato
+                let mac_str = result.split_whitespace()
+                    .nth(3);  // L'indirizzo MAC dovrebbe trovarsi al quarto posto
+                
+                if let Some(mac) = mac_str {
+                    // Convertiamo la stringa MAC in un MacAddr
+                    MacAddr::from_str(mac).ok()
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        },
+        Err(_) => None,  // In caso di errore nell'esecuzione del comando
+    }
+}
