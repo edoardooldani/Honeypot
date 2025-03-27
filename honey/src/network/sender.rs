@@ -239,7 +239,7 @@ pub async fn build_tun_icmp_reply(
     println!("IPv4 to send: {:?}", ipv4_reply);
     */
 
-    //send_ipv4_packet(ipv4_reply.packet().to_vec(),  local_mac, dst_mac).await.unwrap();
+    send_ipv4_packet(ipv4_reply.packet().to_vec(),  local_mac, dst_mac).await.unwrap();
     println!("return build msg");
 
     Ok(ipv4_reply.packet().to_vec())
