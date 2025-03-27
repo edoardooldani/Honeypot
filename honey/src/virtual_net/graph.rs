@@ -93,17 +93,22 @@ impl NetworkGraph {
 
         let assigned_mac = generate_virtual_mac();
 
-        &self.create_virtual_tun_interface(&assigned_ip, &assigned_ipv6, assigned_mac.clone());
-
         let node = NetworkNode {
             mac_address: assigned_mac.clone(),
-            ipv4_address: assigned_ip,
-            ipv6_address: Some(assigned_ipv6),
+            ipv4_address: assigned_ip.clone(),
+            ipv6_address: Some(assigned_ipv6.clone()),
             node_type: NodeType::Virtual,
         };
 
         let node_index = self.graph.add_node(node);
-        self.nodes.insert(assigned_mac, node_index);
+        self.nodes.insert(assigned_mac.clone(), node_index);
+
+        let graph = Arc::new(self.clone()); 
+
+        tokio::spawn(async move {
+            create_virtual_tun_interface(graph.clone(), assigned_ip.clone(), assigned_ipv6.clone(), assigned_mac.clone()).await;
+        });
+
         node_index
     }
 
@@ -213,64 +218,69 @@ impl NetworkGraph {
     }
 
 
-    fn create_virtual_tun_interface(&mut self, ipv4: &str, ipv6: &str, mac: String) {
-        let ipv4_address: Ipv4Addr = ipv4.parse().map_err(|e| {
-            io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
-        }).expect("Errore nel parsing dell'indirizzo IP");
-
-        let ipv6_address: Ipv6Addr = ipv6.parse().map_err(|e| {
-            io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
-        }).expect("Errore nel parsing dell'indirizzo IP");
-
-        println!("IP: {ipv4_address} IPv6: {ipv6_address}");
-
-        let last_octet = ipv4_address.octets()[3];
-        let tun_name = format!("tun{}", last_octet);
-
-        let netmask = "255.255.255.0".parse::<Ipv4Addr>().expect("Errore nel parsing della netmask");
-
-        let tun = Arc::new(
-            Tun::builder()
-                .name(&tun_name)            
-                .address(ipv4_address)
-                .netmask(netmask)
-                .up()                
-                .build()
-                .unwrap()
-                .pop()
-                .unwrap(),
-        );
-
-        let tun_reader: Arc<Tun> = Arc::clone(&tun);
-        let tun_writer: Arc<Tun>= tun.clone();
-
-        let graph = Arc::new(self.clone()); 
-
-        tokio::spawn(async move {
-            let mut buf = [0u8; 1024];
-
-            loop {
-                match tun_reader.recv(&mut buf).await {
-                    Ok(n) => {
-                        if n > 0 {
-                            handle_tun_msg(
-                                graph.clone(),
-                                buf, 
-                                n,
-                                ipv4_address, 
-                                ipv6_address,
-                                MacAddr::from_str(&mac).expect("Mac not found")
-                            ).await;
-                        }
-                    }Err(e) => {        
-                        eprintln!("Errore: {}", e);
-                    }
-                }
-            }
-        });
-    }
-
 }
+
+
+
+async fn create_virtual_tun_interface(
+    graph: Arc<NetworkGraph>,
+    ipv4: String, 
+    ipv6: String, 
+    mac: String
+) {
+
+    let ipv4_address: Ipv4Addr = ipv4.parse().map_err(|e| {
+        io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
+    }).expect("Errore nel parsing dell'indirizzo IP");
+
+    let ipv6_address: Ipv6Addr = ipv6.parse().map_err(|e| {
+        io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
+    }).expect("Errore nel parsing dell'indirizzo IP");
+
+    println!("IP: {ipv4_address} IPv6: {ipv6_address}");
+
+    let last_octet = ipv4_address.octets()[3];
+    let tun_name = format!("tun{}", last_octet);
+    let netmask = "255.255.255.0".parse::<Ipv4Addr>().expect("Errore nel parsing della netmask");
+
+    let tun = Arc::new(
+        Tun::builder()
+            .name(&tun_name)            
+            .address(ipv4_address)
+            .netmask(netmask)
+            .up()                
+            .build()
+            .unwrap()
+            .pop()
+            .unwrap(),
+    );
+
+    let tun_reader: Arc<Tun> = Arc::clone(&tun);
+    let tun_writer: Arc<Tun>= tun.clone();
+
+    let mut buf = [0u8; 1024];
+
+    loop {
+        match tun_reader.recv(&mut buf).await {
+            Ok(n) => {
+                if n > 0 {
+                    handle_tun_msg(
+                        graph.clone(),
+                        buf, 
+                        n,
+                        ipv4_address, 
+                        ipv6_address,
+                        MacAddr::from_str(&mac).expect("Mac not found")
+                    ).await;
+                }
+            }Err(e) => {        
+                eprintln!("Errore: {}", e);
+            }
+        }
+    }
+}
+
+
 
 
 fn generate_virtual_mac() -> String {
