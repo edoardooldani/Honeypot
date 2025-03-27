@@ -1,6 +1,6 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, icmp::{echo_request::EchoRequestPacket, IcmpPacket, IcmpTypes}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tracing::error;
-use crate::network::sender::{send_arp_reply, send_icmp_reply, send_icmpv6_reply, send_tcp_syn_ack};
+use crate::network::sender::{send_arp_reply, send_icmp_reply, send_tcp_syn_ack, send_tun_icmp_reply, send_tun_icmpv6_reply};
 use std::{io::Write, net::{Ipv4Addr, Ipv6Addr}, str::FromStr, sync::Arc};
 use etherparse::{Icmpv4Slice, Icmpv6Slice, IpNumber, Ipv4Header, Ipv6Header};
 
@@ -113,83 +113,39 @@ pub fn handle_virtual_packet(
 }
 
 
-/*
-pub fn respond_to_icmp_echo(tun: &mut Device, packet: &SlicedPacket) {
-    // Estrai l'IP e i dati ICMP
-    let (src_ip, dst_ip, id, seq, icmp_payload) = match (&packet.ip_payload(), &packet.transport) {
-        (Some(etherparse::InternetSlice::Ipv4(ipv4)), Some(etherparse::TransportSlice::Icmpv4(icmp))) => {
-            let (src_ip, dst_ip) = (ipv4.source_addr(), ipv4.destination_addr());
-
-            match icmp.icmp_type() {
-                Icmpv4Type::EchoRequest(echo) => {
-                    (src_ip, dst_ip, echo.id, echo.seq, icmp.payload())
-                }
-                _ => return, // Not an echo request
-            }
-        }
-        _ => return,
-    };
-
-    // Costruisci l'intestazione ICMP Echo Reply
-    let echo_reply = Icmpv4Type::EchoReply(IcmpEchoHeader { id, seq });
-    let icmp_header = Icmpv4Header {
-        icmp_type: echo_reply,
-        checksum: 0,
-    };
-
-    let mut icmp_buf = Vec::new();
-    icmp_header.write(&mut icmp_buf).unwrap();
-    icmp_buf.extend_from_slice(icmp_payload);
-
-    // Calcola checksum corretto
-    let checksum = etherparse::checksum::Sum16BitWords::new()
-        .add_slice(&icmp_buf)
-        .ones_complement();
-    icmp_buf[2] = (checksum >> 8) as u8;
-    icmp_buf[3] = (checksum & 0xFF) as u8;
-
-    // Costruisci header IPv4
-    let ip_header = Ipv4Header::new(
-        (20 + icmp_buf.len()) as u16,
-        64,
-        Icmp as u8,
-        dst_ip.octets(),
-        src_ip.octets(),
-    );
-
-    let mut reply_buf = Vec::new();
-    ip_header.write(&mut reply_buf).unwrap();
-    reply_buf.extend_from_slice(&icmp_buf);
-
-    // Invia il pacchetto sulla TUN
-    if let Err(e) = tun.write_all(&reply_buf) {
-        eprintln!("❌ Errore invio Echo Reply: {:?}", e);
-    } else {
-        println!("📤 Echo Reply inviato a {}", src_ip);
-    }
-}
- */
-
 
  pub fn handle_tun_msg(tun: Arc<tokio_tun::Tun>, buf: [u8; 1024], n: usize, ipv4_address: Ipv4Addr, ipv6_address: Ipv6Addr) {
     if let Ok((ipv4, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
-        println!("\n received ipv4");
+        println!("\nReceived IPv4 packet");
+
         if ipv4.protocol == IpNumber::ICMP {
-            if let Ok(icmp_packet) = Icmpv4Slice::from_slice(remaining_payload) {
-                println!("\n\nicmp_packet: {:?}\n", icmp_packet);
+
+            if let icmp_packet = EchoRequestPacket::new(remaining_payload).expect("Failed to extract icmpv4 packet"){
+                println!("\nICMP Packet: {:?}", icmp_packet);
+                
+                // Invia una risposta ICMP (Echo Reply)
+                send_tun_icmp_reply(
+                    tun.clone(),
+                    &ipv4,
+                    &icmp_packet,
+                    &ipv4_address
+                );
             } else {
                 eprintln!("❌ Errore nella decodifica del pacchetto ICMP.");
             }
+        } else {
+            eprintln!("❌ Pacchetto non ICMP ricevuto.");
         }
     }
+
     else if let Ok((ipv6, remaining_payload)) = Ipv6Header::from_slice(&buf[..n]) {
         if ipv6.next_header == IpNumber::IPV6_ICMP {
             if let Ok(icmpv6_packet) = Icmpv6Slice::from_slice(remaining_payload) {
 
-                send_icmpv6_reply(
+                send_tun_icmpv6_reply(
                     tun.clone(),
-        &ipv6,
-     &icmpv6_packet,
+                    &ipv6,
+                    &icmpv6_packet,
                     &ipv6_address
                 );
             } else {

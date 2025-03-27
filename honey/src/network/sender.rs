@@ -1,4 +1,4 @@
-use etherparse::{IcmpEchoHeader, Icmpv6Slice, IpNumber, Ipv6FlowLabel, Ipv6Header};
+use etherparse::{IcmpEchoHeader, Icmpv4Slice, Icmpv6Slice, IpNumber, Ipv4Header, Ipv6FlowLabel, Ipv6Header};
 use pnet::datalink::{self, Channel, DataLinkSender};
 use pnet::packet::arp::{ArpOperations, ArpPacket, MutableArpPacket};
 use pnet::packet::ethernet::{EthernetPacket, MutableEthernetPacket, EtherTypes};
@@ -239,7 +239,45 @@ pub fn send_icmp_reply(
 
 }
 
-pub fn send_icmpv6_reply(
+pub fn send_tun_icmp_reply(
+    tun: Arc<tokio_tun::Tun>,
+    ipv4_packet: &Ipv4Header,
+    icmp_request: &EchoRequestPacket,
+    ipv4_address: &Ipv4Addr
+) {
+
+    let mut icmp_reply_buffer = vec![0u8; MutableEchoReplyPacket::minimum_packet_size()];
+    let mut icmp_reply = MutableEchoReplyPacket::new(&mut icmp_reply_buffer).unwrap();
+
+    icmp_reply.set_icmp_type(IcmpTypes::EchoReply);
+    icmp_reply.set_identifier(icmp_request.get_identifier());
+    icmp_reply.set_sequence_number(icmp_request.get_sequence_number());
+    icmp_reply.set_payload(icmp_request.payload());
+
+    let icmp_packet = IcmpPacket::new(icmp_reply.packet()).unwrap();
+    let checksum_value = checksum(&icmp_packet);
+    icmp_reply.set_checksum(checksum_value);
+
+    let mut ipv4_buffer = vec![0u8; 20 + icmp_reply.packet().len()];
+    let mut ipv4_reply = MutableIpv4Packet::new(&mut ipv4_buffer).unwrap();
+    ipv4_reply.set_version(4);
+    ipv4_reply.set_header_length(5);
+    ipv4_reply.set_total_length((20 + icmp_reply.packet().len()) as u16);
+    ipv4_reply.set_ttl(64);
+    ipv4_reply.set_next_level_protocol(pnet::packet::ip::IpNextHeaderProtocols::Icmp);
+    ipv4_reply.set_source(*ipv4_address);
+    ipv4_reply.set_destination(ipv4_packet.source.into());
+    ipv4_reply.set_payload(icmp_reply.packet());
+
+    ipv4_reply.set_payload(icmp_reply.packet());
+
+    tun.send(ipv4_reply.packet()).unwrap();
+}
+
+
+
+
+pub fn send_tun_icmpv6_reply(
     tun: Arc<tokio_tun::Tun>,
     ipv6_packet: &Ipv6Header,
     icmpv6_request: &Icmpv6Slice,
