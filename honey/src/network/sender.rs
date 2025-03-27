@@ -275,8 +275,8 @@ pub fn send_icmpv6_reply(
     ipv6_reply.set_payload(icmpv6_reply.packet());
 
     let ipv6_sent_packet = ipv6_reply.consume_to_immutable();
-    println!("\n\nRECEIVED ipv6 packet: {:?}", ipv6_packet);
+    //println!("\n\nRECEIVED ipv6 packet: {:?}", ipv6_packet);
 
-    println!("\nSENT ipv6 packet: {:?}", ipv6_sent_packet);
+    //println!("\nSENT ipv6 packet: {:?}", ipv6_sent_packet);
     tun.send(    ipv6_sent_packet.packet());
 }

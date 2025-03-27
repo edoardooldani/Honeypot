@@ -173,9 +173,10 @@ pub fn respond_to_icmp_echo(tun: &mut Device, packet: &SlicedPacket) {
 
  pub fn handle_tun_msg(tun: Arc<tokio_tun::Tun>, buf: [u8; 1024], n: usize, ipv4_address: Ipv4Addr, ipv6_address: Ipv6Addr) {
     if let Ok((ipv4, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
+        println!("\n received ipv4");
         if ipv4.protocol == IpNumber::ICMP {
             if let Ok(icmp_packet) = Icmpv4Slice::from_slice(remaining_payload) {
-                //println!("icmp_packet: {:?}", icmp_packet);
+                println!("\n\nicmp_packet: {:?}\n", icmp_packet);
             } else {
                 eprintln!("❌ Errore nella decodifica del pacchetto ICMP.");
             }
