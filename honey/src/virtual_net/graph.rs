@@ -251,7 +251,7 @@ impl NetworkGraph {
                     Ok(n) => {
                         if n > 0 {
                             match handle_tun_msg(
-                                graph,
+                                graph.clone(),
                                 tun_reader.clone(),
                                 buf, 
                                 n, 
