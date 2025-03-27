@@ -203,6 +203,8 @@ pub async fn build_tun_icmp_reply(
     dst_mac: MacAddr
 ) -> Result<Vec<u8>, String> {
 
+    println!("Inside build msg");
+
     let mut icmp_reply_buffer = vec![0u8; MutableEchoReplyPacket::minimum_packet_size() + icmp_request.payload().len()];
     let mut icmp_reply = MutableEchoReplyPacket::new(&mut icmp_reply_buffer).unwrap();
 
@@ -238,6 +240,7 @@ pub async fn build_tun_icmp_reply(
     */
 
     //send_ipv4_packet(ipv4_reply.packet().to_vec(),  local_mac, dst_mac).await.unwrap();
+    println!("return build msg");
 
     Ok(ipv4_reply.packet().to_vec())
 }

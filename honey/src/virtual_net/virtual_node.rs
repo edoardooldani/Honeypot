@@ -111,6 +111,8 @@ pub fn handle_virtual_packet(
     ipv6_address: Ipv6Addr,
     virtual_mac: MacAddr,
 ) -> Result<Vec<u8>, String>  {
+
+    println!("Inside handle msg");
     if let Ok((ipv4, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
 
         if ipv4.protocol == IpNumber::ICMP {
