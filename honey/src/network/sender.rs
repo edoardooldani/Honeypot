@@ -194,50 +194,8 @@ pub fn send_tcp_syn_ack(
 }
 
 
-pub fn send_icmp_reply(
-    tx: &mut dyn DataLinkSender,
-    ethernet_packet: &EthernetPacket,
-    ipv4_packet: &pnet::packet::ipv4::Ipv4Packet,
-    virtual_mac: MacAddr,
-    virtual_ip: Ipv4Addr,
-    echo_request: &EchoRequestPacket
-) {
 
-    let mut icmp_reply_buffer = vec![0u8; echo_request.packet().len()];
-    let mut icmp_reply = MutableEchoReplyPacket::new(&mut icmp_reply_buffer).unwrap();
 
-    icmp_reply.set_icmp_type(IcmpTypes::EchoReply);
-    icmp_reply.set_identifier(echo_request.get_identifier());
-    icmp_reply.set_sequence_number(echo_request.get_sequence_number());
-    icmp_reply.set_payload(echo_request.payload());
-
-    let icmp_packet = IcmpPacket::new(icmp_reply.packet()).unwrap();
-    let checksum_value = checksum(&icmp_packet);
-    icmp_reply.set_checksum(checksum_value);
-
-    let mut ipv4_buffer = vec![0u8; 20 + icmp_reply.packet().len()];
-    let mut ipv4_reply = MutableIpv4Packet::new(&mut ipv4_buffer).unwrap();
-    ipv4_reply.set_version(4);
-    ipv4_reply.set_header_length(5);
-    ipv4_reply.set_total_length((20 + icmp_reply.packet().len()) as u16);
-    ipv4_reply.set_ttl(64);
-    ipv4_reply.set_next_level_protocol(pnet::packet::ip::IpNextHeaderProtocols::Icmp);
-    ipv4_reply.set_source(virtual_ip);
-    ipv4_reply.set_destination(ipv4_packet.get_source());
-    ipv4_reply.set_payload(icmp_reply.packet());
-
-    // Buffer per il pacchetto Ethernet
-    let mut ethernet_buffer = vec![0u8; 14 + ipv4_reply.packet().len()];
-    let mut ethernet_reply = MutableEthernetPacket::new(&mut ethernet_buffer).unwrap();
-    ethernet_reply.set_destination(ethernet_packet.get_source());
-    ethernet_reply.set_source(virtual_mac);
-    ethernet_reply.set_ethertype(EtherTypes::Ipv4);
-    ethernet_reply.set_payload(ipv4_reply.packet());
-
-    // Invia il pacchetto sulla rete
-    tx.send_to(&ethernet_buffer, None);
-
-}
 
 pub async fn build_tun_icmp_reply(
     tun: Arc<tokio_tun::Tun>,
@@ -272,13 +230,18 @@ pub async fn build_tun_icmp_reply(
     let checksum_value = pnet::packet::ipv4::checksum(&ipv4_reply.to_immutable());
     ipv4_reply.set_checksum(checksum_value);
 
-    println!("Packet: {:?}", ipv4_reply);
+    println!("ICMP received: {:?}", icmp_request);
+    println!("ICMP to send: {:?}", icmp_reply);
+
+    println!("IPv4 received: {:?}", ipv4_packet);
+    println!("IPv4 to send: {:?}", ipv4_reply);
+
     Ok(ipv4_reply.packet().to_vec())
 }
 
 
 
-
+/* 
 pub fn send_tun_icmpv6_reply(
     tun: Arc<tokio_tun::Tun>,
     ipv6_packet: &Ipv6Header,
@@ -319,4 +282,4 @@ pub fn send_tun_icmpv6_reply(
 
     //println!("\nSENT ipv6 packet: {:?}", ipv6_sent_packet);
     tun.send(    ipv6_sent_packet.packet());
-}
+}*/
