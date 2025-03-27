@@ -269,6 +269,9 @@ pub async fn build_tun_icmp_reply(
     ipv4_reply.set_destination(ipv4_packet.destination.into());
     ipv4_reply.set_payload(icmp_reply.packet());
 
+    let checksum_value = pnet::packet::ipv4::checksum(&ipv4_reply.to_immutable());
+    ipv4_reply.set_checksum(checksum_value);
+
     println!("Packet: {:?}", ipv4_reply);
     Ok(ipv4_reply.packet().to_vec())
 }
