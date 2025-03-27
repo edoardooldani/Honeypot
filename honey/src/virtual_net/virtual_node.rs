@@ -123,10 +123,8 @@ pub fn handle_virtual_packet(
     ipv6_address: Ipv6Addr
 ) -> Result<Vec<u8>, String>  {
     if let Ok((ipv4, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
-        println!("\nReceived IPv4 packet from: {:?}, to: {:?} ", ipv4.source, ipv4.destination);
 
         if ipv4.protocol == IpNumber::ICMP {
-            println!("ICMP");
             if let icmp_packet = EchoRequestPacket::new(remaining_payload).expect("Failed to extract icmpv4 packet"){
                 println!("ICMP Packet: {:?}", icmp_packet);
                 
