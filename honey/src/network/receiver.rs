@@ -102,10 +102,6 @@ pub async fn scan_datalink(
                         }
                         
                     }
-
-                    if let Err(e) = tx.unbounded_send(Message::Text("New network data from MAC".into())) {
-                        eprintln!("❌ Errore nell'invio del messaggio: {}", e);
-                    }
                     
                     detect_attacks(
                         tx.clone(), 
