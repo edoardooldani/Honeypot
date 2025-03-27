@@ -262,8 +262,6 @@ fn create_virtual_tun_interface(ipv4: &str, ipv6: &str) {
             .unwrap(),
     );
 
-    let (mut reader, mut _writer) = tokio::io::split(tun);
-
     let tun_reader: Arc<Tun> = Arc::clone(&tun);
     let tun_writer: Arc<Tun>= tun.clone();
 
