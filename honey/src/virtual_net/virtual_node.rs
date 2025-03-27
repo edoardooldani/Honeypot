@@ -116,10 +116,9 @@ pub fn handle_virtual_packet(
 
         if ipv4.protocol == IpNumber::ICMP {
             if let icmp_packet = EchoRequestPacket::new(remaining_payload).expect("Failed to extract icmpv4 packet"){                
-                let addr = format!("{}.{}.{}.{}", ipv4.source[0], ipv4.source[1], ipv4.source[2], ipv4.source[3]);
-                graph.print_real_nodes();
+                let addr = format!("{}.{}.{}.{}", ipv4.destination[0], ipv4.destination[1], ipv4.destination[2], ipv4.destination[3]);
                 let parsed_ip = Ipv4Addr::from_str(&addr).expect("Error parsing ip addr");
-                println!("PARSED IP: {:?}", parsed_ip);
+                
                 let node = graph.find_node_by_ip(parsed_ip).expect("Node not found");
                 Ok(
                     build_tun_icmp_reply(
