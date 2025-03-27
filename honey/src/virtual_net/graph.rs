@@ -260,7 +260,7 @@ async fn create_virtual_tun_interface(
 
     let mut buf = [0u8; 1024];
 
-    let count = 0;
+    let mut count = 0;
     loop {
         count +=1;
         match tun_reader.recv(&mut buf).await {
