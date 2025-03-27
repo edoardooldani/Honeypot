@@ -283,6 +283,9 @@ async fn create_virtual_tun_interface(
                     }
                 }
             }
+            Err(e) => {        
+                eprintln!("Errore: {}", e);
+            }
         }
     }
 }
