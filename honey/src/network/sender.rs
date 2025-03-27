@@ -7,7 +7,7 @@ use pnet::packet::icmp::echo_request::EchoRequestPacket;
 use pnet::packet::icmp::{checksum, IcmpPacket, IcmpTypes};
 use pnet::packet::icmpv6::{Icmpv6, Icmpv6Code, Icmpv6Packet, Icmpv6Type, Icmpv6Types, MutableIcmpv6Packet, checksum as Icmpv6Checksum};
 use pnet::packet::ip::IpNextHeaderProtocols;
-use pnet::packet::ipv4::MutableIpv4Packet;
+use pnet::packet::ipv4::{Ipv4Packet, MutableIpv4Packet};
 use pnet::packet::ipv6::{Ipv6Packet, MutableIpv6Packet};
 use pnet::packet::tcp::{MutableTcpPacket, TcpFlags};
 use pnet::packet::Packet;
@@ -246,7 +246,7 @@ pub fn send_tun_icmp_reply(
     ipv4_address: &Ipv4Addr
 ) {
 
-    let mut icmp_reply_buffer = vec![0u8; MutableEchoReplyPacket::minimum_packet_size()];
+    let mut icmp_reply_buffer = vec![0u8; MutableEchoReplyPacket::minimum_packet_size() + icmp_request.payload().len()];
     let mut icmp_reply = MutableEchoReplyPacket::new(&mut icmp_reply_buffer).unwrap();
 
     icmp_reply.set_icmp_type(IcmpTypes::EchoReply);
@@ -258,7 +258,7 @@ pub fn send_tun_icmp_reply(
     let checksum_value = checksum(&icmp_packet);
     icmp_reply.set_checksum(checksum_value);
 
-    let mut ipv4_buffer = vec![0u8; 20 + icmp_reply.packet().len()];
+    let mut ipv4_buffer = vec![0u8; Ipv4Packet::minimum_packet_size() + icmp_reply.packet().len()];
     let mut ipv4_reply = MutableIpv4Packet::new(&mut ipv4_buffer).unwrap();
     ipv4_reply.set_version(4);
     ipv4_reply.set_header_length(5);

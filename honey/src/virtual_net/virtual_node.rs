@@ -133,9 +133,7 @@ pub fn handle_virtual_packet(
             } else {
                 eprintln!("❌ Errore nella decodifica del pacchetto ICMP.");
             }
-        } else {
-            eprintln!("❌ Pacchetto non ICMP ricevuto.");
-        }
+        } 
     }
 
     else if let Ok((ipv6, remaining_payload)) = Ipv6Header::from_slice(&buf[..n]) {
