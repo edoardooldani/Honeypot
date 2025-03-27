@@ -243,7 +243,7 @@ fn create_virtual_tun_interface(ipv4: &str, ipv6: &str) {
         io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
     }).expect("Errore nel parsing dell'indirizzo IP");
 
-    println!("IP: {ipv4_address}");
+    println!("IP: {ipv4_address} IPv6: {ipv6_address}");
 
     let last_octet = ipv4_address.octets()[3];
     let tun_name = format!("tun{}", last_octet);
