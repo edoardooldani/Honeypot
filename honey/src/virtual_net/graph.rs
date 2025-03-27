@@ -269,7 +269,7 @@ fn create_virtual_tun_interface(ipv4: &str, ipv6: &str) {
         let mut buf = [0u8; 1024]; // Buffer per la lettura dei pacchetti
 
         loop {
-            match tun_reader.try_recv(&mut buf) {
+            match tun_reader.recv(&mut buf) {
                 Ok(n) => {
                     if n > 0 {
                         match handle_tun_msg(
