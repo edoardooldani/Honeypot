@@ -266,7 +266,7 @@ fn create_virtual_tun_interface(ipv4: &str, ipv6: &str) {
     let tun_writer: Arc<Tun>= tun.clone();
 
     tokio::spawn(async move {
-        let mut buf = [0u8; 1024]; // Buffer per la lettura dei pacchetti
+        let mut buf = [0u8; 1024];
 
         loop {
             match tun_reader.recv(&mut buf).await {

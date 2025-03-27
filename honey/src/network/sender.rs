@@ -239,7 +239,7 @@ pub fn send_icmp_reply(
 
 }
 
-pub async fn send_tun_icmp_reply(
+pub async fn build_tun_icmp_reply(
     tun: Arc<tokio_tun::Tun>,
     ipv4_packet: &Ipv4Header,
     icmp_request: &EchoRequestPacket<'_>,

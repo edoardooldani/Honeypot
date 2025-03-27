@@ -1,9 +1,8 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, icmp::{echo_request::EchoRequestPacket, IcmpPacket, IcmpTypes}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
-use tracing::{error, info};
-use tracing_subscriber::reload::Error;
-use crate::network::sender::{send_arp_reply, send_icmp_reply, send_tcp_syn_ack, send_tun_icmp_reply, send_tun_icmpv6_reply};
-use std::{io::Write, net::{Ipv4Addr, Ipv6Addr}, str::FromStr, sync::Arc};
-use etherparse::{Icmpv4Slice, Icmpv6Slice, IpNumber, Ipv4Header, Ipv6Header};
+use tracing::error;
+use crate::network::sender::{send_arp_reply, send_icmp_reply, send_tcp_syn_ack, build_tun_icmp_reply};
+use std::{net::{Ipv4Addr, Ipv6Addr}, str::FromStr, sync::Arc};
+use etherparse::{IpNumber, Ipv4Header};
 
 use super::graph::NetworkGraph;
 
@@ -129,7 +128,7 @@ pub fn handle_virtual_packet(
                 println!("ICMP Packet: {:?}", icmp_packet);
                 
                 Ok(
-                    send_tun_icmp_reply(
+                    build_tun_icmp_reply(
                     tun_reader.clone(),
                     &ipv4,
                     &icmp_packet,
