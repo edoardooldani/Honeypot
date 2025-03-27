@@ -96,8 +96,6 @@ impl NetworkGraph {
 
         let node_index = self.graph.add_node(node);
         self.nodes.insert(assigned_mac, node_index);
-        self.print_virtual_nodes();
-
         node_index
     }
 
@@ -252,7 +250,7 @@ fn create_virtual_tun_interface(ip: &str) {
             match tun_reader.recv(&mut buf).await {
                 Ok(n) => {
                     if n > 0 {
-                        handle_tun_msg(buf, n);
+                        handle_tun_msg(tun_reader.clone(), buf, n);
                     }
                 }
                 Err(e) => {

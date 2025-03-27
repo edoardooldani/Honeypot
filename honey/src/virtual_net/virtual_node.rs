@@ -1,7 +1,8 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, icmp::{echo_request::EchoRequestPacket, IcmpPacket, IcmpTypes}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tracing::error;
-use crate::network::sender::{send_arp_reply, send_icmp_reply, send_tcp_syn_ack};
-use std::{io::Write, net::Ipv4Addr, str::FromStr};
+use tun::Tun;
+use crate::network::sender::{send_arp_reply, send_icmp_reply, send_icmpv6_reply, send_tcp_syn_ack};
+use std::{io::Write, net::Ipv4Addr, str::FromStr, sync::Arc};
 use etherparse::{Icmpv4Slice, Icmpv6Slice, IpNumber, Ipv4Header, Ipv6Header};
 
 use super::graph::NetworkGraph;
@@ -171,7 +172,7 @@ pub fn respond_to_icmp_echo(tun: &mut Device, packet: &SlicedPacket) {
  */
 
 
- pub fn handle_tun_msg(buf: [u8; 1024], n: usize) {
+ pub fn handle_tun_msg(tun: Arc<Tun>, buf: [u8; 1024], n: usize) {
     if let Ok((ipv4, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
         if ipv4.protocol == IpNumber::ICMP {
             if let Ok(icmp_packet) = Icmpv4Slice::from_slice(remaining_payload) {
@@ -184,15 +185,21 @@ pub fn respond_to_icmp_echo(tun: &mut Device, packet: &SlicedPacket) {
     else if let Ok((ipv6, remaining_payload)) = Ipv6Header::from_slice(&buf[..n]) {
         if ipv6.next_header == IpNumber::IPV6_ICMP {
             if let Ok(icmpv6_packet) = Icmpv6Slice::from_slice(remaining_payload) {
-                // Decodifica il pacchetto ICMPv6
+
                 println!("icmpv6_packet: {:?}", icmpv6_packet);
+
+                send_icmpv6_reply(
+                    tun.clone(),
+        &ipv6,
+     &icmpv6_packet
+                );
             } else {
                 eprintln!("❌ Errore nella decodifica del pacchetto ICMPv6.");
             }
         } else {
             println!("📡 source: {:?}, dest: {:?}", ipv6.source_addr(), ipv6.destination_addr());
         }
-    } else {
+    }else {
         eprintln!("❌ Errore: pacchetto con versione IP non supportata.");
     }
     

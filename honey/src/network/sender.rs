@@ -1,16 +1,21 @@
+use etherparse::{IcmpEchoHeader, Icmpv6Slice, IpNumber, Ipv6FlowLabel, Ipv6Header};
 use pnet::datalink::{self, Channel, DataLinkSender};
 use pnet::packet::arp::{ArpOperations, ArpPacket, MutableArpPacket};
 use pnet::packet::ethernet::{EthernetPacket, MutableEthernetPacket, EtherTypes};
 use pnet::packet::icmp::echo_reply::MutableEchoReplyPacket;
 use pnet::packet::icmp::echo_request::EchoRequestPacket;
 use pnet::packet::icmp::{checksum, IcmpPacket, IcmpTypes};
+use pnet::packet::icmpv6::{Icmpv6, Icmpv6Code, Icmpv6Packet, Icmpv6Type, Icmpv6Types, MutableIcmpv6Packet, checksum as Icmpv6Checksum};
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::MutableIpv4Packet;
+use pnet::packet::ipv6::{Ipv6Packet, MutableIpv6Packet};
 use pnet::packet::tcp::{MutableTcpPacket, TcpFlags};
 use pnet::packet::Packet;
 use pnet::util::MacAddr;
+use tokio::io::AsyncWriteExt;
+use tun::Tun;
 use std::collections::HashSet;
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::time::Duration;
 use std::thread;
 use std::sync::{Arc, Mutex};
@@ -232,4 +237,43 @@ pub fn send_icmp_reply(
     // Invia il pacchetto sulla rete
     tx.send_to(&ethernet_buffer, None);
 
+}
+
+pub fn send_icmpv6_reply(
+    tun: Arc<Tun>,
+    ipv6_packet: &Ipv6Header,
+    icmpv6_request: &Icmpv6Slice,
+) {
+    let mut icmp_reply_buffer = vec![0u8; MutableIcmpv6Packet::minimum_packet_size()];
+    let mut icmpv6_packet = MutableIcmpv6Packet::new(&mut icmp_reply_buffer).expect("Icmpv6 packet failed to create");
+    icmpv6_packet.set_icmpv6_type(Icmpv6Types::EchoReply);
+    icmpv6_packet.set_payload(icmpv6_request.payload());
+
+    let pack = icmpv6_packet.to_immutable();
+    let checksum_value = Icmpv6Checksum(&pack, &ipv6_packet.destination_addr(), &ipv6_packet.source_addr());
+    icmpv6_packet.set_checksum(checksum_value);
+
+    let icmpv6_reply = icmpv6_packet.to_immutable();
+    //let icmpv6_reply = Icmpv6Packet::new(&icmpv6_packet).expect("Icmpv6 reply failed to create");
+    
+
+    // Crea il pacchetto IPv6 che conterrà la risposta ICMPv6
+    let mut ipv6_reply_buffer = vec![0u8; Ipv6Header::LEN + icmpv6_reply.packet().len()];
+    let mut ipv6_reply = MutableIpv6Packet::new(&mut ipv6_reply_buffer).unwrap();
+
+    // Imposta i dettagli dell'header IPv6
+    ipv6_reply.set_version(6);
+    ipv6_reply.set_traffic_class(0); 
+    ipv6_reply.set_flow_label(0);
+    ipv6_reply.set_payload_length(icmpv6_packet.packet().len() as u16); 
+    ipv6_reply.set_next_header(IpNextHeaderProtocols::Icmpv6); 
+    ipv6_reply.set_hop_limit(64); 
+    ipv6_reply.set_source(ipv6_packet.destination_addr()); // L'indirizzo di origine è l'indirizzo di destinazione della richiesta
+    ipv6_reply.set_destination(ipv6_packet.source_addr()); // L'indirizzo di destinazione è l'indirizzo di origine della richiesta
+    // Imposta il payload come il pacchetto ICMPv6
+    ipv6_reply.set_payload(icmpv6_reply.packet());
+
+    let ipv6_packet = ipv6_reply.consume_to_immutable();
+    println!("ipv6 packet: {:?}", ipv6_packet);
+    tun.send(    ipv6_packet.packet());
 }
