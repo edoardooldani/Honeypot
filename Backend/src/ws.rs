@@ -52,7 +52,11 @@ async fn handle_websocket(mut socket: WebSocket, wss_state: Arc<WssAppState>, de
             Ok(Message::Close(_)) | Err(_) => {
                 break;
             }
+            Ok(Message::Text(text)) => {
+                println!("Text: {:?}", text);
+            }
             _ => {
+
                 close_socket_with_error(&mut socket, &device_name, "Invalid message!").await;
                 break;
             }

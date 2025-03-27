@@ -102,9 +102,9 @@ impl NetworkGraph {
 
         let node_index = self.graph.add_node(node);
         self.nodes.insert(assigned_mac.clone(), node_index);
-
-        let graph = Arc::new(self.clone()); 
+        
         /* 
+        let graph = Arc::new(self.clone()); 
         tokio::spawn(async move {
             create_virtual_tun_interface(graph.clone(), assigned_ip.clone(), assigned_ipv6.clone(), assigned_mac.clone()).await;
         });*/
