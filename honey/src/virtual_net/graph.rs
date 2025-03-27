@@ -255,7 +255,6 @@ impl NetworkGraph {
                         if n > 0 {
                             match handle_tun_msg(
                                 graph.clone(),
-                                tun_reader.clone(),
                                 buf, 
                                 n, 
                                 ipv4_address, 
@@ -264,6 +263,7 @@ impl NetworkGraph {
                         ).await {
                                 Ok(msg) => {
                                     if !msg.is_empty(){
+                                        /* 
                                         println!("Message to send: {:?}", msg);
                                         // Log dell'invio tramite TUN
                                         if let Err(e) = tun_writer.send(msg.as_slice()).await {
@@ -271,6 +271,7 @@ impl NetworkGraph {
                                         } else {
                                             println!("Packet sent successfully!");
                                         }
+                                        */
                                     }
                                     
                                 }

@@ -1,21 +1,17 @@
-use etherparse::{IcmpEchoHeader, Icmpv4Slice, Icmpv6Slice, IpNumber, Ipv4Header, Ipv6FlowLabel, Ipv6Header};
-use pnet::datalink::{self, Channel, DataLinkSender, NetworkInterface};
+use etherparse::Ipv4Header;
+use pnet::datalink::{self, Channel, DataLinkSender};
 use pnet::packet::arp::{ArpOperations, ArpPacket, MutableArpPacket};
 use pnet::packet::ethernet::{EthernetPacket, MutableEthernetPacket, EtherTypes};
 use pnet::packet::icmp::echo_reply::MutableEchoReplyPacket;
 use pnet::packet::icmp::echo_request::EchoRequestPacket;
 use pnet::packet::icmp::{checksum, IcmpPacket, IcmpTypes};
-use pnet::packet::icmpv6::{Icmpv6, Icmpv6Code, Icmpv6Packet, Icmpv6Type, Icmpv6Types, MutableIcmpv6Packet, checksum as Icmpv6Checksum};
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::{Ipv4Packet, MutableIpv4Packet};
-use pnet::packet::ipv6::{Ipv6Packet, MutableIpv6Packet};
 use pnet::packet::tcp::{MutableTcpPacket, TcpFlags};
 use pnet::packet::Packet;
 use pnet::util::MacAddr;
-use tokio::io::AsyncWriteExt;
-use tun::Tun;
 use std::collections::HashSet;
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::Ipv4Addr;
 use std::process::Command;
 use std::str::FromStr;
 use std::time::Duration;
@@ -200,7 +196,6 @@ pub fn send_tcp_syn_ack(
 
 
 pub async fn build_tun_icmp_reply(
-    tun: Arc<tokio_tun::Tun>,
     ipv4_packet: &Ipv4Header,
     icmp_request: &EchoRequestPacket<'_>,
     ipv4_address: &Ipv4Addr,
@@ -267,12 +262,21 @@ pub async fn send_ipv4_packet(ipv4_packet: Vec<u8>, src_mac: MacAddr, dst_mac: M
     ether_packet.set_source(src_mac);
     ether_packet.set_ethertype(pnet::packet::ethernet::EtherTypes::Ipv4);
 
-    // Imposta il payload come il pacchetto IPv4
     ether_packet.set_payload(&ipv4_packet);
 
-    // Invia il pacchetto sulla rete
-    tx.send_to(ether_packet.packet(), None).expect("Cannot send msg");
+    println!("Sending Ethernet frame: {:?}", ether_packet.packet());
 
+    match tx.send_to(ether_packet.packet(), None) {
+        Some(Ok(_)) => {
+            println!("Packet sent successfully");
+        },
+        Some(Err(e)) => {
+            eprintln!("Failed to send packet: {}", e);
+        },
+        None => {
+            eprintln!("Error: Channel is None");
+        }
+    }
     Ok(())
 }
 

@@ -1,4 +1,4 @@
-use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, icmp::{echo_request::EchoRequestPacket, IcmpPacket, IcmpTypes}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
+use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, icmp::echo_request::EchoRequestPacket, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tracing::error;
 use crate::network::sender::{send_arp_reply, send_tcp_syn_ack, build_tun_icmp_reply};
 use std::{net::{Ipv4Addr, Ipv6Addr}, str::FromStr, sync::Arc};
@@ -105,7 +105,6 @@ pub fn handle_virtual_packet(
 
  pub async fn handle_tun_msg(
     graph: Arc<NetworkGraph>,
-    tun_reader: Arc<tokio_tun::Tun>, 
     buf: [u8; 1024], 
     n: usize, 
     ipv4_address: Ipv4Addr, 
@@ -115,24 +114,22 @@ pub fn handle_virtual_packet(
     if let Ok((ipv4, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
 
         if ipv4.protocol == IpNumber::ICMP {
-            if let icmp_packet = EchoRequestPacket::new(remaining_payload).expect("Failed to extract icmpv4 packet"){                
-                let addr = format!("{}.{}.{}.{}", ipv4.destination[0], ipv4.destination[1], ipv4.destination[2], ipv4.destination[3]);
-                let parsed_ip = Ipv4Addr::from_str(&addr).expect("Error parsing ip addr");
-                
-                let node = graph.find_node_by_ip(parsed_ip).expect("Node not found");
-                Ok(
-                    build_tun_icmp_reply(
-                    tun_reader.clone(),
-                    &ipv4,
-                    &icmp_packet,
-                    &ipv4_address,
-                    virtual_mac,
-                    MacAddr::from_str(&node.mac_address).expect("Error parsing mac address")
-                    ).await?
-                )
-
-            } else {
-                return Err("❌ Errore nella decodifica del pacchetto ICMP.".to_string());
+            match EchoRequestPacket::new(remaining_payload).expect("Failed to extract icmpv4 packet") {
+                icmp_packet => {
+                    let addr = format!("{}.{}.{}.{}", ipv4.destination[0], ipv4.destination[1], ipv4.destination[2], ipv4.destination[3]);
+                    let parsed_ip = Ipv4Addr::from_str(&addr).expect("Error parsing ip addr");
+                    let node = graph.find_node_by_ip(parsed_ip).expect("Node not found");
+                    Ok(
+                                    build_tun_icmp_reply(
+                                    &ipv4,
+                                    &icmp_packet,
+                                    &ipv4_address,
+                                    virtual_mac,
+                                    MacAddr::from_str(&node.mac_address).expect("Error parsing mac address")
+                                    ).await?
+                                )
+                }
+                _ => return Err("❌ Errore nella decodifica del pacchetto ICMP.".to_string()),
             }
         } else {
             return Ok(vec![]);
