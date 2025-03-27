@@ -1,6 +1,6 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, icmp::{echo_request::EchoRequestPacket, IcmpPacket, IcmpTypes}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tracing::error;
-use crate::network::sender::{send_arp_reply, send_icmp_reply, send_tcp_syn_ack, build_tun_icmp_reply};
+use crate::network::sender::{send_arp_reply, send_tcp_syn_ack, build_tun_icmp_reply};
 use std::{net::{Ipv4Addr, Ipv6Addr}, str::FromStr, sync::Arc};
 use etherparse::{IpNumber, Ipv4Header};
 
@@ -124,9 +124,7 @@ pub fn handle_virtual_packet(
     if let Ok((ipv4, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
 
         if ipv4.protocol == IpNumber::ICMP {
-            if let icmp_packet = EchoRequestPacket::new(remaining_payload).expect("Failed to extract icmpv4 packet"){
-                println!("ICMP Packet: {:?}", icmp_packet);
-                
+            if let icmp_packet = EchoRequestPacket::new(remaining_payload).expect("Failed to extract icmpv4 packet"){                
                 Ok(
                     build_tun_icmp_reply(
                     tun_reader.clone(),
