@@ -269,7 +269,8 @@ pub async fn send_tun_icmp_reply(
     ipv4_reply.set_destination(ipv4_packet.destination.into());
     ipv4_reply.set_payload(icmp_reply.packet());
 
-    ipv4_reply.set_payload(icmp_reply.packet());
+    let checksum_value_ipv4 = pnet::packet::ipv4::checksum(&ipv4_reply.to_immutable());
+    ipv4_reply.set_checksum(checksum_value_ipv4); 
 
     println!("Ipv4 reply: {:?}", ipv4_reply);
     let bytes = tun.send(ipv4_reply.packet()).await;
