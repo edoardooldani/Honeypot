@@ -268,8 +268,8 @@ pub async fn send_tun_icmp_reply(
     ipv4_reply.set_source(*ipv4_address);
     ipv4_reply.set_destination(ipv4_packet.destination.into());
     ipv4_reply.set_payload(icmp_reply.packet());
-    
-    println!("Packet: {:?}", ipv4_reply.packet());
+
+    println!("Packet: {:?}", ipv4_reply);
     Ok(ipv4_reply.packet().to_vec())
 }
 
