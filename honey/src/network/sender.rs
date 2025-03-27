@@ -266,7 +266,7 @@ pub async fn send_tun_icmp_reply(
     ipv4_reply.set_ttl(64);
     ipv4_reply.set_next_level_protocol(pnet::packet::ip::IpNextHeaderProtocols::Icmp);
     ipv4_reply.set_source(*ipv4_address);
-    ipv4_reply.set_destination(ipv4_packet.source.into());
+    ipv4_reply.set_destination(ipv4_packet.destination.into());
     ipv4_reply.set_payload(icmp_reply.packet());
 
     ipv4_reply.set_payload(icmp_reply.packet());
