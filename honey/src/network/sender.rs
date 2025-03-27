@@ -245,16 +245,19 @@ pub async fn send_tun_icmp_reply(
     icmp_request: &EchoRequestPacket<'_>,
     ipv4_address: &Ipv4Addr
 ) {
+    println!("Mid icmp reply 0");
 
     let mut icmp_reply_buffer = vec![0u8; MutableEchoReplyPacket::minimum_packet_size() + icmp_request.payload().len()];
+    println!("Mid icmp reply 1");
+
     let mut icmp_reply = MutableEchoReplyPacket::new(&mut icmp_reply_buffer).unwrap();
+    println!("Mid icmp reply 2");
 
     icmp_reply.set_icmp_type(IcmpTypes::EchoReply);
     icmp_reply.set_identifier(icmp_request.get_identifier());
     icmp_reply.set_sequence_number(icmp_request.get_sequence_number());
     icmp_reply.set_payload(icmp_request.payload());
 
-    println!("Mid icmp reply");
     let icmp_packet = IcmpPacket::new(icmp_reply.packet()).unwrap();
     let checksum_value = checksum(&icmp_packet);
     icmp_reply.set_checksum(checksum_value);
