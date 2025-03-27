@@ -116,24 +116,31 @@ pub fn handle_virtual_packet(
     if let Ok((ipv4, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
 
         if ipv4.protocol == IpNumber::ICMP {
+            println!("ICMP packet");
+
             match EchoRequestPacket::new(remaining_payload).expect("Failed to extract icmpv4 packet") {
-                icmp_packet => {
+
+                icmp_packet=> {
+                    println!("ICMP packet request");
+
                     let addr = format!("{}.{}.{}.{}", ipv4.destination[0], ipv4.destination[1], ipv4.destination[2], ipv4.destination[3]);
                     let parsed_ip = Ipv4Addr::from_str(&addr).expect("Error parsing ip addr");
                     let node = graph.find_node_by_ip(parsed_ip).expect("Node not found");
                     Ok(
-                                    build_tun_icmp_reply(
-                                    &ipv4,
-                                    &icmp_packet,
-                                    &ipv4_address,
-                                    virtual_mac,
-                                    MacAddr::from_str(&node.mac_address).expect("Error parsing mac address")
-                                    ).await?
-                                )
+                        build_tun_icmp_reply(
+                        &ipv4,
+                        &icmp_packet,
+                        &ipv4_address,
+                        virtual_mac,
+                        MacAddr::from_str(&node.mac_address).expect("Error parsing mac address")
+                        ).await?
+                    )
                 }
                 _ => return Err("❌ Errore nella decodifica del pacchetto ICMP.".to_string()),
             }
         } else {
+            println!("NOT ICMP packet");
+
             return Ok(vec![]);
         }
     }else {
