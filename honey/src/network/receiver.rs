@@ -95,7 +95,7 @@ pub async fn scan_datalink(
                             handle_virtual_packet(
                                 &ethernet_packet, 
                     &graph_node.mac_address, 
-                    &graph_node.ip_address.clone(), 
+                    &graph_node.ipv4_address.clone(), 
                     &src_mac, 
                                 &mut *tx_datalink
                             );

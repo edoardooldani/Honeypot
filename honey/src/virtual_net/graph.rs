@@ -2,7 +2,7 @@ use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
 use tokio::io;
 use tracing::info;
-use std::{collections::HashMap, net::{self, Ipv4Addr}, sync::Arc};
+use std::{collections::HashMap, net::{self, Ipv4Addr, Ipv6Addr}, sync::Arc};
 use rand::Rng;
 use tun::{Device, Configuration};
 use tokio_tun::{TunBuilder, Tun};
@@ -26,7 +26,8 @@ impl Connection {
 #[derive(Debug, Clone)]
 pub struct NetworkNode {
     pub mac_address: String,
-    pub ip_address: String,
+    pub ipv4_address: String,
+    pub ipv6_address: Option<String>,
     pub node_type: NodeType,
 }
 
@@ -64,7 +65,8 @@ impl NetworkGraph {
 
         let mut node = NetworkNode {
             mac_address: mac_address.clone(),
-            ip_address: ip_address.clone(),
+            ipv4_address: ip_address.clone(),
+            ipv6_address: None,
             node_type,
         };
     
@@ -84,13 +86,16 @@ impl NetworkGraph {
     fn add_virtual_node(&mut self) -> NodeIndex {
 
         let assigned_ip = self.generate_virtual_ip();
+        let assigned_ipv6 = self.generate_virtual_ipv6();
+
         let assigned_mac = generate_virtual_mac();
 
-        create_virtual_tun_interface(&assigned_ip);
+        create_virtual_tun_interface(&assigned_ip, &assigned_ipv6);
 
         let node = NetworkNode {
             mac_address: assigned_mac.clone(),
-            ip_address: assigned_ip,
+            ipv4_address: assigned_ip,
+            ipv6_address: Some(assigned_ipv6),
             node_type: NodeType::Virtual,
         };
 
@@ -108,7 +113,7 @@ impl NetworkGraph {
         loop {
             let new_ip = format!("{}.{}", base_ip, last_octet);
             
-            if !self.graph.node_weights().any(|node| node.ip_address == new_ip) {
+            if !self.graph.node_weights().any(|node| node.ipv4_address == new_ip) {
                 return new_ip;
             }
 
@@ -135,6 +140,15 @@ impl NetworkGraph {
             new_connection.add_traffic(protocol, bytes);
             self.graph.add_edge(src_index, dst_index, new_connection);
         }
+
+    }
+
+    fn generate_virtual_ipv6(&self) -> String {
+        let mut rng = rand::rng();
+        let last_segment = rng.random_range(100..130);
+        let base_ip = "fe80::1000:".to_string(); // Link-local address base
+        
+        format!("{}{:x}", base_ip, last_segment) // Concatenate to create a valid IPv6 address
     }
     
     pub fn is_router(&self, mac: MacAddr) -> bool {
@@ -145,16 +159,17 @@ impl NetworkGraph {
     }
 
     pub fn find_virtual_node_by_ip(&self, ip: Ipv4Addr) -> Option<&NetworkNode> {
-        self.graph.node_weights().find(|node| node.node_type == NodeType::Virtual && node.ip_address == ip.to_string())
+        self.graph.node_weights().find(|node| node.node_type == NodeType::Virtual && node.ipv4_address == ip.to_string())
     }
 
+    
 
     pub fn print_graph(&self) {
         for node_index in self.graph.node_indices() {
             let node = &self.graph[node_index];
             println!(
                 "Nodo: MAC={}, IP={:?}, Tipo={:?}",
-                node.mac_address, node.ip_address, node.node_type
+                node.mac_address, node.ipv4_address, node.node_type
             );
         }
 
@@ -176,7 +191,7 @@ impl NetworkGraph {
         for (_, &node_index) in &self.nodes {
             let node = &self.graph[node_index];
             if node.node_type == NodeType::Real {
-                println!("🟢 Nodo Reale: MAC={} | IP={:?}", node.mac_address, node.ip_address);
+                println!("🟢 Nodo Reale: MAC={} | IP={:?}", node.mac_address, node.ipv4_address);
             }
         }
     }
@@ -186,12 +201,13 @@ impl NetworkGraph {
         for (_, &node_index) in &self.nodes {
             let node = &self.graph[node_index];
             if node.node_type == NodeType::Virtual {
-                println!("⭕️ Nodo Virtuale: MAC={} | IP={:?}", node.mac_address, node.ip_address);
+                println!("⭕️ Nodo Virtuale: MAC={} | IP={:?}", node.mac_address, node.ipv4_address);
             }
         }
     }
 
 }
+
 
 
 
@@ -218,22 +234,26 @@ fn generate_virtual_mac() -> String {
 }
 
 
-fn create_virtual_tun_interface(ip: &str) {
-    let parsed_ip: Ipv4Addr = ip.parse().map_err(|e| {
+fn create_virtual_tun_interface(ipv4: &str, ipv6: &str) {
+    let ipv4_address: Ipv4Addr = ipv4.parse().map_err(|e| {
         io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
     }).expect("Errore nel parsing dell'indirizzo IP");
-    println!("IP: {ip}");
 
-    let last_octet = parsed_ip.octets()[3];
+    let ipv6_address: Ipv6Addr = ipv6.parse().map_err(|e| {
+        io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
+    }).expect("Errore nel parsing dell'indirizzo IP");
+
+    println!("IP: {ipv4_address}");
+
+    let last_octet = ipv4_address.octets()[3];
     let tun_name = format!("tun{}", last_octet);
 
-    let ip_address = ip.parse::<Ipv4Addr>().expect("Ip invalido");
     let netmask = "255.255.255.0".parse::<Ipv4Addr>().expect("Errore nel parsing della netmask");
 
     let tun = Arc::new(
         Tun::builder()
             .name(&tun_name)            
-            .address(ip_address)
+            .address(ipv4_address)
             .netmask(netmask)
             .up()                
             .build()
@@ -250,7 +270,7 @@ fn create_virtual_tun_interface(ip: &str) {
             match tun_reader.recv(&mut buf).await {
                 Ok(n) => {
                     if n > 0 {
-                        handle_tun_msg(tun_reader.clone(), buf, n);
+                        handle_tun_msg(tun_reader.clone(), buf, n, ipv4_address, ipv6_address);
                     }
                 }
                 Err(e) => {

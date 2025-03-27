@@ -1,7 +1,7 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, icmp::{echo_request::EchoRequestPacket, IcmpPacket, IcmpTypes}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tracing::error;
 use crate::network::sender::{send_arp_reply, send_icmp_reply, send_icmpv6_reply, send_tcp_syn_ack};
-use std::{io::Write, net::Ipv4Addr, str::FromStr, sync::Arc};
+use std::{io::Write, net::{Ipv4Addr, Ipv6Addr}, str::FromStr, sync::Arc};
 use etherparse::{Icmpv4Slice, Icmpv6Slice, IpNumber, Ipv4Header, Ipv6Header};
 
 use super::graph::NetworkGraph;
@@ -24,7 +24,7 @@ pub fn handle_broadcast(
                 if !graph.is_router(sender_mac) {  
                     if let Some(virtual_node) = graph.find_virtual_node_by_ip(requested_ip) {
                         let virtual_mac = MacAddr::from_str(&virtual_node.mac_address).expect("MAC non valido");
-                        let virtual_ip_str = virtual_node.ip_address.clone();
+                        let virtual_ip_str = virtual_node.ipv4_address.clone();
                         
                         match virtual_ip_str.parse::<Ipv4Addr>() {
                             Ok(virtual_ip) => {
@@ -171,7 +171,7 @@ pub fn respond_to_icmp_echo(tun: &mut Device, packet: &SlicedPacket) {
  */
 
 
- pub fn handle_tun_msg(tun: Arc<tokio_tun::Tun>, buf: [u8; 1024], n: usize) {
+ pub fn handle_tun_msg(tun: Arc<tokio_tun::Tun>, buf: [u8; 1024], n: usize, ipv4_address: Ipv4Addr, ipv6_address: Ipv6Addr) {
     if let Ok((ipv4, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
         if ipv4.protocol == IpNumber::ICMP {
             if let Ok(icmp_packet) = Icmpv4Slice::from_slice(remaining_payload) {
@@ -188,7 +188,8 @@ pub fn respond_to_icmp_echo(tun: &mut Device, packet: &SlicedPacket) {
                 send_icmpv6_reply(
                     tun.clone(),
         &ipv6,
-     &icmpv6_packet
+     &icmpv6_packet,
+                    &ipv6_address
                 );
             } else {
                 eprintln!("❌ Errore nella decodifica del pacchetto ICMPv6.");

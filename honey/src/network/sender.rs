@@ -243,6 +243,7 @@ pub fn send_icmpv6_reply(
     tun: Arc<tokio_tun::Tun>,
     ipv6_packet: &Ipv6Header,
     icmpv6_request: &Icmpv6Slice,
+    ipv6_address: &Ipv6Addr
 ) {
     let mut icmp_reply_buffer = vec![0u8; MutableIcmpv6Packet::minimum_packet_size()];
     let mut icmpv6_packet = MutableIcmpv6Packet::new(&mut icmp_reply_buffer).expect("Icmpv6 packet failed to create");
@@ -250,7 +251,7 @@ pub fn send_icmpv6_reply(
     icmpv6_packet.set_payload(icmpv6_request.payload());
 
     let pack = icmpv6_packet.to_immutable();
-    let checksum_value = Icmpv6Checksum(&pack, &ipv6_packet.destination_addr(), &ipv6_packet.source_addr());
+    let checksum_value = Icmpv6Checksum(&pack, &ipv6_address, &ipv6_packet.source_addr());
     icmpv6_packet.set_checksum(checksum_value);
 
     let icmpv6_reply = icmpv6_packet.to_immutable();
@@ -268,7 +269,7 @@ pub fn send_icmpv6_reply(
     ipv6_reply.set_payload_length(icmpv6_packet.packet().len() as u16); 
     ipv6_reply.set_next_header(IpNextHeaderProtocols::Icmpv6); 
     ipv6_reply.set_hop_limit(64); 
-    ipv6_reply.set_source(ipv6_packet.destination_addr()); // L'indirizzo di origine è l'indirizzo di destinazione della richiesta
+    ipv6_reply.set_source(ipv6_address); // L'indirizzo di origine è l'indirizzo di destinazione della richiesta
     ipv6_reply.set_destination(ipv6_packet.source_addr()); // L'indirizzo di destinazione è l'indirizzo di origine della richiesta
     // Imposta il payload come il pacchetto ICMPv6
     ipv6_reply.set_payload(icmpv6_reply.packet());
