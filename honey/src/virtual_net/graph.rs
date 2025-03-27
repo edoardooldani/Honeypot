@@ -262,15 +262,32 @@ fn create_virtual_tun_interface(ipv4: &str, ipv6: &str) {
             .unwrap(),
     );
 
+    let (mut reader, mut _writer) = tokio::io::split(tun);
+
     let tun_reader: Arc<Tun> = Arc::clone(&tun);
+    let tun_writer: Arc<Tun>= tun.clone();
+
     tokio::spawn(async move {
         let mut buf = [0u8; 1024]; // Buffer per la lettura dei pacchetti
 
         loop {
-            match tun_reader.recv(&mut buf).await {
+            match tun_reader.try_recv(&mut buf).await {
                 Ok(n) => {
                     if n > 0 {
-                        handle_tun_msg(tun_reader.clone(), buf, n, ipv4_address, ipv6_address).await;
+                        match handle_tun_msg(
+                            tun_reader.clone(),
+                            buf, 
+                            n, 
+                            ipv4_address, 
+                            ipv6_address
+                        ).await {
+                            Ok(msg) => {
+                                tun_writer.try_send(msg.as_slice());
+                            }
+                            Err(e) => {
+                                eprintln!("Errore: {}", e);
+                            }
+                        }
                     }
                 }
                 Err(e) => {

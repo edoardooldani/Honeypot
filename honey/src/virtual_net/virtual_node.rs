@@ -1,5 +1,6 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, icmp::{echo_request::EchoRequestPacket, IcmpPacket, IcmpTypes}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
-use tracing::error;
+use tracing::{error, info};
+use tracing_subscriber::reload::Error;
 use crate::network::sender::{send_arp_reply, send_icmp_reply, send_tcp_syn_ack, send_tun_icmp_reply, send_tun_icmpv6_reply};
 use std::{io::Write, net::{Ipv4Addr, Ipv6Addr}, str::FromStr, sync::Arc};
 use etherparse::{Icmpv4Slice, Icmpv6Slice, IpNumber, Ipv4Header, Ipv6Header};
@@ -114,7 +115,13 @@ pub fn handle_virtual_packet(
 
 
 
- pub async fn handle_tun_msg(tun: Arc<tokio_tun::Tun>, buf: [u8; 1024], n: usize, ipv4_address: Ipv4Addr, ipv6_address: Ipv6Addr) {
+ pub async fn handle_tun_msg(
+    tun_reader: Arc<tokio_tun::Tun>, 
+    buf: [u8; 1024], 
+    n: usize, 
+    ipv4_address: Ipv4Addr, 
+    ipv6_address: Ipv6Addr
+) -> Result<Vec<u8>, String>  {
     if let Ok((ipv4, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
         println!("\nReceived IPv4 packet from: {:?}, to: {:?} ", ipv4.source, ipv4.destination);
 
@@ -123,19 +130,25 @@ pub fn handle_virtual_packet(
             if let icmp_packet = EchoRequestPacket::new(remaining_payload).expect("Failed to extract icmpv4 packet"){
                 println!("ICMP Packet: {:?}", icmp_packet);
                 
-                // Invia una risposta ICMP (Echo Reply)
-                send_tun_icmp_reply(
-                    tun.clone(),
+                Ok(
+                    send_tun_icmp_reply(
+                    tun_reader.clone(),
                     &ipv4,
                     &icmp_packet,
                     &ipv4_address
-                ).await;
-            } else {
-                eprintln!("❌ Errore nella decodifica del pacchetto ICMP.");
-            }
-        } 
-    }
+                    ).await?
+                )
 
+            } else {
+                return Err("❌ Errore nella decodifica del pacchetto ICMP.".to_string());
+            }
+        } else {
+            return Ok(vec![]);
+        }
+    }else {
+        return Ok(vec![]);
+    } 
+    /* 
     else if let Ok((ipv6, remaining_payload)) = Ipv6Header::from_slice(&buf[..n]) {
         if ipv6.next_header == IpNumber::IPV6_ICMP {
             if let Ok(icmpv6_packet) = Icmpv6Slice::from_slice(remaining_payload) {
@@ -155,5 +168,6 @@ pub fn handle_virtual_packet(
     }else {
         eprintln!("❌ Errore: pacchetto con versione IP non supportata.");
     }
+    */
     
 }
