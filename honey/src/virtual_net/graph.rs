@@ -282,7 +282,7 @@ fn create_virtual_tun_interface(ipv4: &str, ipv6: &str) {
                             Ok(msg) => {
                                 if !msg.is_empty(){
                                     println!("Message to send: {:?}", msg);
-                                    tun_writer.send(msg.as_slice());
+                                    tun_writer.send(msg.as_slice()).await;
                                 }
                                 
                             }
