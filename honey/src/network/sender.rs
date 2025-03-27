@@ -273,7 +273,9 @@ pub fn send_icmpv6_reply(
     // Imposta il payload come il pacchetto ICMPv6
     ipv6_reply.set_payload(icmpv6_reply.packet());
 
-    let ipv6_packet = ipv6_reply.consume_to_immutable();
-    println!("ipv6 packet: {:?}", ipv6_packet);
-    tun.send(    ipv6_packet.packet());
+    let ipv6_sent_packet = ipv6_reply.consume_to_immutable();
+    println!("RECEIVED ipv6 packet: {:?}", ipv6_packet);
+
+    println!("SENT ipv6 packet: {:?}", ipv6_sent_packet);
+    tun.send(    ipv6_sent_packet.packet());
 }

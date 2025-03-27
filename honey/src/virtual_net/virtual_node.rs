@@ -175,7 +175,7 @@ pub fn respond_to_icmp_echo(tun: &mut Device, packet: &SlicedPacket) {
     if let Ok((ipv4, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
         if ipv4.protocol == IpNumber::ICMP {
             if let Ok(icmp_packet) = Icmpv4Slice::from_slice(remaining_payload) {
-                println!("icmp_packet: {:?}", icmp_packet);
+                //println!("icmp_packet: {:?}", icmp_packet);
             } else {
                 eprintln!("❌ Errore nella decodifica del pacchetto ICMP.");
             }
@@ -184,8 +184,6 @@ pub fn respond_to_icmp_echo(tun: &mut Device, packet: &SlicedPacket) {
     else if let Ok((ipv6, remaining_payload)) = Ipv6Header::from_slice(&buf[..n]) {
         if ipv6.next_header == IpNumber::IPV6_ICMP {
             if let Ok(icmpv6_packet) = Icmpv6Slice::from_slice(remaining_payload) {
-
-                println!("icmpv6_packet: {:?}", icmpv6_packet);
 
                 send_icmpv6_reply(
                     tun.clone(),
