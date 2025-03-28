@@ -77,18 +77,12 @@ pub async fn scan_datalink(
                         let dest_mac_addr = dest_mac;
 
                         if !graph.nodes.contains_key(&src_mac_addr) {
-                            info!("Node not found for MAC src: {}", src_mac_addr);
                             graph.add_node(src_mac, src_ip.clone(), src_type).await;
-                        } else {
-                            info!("Node already exists for MAC src: {}", src_mac_addr);
-                        }
+                        } 
                         
                         if !graph.nodes.contains_key(&dest_mac_addr) {
-                            info!("Node not found for MAC dest: {}", dest_mac_addr);
                             graph.add_node(dest_mac, dest_ip.clone(), dest_type).await;
-                        } else {
-                            info!("Node already exists for MAC dest: {}", dest_mac_addr);
-                        }
+                        } 
 
                         if graph.nodes.contains_key(&src_mac_addr) && graph.nodes.contains_key(&dest_mac_addr) {
                             graph.add_connection(src_mac, dest_mac, &protocol.to_string(), bytes);

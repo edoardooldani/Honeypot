@@ -54,18 +54,13 @@ impl NetworkGraph {
     }
 
     pub async fn add_node(&mut self, mac_address: MacAddr, mut ip_address: Ipv4Addr, node_type: NodeType) -> NodeIndex {
-        info!("Adding node with IP: {}", ip_address);
-
         if let Some(&existing_node) = self.nodes.get(&mac_address) {
-            info!("Existing node with IP: {}", ip_address);
-
             return existing_node;
         }
 
         if ip_address != Ipv4Addr::new(0, 0, 0, 0){
             ip_address = find_ip_by_mac(&mac_address).await;
         }
-        info!("Finished find ip by mac{}", ip_address);
 
         let mut node = NetworkNode {
             mac_address: mac_address.clone(),
@@ -93,7 +88,6 @@ impl NetworkGraph {
         let assigned_ipv6 = self.generate_virtual_ipv6();
 
         let assigned_mac = generate_virtual_mac();
-        info!("Creating virtual node with IP: {}", assigned_ip);
 
         let node = NetworkNode {
             mac_address: assigned_mac.clone(),
