@@ -2,7 +2,6 @@ use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
 use std::{collections::HashMap, net::Ipv4Addr, str::FromStr};
 use rand::Rng;
-#[cfg(target_os = "linux")]
 use tokio_tun::{Tun, TunBuilder};
 
 use crate::{tun::interfaces::create_virtual_tun_interface, utilities::network::find_ip_by_mac};

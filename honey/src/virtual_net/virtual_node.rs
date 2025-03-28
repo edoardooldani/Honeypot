@@ -1,7 +1,7 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, icmp::echo_request::EchoRequestPacket, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tracing::error;
 use crate::network::sender::{send_arp_reply, send_tcp_syn_ack, build_tun_icmp_reply};
-use std::{net::{Ipv4Addr, Ipv6Addr}, str::FromStr, sync::{Arc, Mutex}};
+use std::{net::Ipv4Addr, str::FromStr, sync::{Arc, Mutex}};
 use etherparse::{IpNumber, Ipv4Header};
 
 use super::graph::NetworkGraph;
@@ -135,7 +135,6 @@ pub fn handle_virtual_packet(
                         ).await?
                     )
                 }
-                _ => return Err("❌ Errore nella decodifica del pacchetto ICMP.".to_string()),
             }
         } else {
             return Ok(vec![]);

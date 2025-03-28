@@ -2,7 +2,6 @@ use pnet::util::MacAddr;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::info;
 use std::{net::Ipv4Addr, str::FromStr, sync::{Arc, Mutex}};
-#[cfg(target_os = "linux")]
 use tokio_tun::{TunBuilder, Tun};
 use tokio::io;
 

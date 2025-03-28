@@ -9,7 +9,7 @@ pub fn create_virtual_tun_interface(ipv4_address: Ipv4Addr) {
     let tun_name = format!("tun{}", last_octet);
     let netmask = "255.255.255.0".parse::<Ipv4Addr>().expect("Error parsing netmask");
 
-    let tun = Arc::new(
+    let _tun = Arc::new(
         Tun::builder()
             .name(&tun_name)            
             .address(ipv4_address)
