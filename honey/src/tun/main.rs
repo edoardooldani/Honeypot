@@ -24,6 +24,7 @@ pub async fn create_main_tun(
             .name(tun_name)
             .address(ipv4_address)
             .netmask(netmask)
+            .persist()
             .up()
             .build()
             .unwrap()
