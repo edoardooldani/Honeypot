@@ -1,6 +1,9 @@
+use pnet::datalink;
+use pnet::ipnetwork::IpNetwork;
 use pnet::packet::ethernet::EthernetPacket;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::info;
+use std::net::IpAddr;
 use std::sync::Arc;
 use std::fs::File;
 use tokio_tun::{TunBuilder, Tun};
@@ -17,26 +20,37 @@ pub async fn create_main_tun(
     session_id: Arc<Mutex<u32>>, 
     graph: Arc<Mutex<NetworkGraph>>
 ) {
-    let mut tun_file = open_existing_tun("main_tun").unwrap();
-    let mut buf = vec![0u8; 1500]; // Buffer per i pacchetti ricevuti
-
-    loop {
-        let n = tun_file.read(&mut buf).unwrap();
-        let ethernet_packet = EthernetPacket::new(&buf).unwrap();
-        println!("eth: {:?}", ethernet_packet);
-    }
+    open_existing_tun("main_tun");
+    
 
 
 }
 
+fn open_existing_tun(tun_name: &str) {
+    let interfaces = datalink::interfaces();
 
-fn open_existing_tun(tun_name: &str) -> io::Result<File> {
-    let tun_path = format!("/dev/net/tun");
-    let tun_file = File::open(tun_path)?;
+    // Stampa informazioni su ogni interfaccia
+    for interface in interfaces {
+        println!("Interfaccia: {}", interface.name);
+        
+        // Mostra se l'interfaccia è attiva o meno
+        println!("  Attiva: {}", interface.is_up());
+        
+        // Mostra gli indirizzi IP associati all'interfaccia
+        for ip in interface.ips {
+            match ip {
+                IpNetwork::V4(v4) => println!("  IPv4: {}", v4),
+                IpNetwork::V6(v6) => println!("  IPv6: {}", v6),
+            }
+        }
 
-    // Configura la TUN per leggere e scrivere pacchetti
-    tun_file.set_len(0)?;
-    Ok(tun_file)
+        // Mostra l'indirizzo MAC (se disponibile)
+        if let Some(mac) = interface.mac {
+            println!("  MAC: {}", mac);
+        }
+
+        println!(); // Linea vuota per separare le interfacce
+    }
 }
 
 
