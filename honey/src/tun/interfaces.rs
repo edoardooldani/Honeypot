@@ -20,7 +20,7 @@ pub fn create_virtual_tun_interface(ipv4_address: Ipv4Addr) {
             .pop()
             .unwrap(),
     );
-    add_iptables_rule(&tun_name);
+    let _ = add_iptables_rule(&tun_name);
     info!("TUN interface created: {tun_name}")
 
 }

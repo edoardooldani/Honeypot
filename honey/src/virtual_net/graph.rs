@@ -54,11 +54,13 @@ impl NetworkGraph {
     }
 
     pub async fn add_node(&mut self, mac_address: MacAddr, mut ip_address: Ipv4Addr, node_type: NodeType) -> NodeIndex {
-        
+        info!("Adding node with IP: {}", ip_address);
+
         if let Some(&existing_node) = self.nodes.get(&mac_address) {
+            info!("Existing node with IP: {}", ip_address);
+
             return existing_node;
         }
-        info!("Adding node with IP: {}", ip_address);
 
         if ip_address != Ipv4Addr::new(0, 0, 0, 0){
             ip_address = find_ip_by_mac(&mac_address).await;
