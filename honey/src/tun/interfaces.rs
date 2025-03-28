@@ -1,15 +1,9 @@
 use std::{net::Ipv4Addr, process::Command, sync::Arc};
-
-use tokio::io;
+#[cfg(target_os = "linux")]
 use tokio_tun::Tun;
 use tracing::info;
 
-
-pub fn create_virtual_tun_interface(ipv4: String) {
-
-    let ipv4_address: Ipv4Addr = ipv4.parse().map_err(|e| {
-        io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
-    }).expect("Error parsing IP");
+pub fn create_virtual_tun_interface(ipv4_address: Ipv4Addr) {
 
     let last_octet = ipv4_address.octets()[3];
     let tun_name = format!("tun{}", last_octet);

@@ -2,12 +2,13 @@ use pnet::util::MacAddr;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::info;
 use std::{net::Ipv4Addr, str::FromStr, sync::{Arc, Mutex}};
-
+#[cfg(target_os = "linux")]
 use tokio_tun::{TunBuilder, Tun};
 use tokio::io;
 
 use crate::virtual_net::{graph::NetworkGraph, virtual_node::handle_tun_msg};
 
+#[cfg(target_os = "linux")]
 pub async fn create_main_tun(
     tx: futures_channel::mpsc::UnboundedSender<Message>, 
     session_id: Arc<Mutex<u32>>, 
@@ -41,8 +42,6 @@ pub async fn create_main_tun(
         match tun_reader.recv(&mut buf).await {
             Ok(n) => {
                 if n > 0 {
-                    println!("Received {} bytes on main_tun", n);
-
                     match handle_tun_msg(graph.clone(), buf, n).await {
                         Ok(msg) => {
                             

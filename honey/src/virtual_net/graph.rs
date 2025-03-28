@@ -1,12 +1,11 @@
 use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
-use tokio::io;
-use tracing::info;
-use std::{collections::HashMap, net::Ipv4Addr, process::Command, sync::Arc};
+use std::{collections::HashMap, net::Ipv4Addr, str::FromStr};
 use rand::Rng;
+#[cfg(target_os = "linux")]
 use tokio_tun::{Tun, TunBuilder};
 
-use crate::{network::sender::find_ip_by_mac, tun::interfaces::create_virtual_tun_interface};
+use crate::{tun::interfaces::create_virtual_tun_interface, utilities::network::find_ip_by_mac};
 
 
 #[derive(Debug, Clone)]
@@ -24,17 +23,17 @@ impl Connection {
 
 #[derive(Debug, Clone)]
 pub struct NetworkNode {
-    pub mac_address: String,
-    pub ipv4_address: String,
+    pub mac_address: MacAddr,
+    pub ipv4_address: Ipv4Addr,
     pub ipv6_address: Option<String>,
     pub node_type: NodeType,
 }
 
-#[derive(Debug, Clone)] // Usa derive per automaticamente implementare Clone
+#[derive(Debug, Clone)]
 
 pub struct NetworkGraph {
     pub graph: Graph<NetworkNode, Connection>,
-    pub nodes: HashMap<String, NodeIndex>,
+    pub nodes: HashMap<MacAddr, NodeIndex>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -55,13 +54,13 @@ impl NetworkGraph {
         }
     }
 
-    pub fn add_node(&mut self, mac_address: String, mut ip_address: String, node_type: NodeType) -> NodeIndex {
+    pub fn add_node(&mut self, mac_address: MacAddr, mut ip_address: Ipv4Addr, node_type: NodeType) -> NodeIndex {
         
         if let Some(&existing_node) = self.nodes.get(&mac_address) {
             return existing_node;
         }
         
-        if ip_address != "0.0.0.0"{
+        if ip_address != Ipv4Addr::new(0, 0, 0, 0){
             ip_address = find_ip_by_mac(&mac_address);
         }
 
@@ -72,7 +71,7 @@ impl NetworkGraph {
             node_type,
         };
     
-        if ip_address.ends_with(".254") {
+        if ip_address.octets()[3] == 254 {
             node.node_type = NodeType::Router;
         }
         
@@ -107,18 +106,19 @@ impl NetworkGraph {
     }
 
 
-    fn generate_virtual_ip(&self) -> String {
+    fn generate_virtual_ip(&self) -> Ipv4Addr {
         let mut rng = rand::rng();
-        let mut last_octet = rng.random_range(100..110);
-        let base_ip = "192.168.1".to_string();
-
+        let mut last_octet = rng.random_range(100..120);
+    
+        let base_ip = [192, 168, 1];
+    
         loop {
-            let new_ip = format!("{}.{}", base_ip, last_octet);
-            
+            let new_ip = Ipv4Addr::new(base_ip[0], base_ip[1], base_ip[2], last_octet);
+    
             if !self.graph.node_weights().any(|node| node.ipv4_address == new_ip) {
                 return new_ip;
             }
-
+    
             last_octet += 1;
             if last_octet > 253 {
                 panic!("No IP address available!");
@@ -126,9 +126,11 @@ impl NetworkGraph {
         }
     }
 
-    pub fn add_connection(&mut self, src_mac: &str, dst_mac: &str, protocol: &str, bytes: u64) {
-        let src_index = self.add_node(src_mac.to_string(), "0.0.0.0".to_string(), NodeType::Real);
-        let dst_index = self.add_node(dst_mac.to_string(), "0.0.0.0".to_string(), NodeType::Real);
+
+
+    pub fn add_connection(&mut self, src_mac: MacAddr, dst_mac: MacAddr, protocol: &str, bytes: u64) {
+        let src_index = self.add_node(src_mac, Ipv4Addr::new(0, 0, 0, 0), NodeType::Real);
+        let dst_index = self.add_node(dst_mac, Ipv4Addr::new(0, 0, 0, 0), NodeType::Real);
 
         if let Some(edge) = self.graph.find_edge(src_index, dst_index) {
             let connection = self.graph.edge_weight_mut(edge).unwrap();
@@ -156,16 +158,16 @@ impl NetworkGraph {
     pub fn is_router(&self, mac: MacAddr) -> bool {
         self.nodes.values().any(|&idx| {
             let node = &self.graph[idx];
-            node.node_type == NodeType::Router && node.mac_address == mac.to_string()
+            node.node_type == NodeType::Router && node.mac_address == mac
         })
     }
 
     pub fn find_node_by_ip(&self, ip: Ipv4Addr) -> Option<&NetworkNode> {
-        self.graph.node_weights().find(|node| node.ipv4_address == ip.to_string())
+        self.graph.node_weights().find(|node| node.ipv4_address == ip)
     }
 
     pub fn find_virtual_node_by_ip(&self, ip: Ipv4Addr) -> Option<&NetworkNode> {
-        self.graph.node_weights().find(|node| node.node_type == NodeType::Virtual && node.ipv4_address == ip.to_string())
+        self.graph.node_weights().find(|node| node.node_type == NodeType::Virtual && node.ipv4_address == ip)
     }
 
 
@@ -216,7 +218,7 @@ impl NetworkGraph {
 
 
 
-fn generate_virtual_mac() -> String {
+fn generate_virtual_mac() -> MacAddr {
     let mac_prefixes = vec![
         "00:1A:2B", // Cisco
         "34:56:78", // Samsung
@@ -228,12 +230,14 @@ fn generate_virtual_mac() -> String {
 
     let mut rng = rand::rng();
     let prefix = mac_prefixes[rng.random_range(0..mac_prefixes.len())];
-    let suffix = format!(
-        "{:02X}:{:02X}:{:02X}",
+    
+    let suffix = [
         rng.random_range(0..=255),
         rng.random_range(0..=255),
-        rng.random_range(0..=255)
-    );
+        rng.random_range(0..=255),
+    ];
 
-    format!("{}:{}", prefix, suffix)
+    let mac_string = format!("{}:{:02X}:{:02X}:{:02X}", prefix, suffix[0], suffix[1], suffix[2]);
+
+    MacAddr::from_str(&mac_string).expect("Failed to parse MAC address")
 }

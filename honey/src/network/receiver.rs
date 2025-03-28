@@ -3,8 +3,11 @@ use pnet::packet::ethernet::{EtherTypes, EthernetPacket};
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::Packet;
+use pnet::util::MacAddr;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use std::collections::HashMap;
+use std::net::Ipv4Addr;
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use crate::utilities::network::{classify_mac_address, get_local_mac, get_primary_interface, get_src_dest_ip};
@@ -29,7 +32,7 @@ pub async fn scan_datalink(
         Err(e) => panic!("Errore nell'apertura del canale: {}", e),
     };
     
-    let alert_tracker: Arc<Mutex<HashMap<String, Instant>>> = Arc::new(Mutex::new(HashMap::new()));
+    let alert_tracker: Arc<Mutex<HashMap<MacAddr, Instant>>> = Arc::new(Mutex::new(HashMap::new()));
     
     let arp_req_tracker = Arc::new(Mutex::new(ArpRequestTracker::new()));
     let arp_res_tracker = Arc::new(Mutex::new(ArpRepliesTracker::new()));
@@ -43,50 +46,54 @@ pub async fn scan_datalink(
         match rx.next() {
             Ok(packet) => {
                 if let Some(ethernet_packet) = EthernetPacket::new(packet) {
-                    let src_mac = ethernet_packet.get_source().to_string();
+                    let src_mac = ethernet_packet.get_source();
                     
                     if src_mac == local_mac {
                         continue;
                     }
 
-                    let dest_mac = ethernet_packet.get_destination().to_string();
+                    let dest_mac = ethernet_packet.get_destination();
                     
                     let bytes = packet.len() as u64;
             
                     let protocol = ethernet_packet.get_ethertype();
 
-                    let mut src_ip: String = "0.0.0.0".to_string();
-                    let mut dest_ip: String = "0.0.0.0".to_string();
+                    let mut src_ip: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
+                    let mut dest_ip: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
 
                     if let Some((sc_ip, dst_ip)) = get_src_dest_ip(&ethernet_packet) {
-                        src_ip = sc_ip.to_string();
-                        dest_ip= dst_ip.to_string();
+                        src_ip = sc_ip;
+                        dest_ip= dst_ip;
                     }
 
-                    let src_type = classify_mac_address(&src_mac);
-                    let dest_type = classify_mac_address(&dest_mac);
+                    let src_type = classify_mac_address(src_mac);
+                    let dest_type = classify_mac_address(dest_mac);
                     
                     let mut graph = graph.lock().unwrap();
 
-                    if dest_ip != "0.0.0.0" {
-                        
-                        if !graph.nodes.contains_key(&src_mac) {
-                            graph.add_node(src_mac.clone(), src_ip.clone(), src_type);
-                        }
-                    
-                        if dest_mac != "ff:ff:ff:ff:ff:ff" && !graph.nodes.contains_key(&dest_mac) {
-                            graph.add_node(dest_mac.clone(), dest_ip.clone(), dest_type);
-                        }
-                    
-                        if graph.nodes.contains_key(&src_mac) && graph.nodes.contains_key(&dest_mac) {
-                            graph.add_connection(&src_mac, &dest_mac, &protocol.to_string(), bytes);
-                        }
-                    }
+                    if dest_ip != Ipv4Addr::new(0, 0, 0, 0) {  // Modifica per usare Ipv4Addr al posto di "0.0.0.0"
+                        let src_mac_addr = src_mac;
+                        let dest_mac_addr = dest_mac;
 
-                    if dest_mac == "ff:ff:ff:ff:ff:ff" {
+                        if !graph.nodes.contains_key(&src_mac_addr) {
+                            graph.add_node(src_mac, src_ip.clone(), src_type);
+                        }
+
+                        if dest_mac_addr != MacAddr::broadcast() && !graph.nodes.contains_key(&dest_mac_addr) {
+                            graph.add_node(dest_mac, dest_ip.clone(), dest_type);
+                        }
+
+                        if graph.nodes.contains_key(&src_mac_addr) && graph.nodes.contains_key(&dest_mac_addr) {
+                            graph.add_connection(src_mac, dest_mac, &protocol.to_string(), bytes);
+                        }
+                    }       
+
+                    if dest_mac.octets().iter().all(|&byte| byte == 0xFF) {
                         handle_broadcast(&ethernet_packet, &mut *graph, &mut *tx_datalink);
                     }
 
+
+                    /*
                     // Handle virtual receiver
                     if let Some(dest_node) = graph.nodes.get(&dest_mac) {
                         let graph_node = &graph.graph[*dest_node];
@@ -102,6 +109,7 @@ pub async fn scan_datalink(
                         }
                         
                     }
+                    */
                     
                     detect_attacks(
                         tx.clone(), 
@@ -128,7 +136,7 @@ fn detect_attacks(
     session_id: Arc<Mutex<u32>>,
     ethernet_packet: &EthernetPacket,
     graph: &mut NetworkGraph,
-    local_mac: String,
+    local_mac: MacAddr,
     alert_tracker: AlertTracker,
     arp_req_tracker: Arc<Mutex<ArpRequestTracker>>,
     arp_res_tracker: Arc<Mutex<ArpRepliesTracker>>,
@@ -169,7 +177,7 @@ fn detect_attacks(
                         tx.clone(),
                         session_id.clone(),
                         ipv4_packet,
-                        ethernet_packet.get_source().to_string(),
+                        ethernet_packet.get_source(),
                         local_mac,
                         tcp_syn_tracker
                     );    

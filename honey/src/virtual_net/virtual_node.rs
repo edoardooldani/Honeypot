@@ -23,23 +23,17 @@ pub fn handle_broadcast(
                 // Don't answer to router
                 if !graph.is_router(sender_mac) {  
                     if let Some(virtual_node) = graph.find_virtual_node_by_ip(requested_ip) {
-                        let virtual_mac = MacAddr::from_str(&virtual_node.mac_address).expect("MAC non valido");
-                        let virtual_ip_str = virtual_node.ipv4_address.clone();
+                        let virtual_mac = virtual_node.mac_address;
+                        let virtual_ip = virtual_node.ipv4_address.clone();
+    
+                        send_arp_reply(
+                            tx_datalink,
+                            virtual_mac,
+                            virtual_ip,
+                            arp_packet.get_sender_hw_addr(),
+                            arp_packet.get_sender_proto_addr(),
+                        );
                         
-                        match virtual_ip_str.parse::<Ipv4Addr>() {
-                            Ok(virtual_ip) => {
-                                send_arp_reply(
-                                    tx_datalink,
-                                    virtual_mac,
-                                    virtual_ip,
-                                    arp_packet.get_sender_hw_addr(),
-                                    arp_packet.get_sender_proto_addr(),
-                                );
-                            }
-                            Err(e) => {
-                                eprintln!("❌ Cannot convert '{}' in Ipv4Addr - {}", virtual_ip_str, e);
-                            }
-                        }  
                     }
                 }
             }
@@ -112,8 +106,6 @@ pub fn handle_virtual_packet(
     if let Ok((ipv4_header_received, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
         println!("Packet received: {:?}, source: {:?}, dest: {:?}", ipv4_header_received.protocol, ipv4_header_received.source, ipv4_header_received.destination);
         if ipv4_header_received.protocol == IpNumber::ICMP {
-            println!("ICMP packet received");
-
             match EchoRequestPacket::new(remaining_payload).expect("Failed to extract icmpv4 packet") {
 
                 icmp_packet=> {
@@ -123,19 +115,25 @@ pub fn handle_virtual_packet(
                     let parsed_dest_ip = Ipv4Addr::from_str(&dest_addr).expect("Error parsing ip addr");
 
                     let graph_locked = graph.lock().unwrap();
-                    let node = graph_locked.find_node_by_ip(parsed_dest_ip).expect("Node not found");
+                    let dest_node = graph_locked.find_node_by_ip(parsed_dest_ip).expect("Node not found");
+
+                    let src_addr = format!("{}.{}.{}.{}", ipv4_header_received.source[0], ipv4_header_received.source[1], ipv4_header_received.source[2], ipv4_header_received.source[3]);
+                    let parsed_src_ip = Ipv4Addr::from_str(&src_addr).expect("Error parsing ip addr");
+
+                    let graph_locked = graph.lock().unwrap();
+                    let src_node = graph_locked.find_node_by_ip(parsed_src_ip).expect("Node not found");
                                         
-                    Ok(vec![])
-                    /*
+                    println!("Dest node: {:?}, source node: {:?}", dest_node, src_node);
+                    
                     Ok(
                         build_tun_icmp_reply(
-                        &ipv4,
+                        &ipv4_header_received,
                         &icmp_packet,
-                        &ipv4_address,
-                        virtual_mac,
-                        MacAddr::from_str(&node.mac_address).expect("Error parsing mac address")
+                        &parsed_dest_ip,
+                        dest_node.mac_address,
+                        src_node.mac_address
                         ).await?
-                    )*/
+                    )
                 }
                 _ => return Err("❌ Errore nella decodifica del pacchetto ICMP.".to_string()),
             }

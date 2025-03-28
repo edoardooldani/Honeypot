@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::net::Ipv4Addr;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -7,14 +8,15 @@ use common::types::{DataType, PayloadType, TcpAlertPayload, TcpAttackType};
 use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::Packet;
+use pnet::util::MacAddr;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::warn;
 
-use crate::utilities::network::mac_string_to_bytes;
+use crate::utilities::network::mac_to_bytes;
 
 #[derive(Debug)]
 pub struct TcpSynDetector {
-    attempts: HashMap<String, Vec<Instant>>,
+    attempts: HashMap<Ipv4Addr, Vec<Instant>>,
 }
 
 impl TcpSynDetector {
@@ -25,7 +27,7 @@ impl TcpSynDetector {
     }
 
     /// Register syn and check if it is an alert
-    pub fn register_syn(&mut self, src_ip: String) -> bool {
+    pub fn register_syn(&mut self, src_ip: Ipv4Addr) -> bool {
         let now = Instant::now();
         let entry = self.attempts.entry(src_ip.clone()).or_insert(Vec::new());
         entry.push(now);
@@ -46,15 +48,15 @@ pub fn detect_tcp_syn_attack(
     tx: futures_channel::mpsc::UnboundedSender<Message>, 
     session_id: Arc<Mutex<u32>>,
     ipv4_packet: Ipv4Packet,
-    src_mac: String,
-    self_mac: String,
+    src_mac: MacAddr,
+    self_mac: MacAddr,
     tcp_syn_tracker: Arc<Mutex<TcpSynDetector>>
 ){
     if let Some(tcp_packet) = TcpPacket::new(ipv4_packet.payload()) {
 
         if tcp_packet.get_flags() == 0x02 {
-            let src_ip = ipv4_packet.get_source().to_string();
-            
+            let src_ip = ipv4_packet.get_source();
+
             let dest_port = tcp_packet.get_destination();
 
             let mut guard = tcp_syn_tracker.lock().unwrap();
@@ -62,13 +64,13 @@ pub fn detect_tcp_syn_attack(
                 warn!("🔥 Possible TCP Syn attack from Mac: {} and IP: {}!", src_mac, src_ip);
 
                 let tcp_alert_payload = PayloadType::TcpAlert(TcpAlertPayload { 
-                    mac_address: mac_string_to_bytes(&src_mac), 
-                    ip_address: src_ip,
+                    mac_address: mac_to_bytes(&src_mac), 
+                    ip_address: src_ip.to_string(),
                     dest_port,
                     tcp_attack_type: TcpAttackType::TcpSyn.to_u8()
                 });
                                                                                             
-                let mac_bytes = mac_string_to_bytes(&self_mac);
+                let mac_bytes = mac_to_bytes(&self_mac);
                 send_tcp_alert(tx, tcp_alert_payload, session_id, DataType::TcpAlert.to_u8(), mac_bytes);
 
             }

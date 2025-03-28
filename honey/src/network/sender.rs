@@ -24,68 +24,7 @@ use crate::utilities::network::get_primary_interface;
 
 
 
-pub fn find_ip_by_mac(target_mac: &str) -> String {
-    let interface = get_primary_interface().expect("Nessuna interfaccia valida trovata");
-    let my_ip = match interface.ips.iter().find(|ip| ip.is_ipv4()) {
-        Some(ip) => match ip.ip() {
-            std::net::IpAddr::V4(ipv4) => ipv4,
-            _ => return "0.0.0.0".to_string(),
-        },
-        None => return "0.0.0.0".to_string(),
-    };
-
-    let my_mac = interface.mac.unwrap();
-    let subnet = (my_ip.octets()[0], my_ip.octets()[1], my_ip.octets()[2]);
-
-    let (tx_datalink, mut rx) = match datalink::channel(&interface, Default::default()) {
-        Ok(Channel::Ethernet(tx, rx)) => (tx, rx),
-        Ok(_) => return "0.0.0.0".to_string(),
-        Err(_) => return "0.0.0.0".to_string(),
-    };
-
-    let tx_arc = Arc::new(Mutex::new(tx_datalink));
-    
-    for i in 1..=254 {
-        let target_ip = Ipv4Addr::new(subnet.0, subnet.1, subnet.2, i);
-        let tx_clone = Arc::clone(&tx_arc);
-        let my_mac_clone = my_mac.clone();
-
-        let _ = thread::spawn(move || {
-            let mut tx_lock = tx_clone.lock().unwrap();
-            send_arp_request(&mut **tx_lock, my_mac_clone, my_ip, target_ip);
-        });
-    }
-
-    let timeout = Duration::from_secs(2);
-    let start_time = std::time::Instant::now();
-
-    while start_time.elapsed() < timeout {
-        match rx.next() {
-            Ok(packet) => {
-                if let Some(ethernet_packet) = EthernetPacket::new(packet) {
-                    if ethernet_packet.get_ethertype() == EtherTypes::Arp {
-                        if let Some(arp_packet) = ArpPacket::new(ethernet_packet.payload()) {
-                            if arp_packet.get_operation() == ArpOperations::Reply {
-                                let sender_mac = arp_packet.get_sender_hw_addr().to_string();
-                                let sender_ip = arp_packet.get_sender_proto_addr().to_string();
-
-                                if sender_mac == target_mac {
-                                    return sender_ip;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            Err(_) => break,
-        }
-    }
-
-    "0.0.0.0".to_string()
-}
-
-
-fn send_arp_request(tx: &mut dyn datalink::DataLinkSender, my_mac: pnet::util::MacAddr, my_ip: Ipv4Addr, target_ip: Ipv4Addr) {
+pub fn send_arp_request(tx: &mut dyn datalink::DataLinkSender, my_mac: pnet::util::MacAddr, my_ip: Ipv4Addr, target_ip: Ipv4Addr) {
     let mut ethernet_buffer = [0u8; 42];
     let mut ethernet_packet = MutableEthernetPacket::new(&mut ethernet_buffer).unwrap();
     ethernet_packet.set_destination(pnet::util::MacAddr::broadcast());
@@ -193,17 +132,13 @@ pub fn send_tcp_syn_ack(
 
 
 
-
-
 pub async fn build_tun_icmp_reply(
-    ipv4_packet: &Ipv4Header,
+    ipv4_header_received: &Ipv4Header,
     icmp_request: &EchoRequestPacket<'_>,
-    ipv4_address: &Ipv4Addr,
-    local_mac: MacAddr,
+    virtual_ipv4_address: &Ipv4Addr,
+    virtual_mac: MacAddr,
     dst_mac: MacAddr
 ) -> Result<Vec<u8>, String> {
-
-    println!("Inside build msg");
 
     let mut icmp_reply_buffer = vec![0u8; MutableEchoReplyPacket::minimum_packet_size() + icmp_request.payload().len()];
     let mut icmp_reply = MutableEchoReplyPacket::new(&mut icmp_reply_buffer).unwrap();
@@ -224,8 +159,8 @@ pub async fn build_tun_icmp_reply(
     ipv4_reply.set_total_length((20 + icmp_reply.packet().len()) as u16);
     ipv4_reply.set_ttl(64);
     ipv4_reply.set_next_level_protocol(pnet::packet::ip::IpNextHeaderProtocols::Icmp);
-    ipv4_reply.set_source(*ipv4_address);
-    ipv4_reply.set_destination(ipv4_packet.destination.into());
+    ipv4_reply.set_source(*virtual_ipv4_address);
+    ipv4_reply.set_destination(ipv4_header_received.destination.into());
     ipv4_reply.set_payload(icmp_reply.packet());
 
     let checksum_value = pnet::packet::ipv4::checksum(&ipv4_reply.to_immutable());
@@ -239,7 +174,7 @@ pub async fn build_tun_icmp_reply(
     println!("IPv4 to send: {:?}", ipv4_reply);
     */
 
-    send_ipv4_packet(ipv4_reply.packet().to_vec(),  local_mac, dst_mac).await.unwrap();
+    send_ipv4_packet(ipv4_reply.packet().to_vec(),  virtual_mac, dst_mac).await.unwrap();
     println!("return build msg");
 
     Ok(ipv4_reply.packet().to_vec())
