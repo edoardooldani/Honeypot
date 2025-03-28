@@ -107,8 +107,8 @@ pub async fn detect_arp_attacks<'a>(
             let sender_ip = arp_packet.get_sender_proto_addr();
 
             let mut monitor = arp_res_tracker.lock().await;
-            monitor.record_arp_poisoning(tx.clone(), session_id.clone(), sender_ip, src_mac.clone(), self_mac.clone());
-            monitor.record_arp_flooding(tx, session_id, src_mac, sender_ip, self_mac);
+            monitor.record_arp_poisoning(tx.clone(), session_id.clone(), sender_ip, src_mac.clone(), self_mac.clone()).await;
+            monitor.record_arp_flooding(tx, session_id, src_mac, sender_ip, self_mac).await;
         }
 
     }

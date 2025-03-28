@@ -32,7 +32,7 @@ pub async fn create_main_tun(
     println!("Trovata interfaccia: {}", main_tun.name);
     
     // Crea il canale per l'interfaccia TUN (main_tun)
-    let (mut tx, mut rx) = match datalink::channel(&main_tun, Default::default()) {
+    let (_tx, mut rx) = match datalink::channel(&main_tun, Default::default()) {
         Ok(pnet::datalink::Channel::Ethernet(tx, rx)) => (tx, rx),
         Ok(_) => panic!("Tipo di canale non supportato"),
         Err(e) => panic!("Errore nell'aprire il canale: {}", e),
