@@ -29,4 +29,3 @@ tun = "0.7.13"
 etherparse = "0.17"
 
 tokio-tun = { version = "0.13.2" , optional = false}
-once_cell = "1.8"
