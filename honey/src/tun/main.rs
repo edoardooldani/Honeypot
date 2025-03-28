@@ -27,9 +27,9 @@ pub async fn create_main_tun(
             .netmask(netmask)
             .up()
             .build()
+            .unwrap()
             .pop()
-            .await
-            .unwrap(),
+            .unwrap()
     );
     info!("Main TUN inteface UP");
     let tun_reader: Arc<Tun> = Arc::clone(&tun);
