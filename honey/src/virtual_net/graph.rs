@@ -52,14 +52,14 @@ impl NetworkGraph {
         }
     }
 
-    pub fn add_node(&mut self, mac_address: MacAddr, mut ip_address: Ipv4Addr, node_type: NodeType) -> NodeIndex {
+    pub async fn add_node(&mut self, mac_address: MacAddr, mut ip_address: Ipv4Addr, node_type: NodeType) -> NodeIndex {
         
         if let Some(&existing_node) = self.nodes.get(&mac_address) {
             return existing_node;
         }
         
         if ip_address != Ipv4Addr::new(0, 0, 0, 0){
-            ip_address = find_ip_by_mac(&mac_address);
+            ip_address = find_ip_by_mac(&mac_address).await;
         }
 
         let mut node = NetworkNode {
@@ -126,9 +126,9 @@ impl NetworkGraph {
 
 
 
-    pub fn add_connection(&mut self, src_mac: MacAddr, dst_mac: MacAddr, protocol: &str, bytes: u64) {
-        let src_index = self.add_node(src_mac, Ipv4Addr::new(0, 0, 0, 0), NodeType::Real);
-        let dst_index = self.add_node(dst_mac, Ipv4Addr::new(0, 0, 0, 0), NodeType::Real);
+    pub async fn add_connection(&mut self, src_mac: MacAddr, dst_mac: MacAddr, protocol: &str, bytes: u64) {
+        let src_index = self.add_node(src_mac, Ipv4Addr::new(0, 0, 0, 0), NodeType::Real).await;
+        let dst_index = self.add_node(dst_mac, Ipv4Addr::new(0, 0, 0, 0), NodeType::Real).await;
 
         if let Some(edge) = self.graph.find_edge(src_index, dst_index) {
             let connection = self.graph.edge_weight_mut(edge).unwrap();
