@@ -5,6 +5,7 @@ use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::Packet;
 use pnet::util::MacAddr;
 use tokio_tungstenite::tungstenite::protocol::Message;
+use tracing::info;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use tokio::sync::Mutex;
@@ -76,6 +77,7 @@ pub async fn scan_datalink(
                         let dest_mac_addr = dest_mac;
 
                         if !graph.nodes.contains_key(&src_mac_addr) {
+                            info!("Node not found for MAC: {}", src_mac_addr);  // Log per verificarlo
                             graph.add_node(src_mac, src_ip.clone(), src_type);
                         }
 
