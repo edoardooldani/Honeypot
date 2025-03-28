@@ -110,7 +110,7 @@ pub fn handle_virtual_packet(
 ) -> Result<Vec<u8>, String>  {
 
     if let Ok((ipv4_header_received, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
-        println!("Packet received");
+        println!("Packet received: {:?}, source: {:?}, dest: {:?}", ipv4_header_received.protocol, ipv4_header_received.source, ipv4_header_received.destination);
         if ipv4_header_received.protocol == IpNumber::ICMP {
             println!("ICMP packet received");
 
