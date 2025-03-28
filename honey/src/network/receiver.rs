@@ -7,7 +7,6 @@ use pnet::util::MacAddr;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
-use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use crate::utilities::network::{classify_mac_address, get_local_mac, get_primary_interface, get_src_dest_ip};

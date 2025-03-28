@@ -28,10 +28,10 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
     let graph = Arc::new(Mutex::new(NetworkGraph::new()));
     let graph_clone = Arc::clone(&graph);
 
-    let graph_tun_clone = Arc::clone(&graph);
-
     tokio::spawn(scan_datalink(stdin_tx_graph, Arc::clone(&session_id), graph_clone));
-    tokio::spawn(create_main_tun(stdin_tx_tun, Arc::clone(&session_id), graph_tun_clone));
+
+    let graph_tun_clone = Arc::clone(&graph);
+    //tokio::spawn(create_main_tun(stdin_tx_tun, Arc::clone(&session_id), graph_tun_clone));
 
     let (mut write, read) = ws_stream.split();
     let stdin_to_ws = stdin_rx.map(Ok).forward(&mut write);
