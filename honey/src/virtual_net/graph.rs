@@ -58,10 +58,12 @@ impl NetworkGraph {
         if let Some(&existing_node) = self.nodes.get(&mac_address) {
             return existing_node;
         }
-        
+        info!("Adding node with IP: {}", ip_address);
+
         if ip_address != Ipv4Addr::new(0, 0, 0, 0){
             ip_address = find_ip_by_mac(&mac_address).await;
         }
+        info!("Finished find ip by mac{}", ip_address);
 
         let mut node = NetworkNode {
             mac_address: mac_address.clone(),
