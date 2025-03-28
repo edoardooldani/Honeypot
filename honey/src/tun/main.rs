@@ -15,7 +15,7 @@ pub async fn create_main_tun(
 ) {
 
     let tun_name = "main_tun";
-    let ipv4_address: Ipv4Addr = "10.0.0.1".parse().map_err(|e| {
+    let ipv4_address: Ipv4Addr = "192.168.1.251".parse().map_err(|e| {
         io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
     }).expect("Error parsing IP");    
 
