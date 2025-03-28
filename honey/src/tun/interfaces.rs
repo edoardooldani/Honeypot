@@ -49,8 +49,6 @@ pub async fn create_virtual_tun_interface(graph: &mut NetworkGraph, ipv4_address
             .netmask(netmask)
             .up()                
             .build()
-            .unwrap()
-            .pop()
             .unwrap(),
     );
     let _ = add_iptables_rule(&tun_name);
