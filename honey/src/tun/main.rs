@@ -1,11 +1,12 @@
+use pnet::util::MacAddr;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::info;
-use std::{net::Ipv4Addr, sync::{Arc, Mutex}};
+use std::{net::Ipv4Addr, str::FromStr, sync::{Arc, Mutex}};
 
 use tokio_tun::{TunBuilder, Tun};
 use tokio::io;
 
-use crate::virtual_net::graph::NetworkGraph;
+use crate::virtual_net::{graph::NetworkGraph, virtual_node::handle_tun_msg};
 
 pub async fn create_main_tun(
     tx: futures_channel::mpsc::UnboundedSender<Message>, 
@@ -32,6 +33,7 @@ pub async fn create_main_tun(
             .unwrap()
     );
     info!("Main TUN inteface UP");
+    
     let tun_reader: Arc<Tun> = Arc::clone(&tun);
     let mut buf = [0u8; 1024];
 
@@ -39,7 +41,25 @@ pub async fn create_main_tun(
         match tun_reader.recv(&mut buf).await {
             Ok(n) => {
                 if n > 0 {
-                    println!("Buf received: {:?}", buf);
+                    match handle_tun_msg(graph.clone(), buf, n).await {
+                        Ok(msg) => {
+                            
+                            if !msg.is_empty(){
+                                /* 
+                                println!("Message to send: {:?}", msg);
+
+                                if let Err(e) = tun_writer.send(msg.as_slice()).await {
+                                    eprintln!("Error while sending packet: {:?}", e);
+                                } else {
+                                    println!("Packet sent successfully!");
+                                }
+                                */
+                            }
+                            
+                        }Err(e) => {        
+                            eprintln!("Errore: {}", e);
+                        }
+                    }
                 }
             }
             Err(e) => {        
