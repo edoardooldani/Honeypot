@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::net::Ipv4Addr;
-use std::sync::{Arc, Mutex};
+use tokio::sync::Mutex;
+use std::sync::Arc;
 use std::time::{Instant, Duration};
 
 use common::packet::{build_packet, calculate_header};
@@ -51,10 +52,10 @@ impl ArpRequestTracker {
 }
 
 
-pub fn detect_arp_attacks(
+pub async fn detect_arp_attacks<'a>(
     tx: futures_channel::mpsc::UnboundedSender<Message>, 
     session_id: Arc<Mutex<u32>>,
-    ethernet_packet: &EthernetPacket, 
+    ethernet_packet: &'a EthernetPacket<'a>,  // Aggiungi il lifetime 'a qui
     arp_req_tracker: Arc<Mutex<ArpRequestTracker>>, 
     arp_res_tracker: Arc<Mutex<ArpRepliesTracker>>, 
     alert_tracker: AlertTracker,
@@ -69,14 +70,14 @@ pub fn detect_arp_attacks(
 
         if arp_packet.get_operation() == ArpOperations::Request {
 
-            let mut tracker = arp_req_tracker.lock().unwrap();
+            let mut tracker = arp_req_tracker.lock().await;
             if tracker.track_arp(&src_mac, &dest_ip) {
                 if let Some(node) = graph.nodes.get(&src_mac) {
                     let node = &graph.graph[*node];
                     if node.node_type != NodeType::Router {
 
                         if node.mac_address != self_mac {
-                            let mut alerts = alert_tracker.lock().unwrap();
+                            let mut alerts = alert_tracker.lock().await;
                             let now = Instant::now();
                             let key = node.mac_address.clone();
                             let timeout = Duration::from_secs(300); // 5 minuti
@@ -105,7 +106,7 @@ pub fn detect_arp_attacks(
         else if arp_packet.get_operation() == ArpOperations::Reply {
             let sender_ip = arp_packet.get_sender_proto_addr();
 
-            let mut monitor = arp_res_tracker.lock().unwrap();
+            let mut monitor = arp_res_tracker.lock().await;
             monitor.record_arp_poisoning(tx.clone(), session_id.clone(), sender_ip, src_mac.clone(), self_mac.clone());
             monitor.record_arp_flooding(tx, session_id, src_mac, sender_ip, self_mac);
         }
@@ -184,7 +185,7 @@ impl ArpRepliesTracker {
 }
 
 
-fn send_arp_alert(
+async fn send_arp_alert(
     tx: futures_channel::mpsc::UnboundedSender<Message>,
     payload: PayloadType,
     session_id: Arc<Mutex<u32>>,
@@ -192,7 +193,7 @@ fn send_arp_alert(
     mac_address: [u8; 6],
 ) {
     let msg = {
-        let mut id = session_id.lock().unwrap();
+        let mut id = session_id.lock().await;
         *id += 1;
 
         let header = calculate_header(*id, data_type, 0, mac_address);

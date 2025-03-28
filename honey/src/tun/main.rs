@@ -1,9 +1,8 @@
-use pnet::util::MacAddr;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::info;
-use std::{net::Ipv4Addr, str::FromStr, sync::{Arc, Mutex}};
+use std::{net::Ipv4Addr, sync::Arc};
 use tokio_tun::{TunBuilder, Tun};
-use tokio::io;
+use tokio::{io, sync::Mutex};
 
 use crate::virtual_net::{graph::NetworkGraph, virtual_node::handle_tun_msg};
 

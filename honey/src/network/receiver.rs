@@ -7,7 +7,8 @@ use pnet::util::MacAddr;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
-use std::sync::{Arc, Mutex};
+use tokio::sync::Mutex;
+use std::sync::Arc;
 use std::time::Instant;
 use crate::utilities::network::{classify_mac_address, get_local_mac, get_primary_interface, get_src_dest_ip};
 use crate::trackers::arp_tracker::{detect_arp_attacks, AlertTracker, ArpRepliesTracker, ArpRequestTracker};
@@ -68,7 +69,7 @@ pub async fn scan_datalink(
                     let src_type = classify_mac_address(src_mac);
                     let dest_type = classify_mac_address(dest_mac);
                     
-                    let mut graph = graph.lock().unwrap();
+                    let mut graph = graph.lock().await;
 
                     if dest_ip != Ipv4Addr::new(0, 0, 0, 0) {  // Modifica per usare Ipv4Addr al posto di "0.0.0.0"
                         let src_mac_addr = src_mac;
@@ -175,7 +176,7 @@ fn detect_attacks(
                     detect_tcp_syn_attack(
                         tx.clone(),
                         session_id.clone(),
-                        ipv4_packet,
+                        &ipv4_packet,
                         ethernet_packet.get_source(),
                         local_mac,
                         tcp_syn_tracker

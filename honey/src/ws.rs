@@ -1,11 +1,12 @@
 use tokio_tungstenite::{tungstenite::protocol::Message, MaybeTlsStream};
 use futures_util::{pin_mut, future, StreamExt};
 use tracing::{error, info, warn};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use common::tls::generate_client_session_id;
 use crate::network::receiver::scan_datalink;
 use crate::tun::main::create_main_tun;
 use crate::virtual_net::graph::NetworkGraph;
+use tokio::sync::Mutex;
 
 
 pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>){
@@ -15,7 +16,7 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
         let tls_session = tls_stream.get_ref().1;
     
         {
-            let mut id = session_id.lock().unwrap();
+            let mut id = session_id.lock().await;
             *id = generate_client_session_id(tls_session);
         }
     } 
@@ -25,11 +26,12 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
     let stdin_tx_graph = stdin_tx.clone();
     let stdin_tx_tun = stdin_tx.clone();
 
-    let graph = Arc::new(Mutex::new(NetworkGraph::new()));
+    let graph = Arc::new(Mutex::new(NetworkGraph::new()));  // Cambia qui
     let graph_clone = Arc::clone(&graph);
-    let graph_tun_clone = Arc::clone(&graph);
 
     tokio::spawn(scan_datalink(stdin_tx_graph, Arc::clone(&session_id), graph_clone));
+
+    let graph_tun_clone = Arc::clone(&graph);
     tokio::spawn(create_main_tun(stdin_tx_tun, Arc::clone(&session_id), graph_tun_clone));
 
     let (mut write, read) = ws_stream.split();

@@ -1,9 +1,9 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, icmp::echo_request::EchoRequestPacket, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tracing::error;
 use crate::network::sender::{send_arp_reply, send_tcp_syn_ack, build_tun_icmp_reply};
-use std::{net::Ipv4Addr, str::FromStr, sync::{Arc, Mutex}};
+use std::{net::Ipv4Addr, str::FromStr, sync::Arc};
 use etherparse::{IpNumber, Ipv4Header};
-
+use tokio::sync::Mutex;
 use super::graph::NetworkGraph;
 
 
@@ -114,13 +114,13 @@ pub fn handle_virtual_packet(
                     let dest_addr = format!("{}.{}.{}.{}", ipv4_header_received.destination[0], ipv4_header_received.destination[1], ipv4_header_received.destination[2], ipv4_header_received.destination[3]);
                     let parsed_dest_ip = Ipv4Addr::from_str(&dest_addr).expect("Error parsing ip addr");
 
-                    let graph_locked = graph.lock().unwrap();
+                    let graph_locked = graph.lock().await;
                     let dest_node = graph_locked.find_node_by_ip(parsed_dest_ip).expect("Node not found");
 
                     let src_addr = format!("{}.{}.{}.{}", ipv4_header_received.source[0], ipv4_header_received.source[1], ipv4_header_received.source[2], ipv4_header_received.source[3]);
                     let parsed_src_ip = Ipv4Addr::from_str(&src_addr).expect("Error parsing ip addr");
 
-                    let graph_locked = graph.lock().unwrap();
+                    let graph_locked = graph.lock().await;
                     let src_node = graph_locked.find_node_by_ip(parsed_src_ip).expect("Node not found");
                                         
                     println!("Dest node: {:?}, source node: {:?}", dest_node, src_node);

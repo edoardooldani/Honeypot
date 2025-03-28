@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use common::packet::{build_packet, calculate_header};
@@ -44,10 +45,10 @@ impl TcpSynDetector {
 }
 
 
-pub fn detect_tcp_syn_attack(
+pub async fn detect_tcp_syn_attack<'a>(
     tx: futures_channel::mpsc::UnboundedSender<Message>, 
     session_id: Arc<Mutex<u32>>,
-    ipv4_packet: Ipv4Packet,
+    ipv4_packet: &'a Ipv4Packet<'a>,
     src_mac: MacAddr,
     self_mac: MacAddr,
     tcp_syn_tracker: Arc<Mutex<TcpSynDetector>>
@@ -59,7 +60,7 @@ pub fn detect_tcp_syn_attack(
 
             let dest_port = tcp_packet.get_destination();
 
-            let mut guard = tcp_syn_tracker.lock().unwrap();
+            let mut guard = tcp_syn_tracker.lock().await;
             if guard.register_syn(src_ip.clone()) {
                 warn!("🔥 Possible TCP Syn attack from Mac: {} and IP: {}!", src_mac, src_ip);
 
@@ -79,7 +80,7 @@ pub fn detect_tcp_syn_attack(
     
 }
 
-fn send_tcp_alert(
+async fn send_tcp_alert(
     tx: futures_channel::mpsc::UnboundedSender<Message>,
     payload: PayloadType,
     session_id: Arc<Mutex<u32>>,
@@ -87,7 +88,7 @@ fn send_tcp_alert(
     mac_address: [u8; 6],
 ) {
     let msg = {
-        let mut id = session_id.lock().unwrap();
+        let mut id = session_id.lock().await;
         *id += 1;
 
         let header = calculate_header(*id, data_type, 0, mac_address);
