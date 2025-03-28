@@ -26,6 +26,7 @@ impl TunInterfaces {
     pub fn add_interface(&mut self, name: &str, tun: Arc<Tun>) {
         self.interfaces.insert(name.to_string(), tun);
         info!("TUN interface added: {}", name);
+        println!("Interfaces: {:?}", self.interfaces.len());
     }
 
     // Funzione per ottenere un'interfaccia TUN per nome
