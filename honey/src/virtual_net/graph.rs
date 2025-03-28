@@ -150,6 +150,13 @@ impl NetworkGraph {
 
     }
 
+
+    pub async fn add_tun_interface(&mut self, name: &str, tun: Arc<Tun>) {
+        let mut tun_interfaces = self.tun_interfaces.lock().await;
+        tun_interfaces.add_interface(name, tun);
+    }
+
+
     fn generate_virtual_ipv6(&self) -> String {
         let mut rng = rand::rng();
         let last_segment = rng.random_range(100..130);

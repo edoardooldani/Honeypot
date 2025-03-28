@@ -54,6 +54,9 @@ pub fn create_virtual_tun_interface(graph: &mut NetworkGraph, ipv4_address: Ipv4
             .unwrap(),
     );
     let _ = add_iptables_rule(&tun_name);
+
+    graph.add_tun_interface(&tun_name, tun.clone());
+
     info!("TUN interface created: {tun_name}")
 }
 
