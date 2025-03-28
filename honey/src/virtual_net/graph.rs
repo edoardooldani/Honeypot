@@ -2,12 +2,11 @@ use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
 use tokio::io;
 use tracing::info;
-use std::{collections::HashMap, net::{self, Ipv4Addr, Ipv6Addr}, str::FromStr, sync::Arc};
+use std::{collections::HashMap, net::Ipv4Addr, process::Command, sync::Arc};
 use rand::Rng;
-use tun::{Device, Configuration};
-use tokio_tun::{TunBuilder, Tun};
+use tokio_tun::{Tun, TunBuilder};
 
-use crate::{network::sender::find_ip_by_mac, virtual_net::virtual_node::handle_tun_msg};
+use crate::network::sender::find_ip_by_mac;
 
 
 #[derive(Debug, Clone)]
@@ -102,12 +101,7 @@ impl NetworkGraph {
 
         let node_index = self.graph.add_node(node);
         self.nodes.insert(assigned_mac.clone(), node_index);
-        
-        
-        let graph = Arc::new(self.clone()); 
-        tokio::spawn(async move {
-            create_virtual_tun_interface(graph.clone(), assigned_ip.clone(), assigned_ipv6.clone(), assigned_mac.clone()).await;
-        });
+        create_virtual_tun_interface(assigned_ip.clone());
 
         node_index
     }
@@ -222,26 +216,15 @@ impl NetworkGraph {
 
 
 
-async fn create_virtual_tun_interface(
-    graph: Arc<NetworkGraph>,
-    ipv4: String, 
-    ipv6: String, 
-    mac: String
-) {
+fn create_virtual_tun_interface(ipv4: String) {
 
     let ipv4_address: Ipv4Addr = ipv4.parse().map_err(|e| {
         io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
-    }).expect("Errore nel parsing dell'indirizzo IP");
-
-    let ipv6_address: Ipv6Addr = ipv6.parse().map_err(|e| {
-        io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
-    }).expect("Errore nel parsing dell'indirizzo IP");
-
-    println!("IP: {ipv4_address} IPv6: {ipv6_address}");
+    }).expect("Error parsing IP");
 
     let last_octet = ipv4_address.octets()[3];
     let tun_name = format!("tun{}", last_octet);
-    let netmask = "255.255.255.0".parse::<Ipv4Addr>().expect("Errore nel parsing della netmask");
+    let netmask = "255.255.255.0".parse::<Ipv4Addr>().expect("Error parsing netmask");
 
     let tun = Arc::new(
         Tun::builder()
@@ -254,48 +237,51 @@ async fn create_virtual_tun_interface(
             .pop()
             .unwrap(),
     );
+    add_iptables_rule(&tun_name);
+    info!("TUN interface created: {tun_name}")
 
-    let tun_reader: Arc<Tun> = Arc::clone(&tun);
-    let tun_writer: Arc<Tun>= tun.clone();
-
-    let mut buf = [0u8; 1024];
-
-    let mut count = 0;
-    loop {
-        count +=1;
-        match tun_reader.recv(&mut buf).await {
-            Ok(n) => {
-                if n > 0 {
-                    match handle_tun_msg(graph.clone(), buf, n, ipv4_address, ipv6_address,MacAddr::from_str(&mac).expect("Mac not found")).await {
-                        Ok(msg) => {
-                            
-                            if !msg.is_empty(){
-                                
-                                println!("Message to send: {:?}, count: {:?}", msg, count);
-
-                                if let Err(e) = tun_writer.send(msg.as_slice()).await {
-                                    eprintln!("Error while sending packet: {:?}", e);
-                                } else {
-                                    println!("Packet sent successfully!");
-                                }
-                                
-                            }
-                            
-                        }Err(e) => {        
-                            eprintln!("Errore: {}", e);
-                        }
-                    }
-                }
-            }
-            Err(e) => {        
-                eprintln!("Errore: {}", e);
-            }
-        }
-        println!("loop {}", count);
-    }
 }
 
 
+fn add_iptables_rule(tun_interface: &str) -> Result<(), String> {
+    // Verifica se la regola esiste già
+    let check_result = Command::new("sudo")
+        .arg("iptables")
+        .arg("-C")
+        .arg("FORWARD")
+        .arg("-i")
+        .arg(tun_interface)
+        .arg("-o")
+        .arg("main_tun")  
+        .arg("-j")
+        .arg("ACCEPT")
+        .output()
+        .map_err(|e| format!("Errore nell'esecuzione di iptables: {}", e))?;
+
+    if check_result.status.success() {
+        println!("La regola è già presente.");
+        return Ok(());
+    }
+
+    let result = Command::new("sudo")
+        .arg("iptables")
+        .arg("-A")
+        .arg("FORWARD")
+        .arg("-i")
+        .arg(tun_interface)
+        .arg("-o")
+        .arg("main_tun")
+        .arg("-j")
+        .arg("ACCEPT")
+        .output()
+        .map_err(|e| format!("Errore nell'esecuzione di iptables: {}", e))?;
+
+    if !result.status.success() {
+        return Err(format!("Comando iptables non riuscito: {}", String::from_utf8_lossy(&result.stderr)));
+    }
+
+    Ok(())
+}
 
 
 fn generate_virtual_mac() -> String {
