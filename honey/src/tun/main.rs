@@ -1,10 +1,11 @@
 use tokio_tungstenite::tungstenite::Message;
 use tracing::info;
-use std::sync::{Arc, Mutex};
+use std::{net::Ipv4Addr, sync::{Arc, Mutex}};
 
 use tokio_tun::{TunBuilder, Tun};
+use tokio::io;
 
-use crate::{network::sender::find_ip_by_mac, virtual_net::{graph::NetworkGraph, virtual_node::handle_tun_msg}};
+use crate::virtual_net::graph::NetworkGraph;
 
 pub async fn create_main_tun(
     tx: futures_channel::mpsc::UnboundedSender<Message>, 
@@ -13,8 +14,11 @@ pub async fn create_main_tun(
 ) {
 
     let tun_name = "main_tun";
-    let ipv4_address = "10.0.0.1";
-    let netmask = "255.255.255.0";
+    let ipv4_address: Ipv4Addr = "10.0.0.1".parse().map_err(|e| {
+        io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
+    }).expect("Error parsing IP");    
+
+    let netmask = "255.255.255.0".parse::<Ipv4Addr>().expect("Error parsing netmask");
 
     let tun = Arc::new(
         TunBuilder::new()
@@ -27,7 +31,7 @@ pub async fn create_main_tun(
             .await
             .unwrap(),
     );
-
+    info!("Main TUN inteface UP");
     let tun_reader: Arc<Tun> = Arc::clone(&tun);
     let mut buf = [0u8; 1024];
 
