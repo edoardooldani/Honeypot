@@ -1,11 +1,12 @@
 use pnet::datalink;
 use pnet::ipnetwork::IpNetwork;
-use pnet::packet::ethernet::EthernetPacket;
+use pnet::packet::ethernet::{EtherTypes, EthernetPacket};
 use tokio_tungstenite::tungstenite::Message;
 use tracing::info;
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::fs::File;
+use std::time::Duration;
 use tokio_tun::{TunBuilder, Tun};
 use tokio::sync::Mutex;
 use std::io::{self, Read, Write};
@@ -20,72 +21,60 @@ pub async fn create_main_tun(
     session_id: Arc<Mutex<u32>>, 
     graph: Arc<Mutex<NetworkGraph>>
 ) {
-    open_existing_tun("main_tun");
-    
-
-
-}
-
-fn open_existing_tun(tun_name: &str) {
     let interfaces = datalink::interfaces();
-
-    // Stampa informazioni su ogni interfaccia
-    for interface in interfaces {
-        println!("Interfaccia: {}", interface.name);
-        
-        // Mostra se l'interfaccia è attiva o meno
-        println!("  Attiva: {}", interface.is_up());
-        
-        // Mostra gli indirizzi IP associati all'interfaccia
-        for ip in interface.ips {
-            match ip {
-                IpNetwork::V4(v4) => println!("  IPv4: {}", v4),
-                IpNetwork::V6(v6) => println!("  IPv6: {}", v6),
-            }
-        }
-
-        // Mostra l'indirizzo MAC (se disponibile)
-        if let Some(mac) = interface.mac {
-            println!("  MAC: {}", mac);
-        }
-
-        println!(); // Linea vuota per separare le interfacce
-    }
-}
-
-
-
-    /* 
-    let tun_name = "main_tun";
-
-    let tun = Arc::new(
-        Tun::open(tun_name).expect("Failed to open existing TUN interface")
-    );
-    info!("Main TUN interface opened");
-
-    let tun_reader: Arc<Tun> = Arc::clone(&tun);
-    let mut buf = [0u8; 1024];
-
+    
+    // Trova l'interfaccia main_tun
+    let main_tun = interfaces.into_iter()
+        .find(|iface| iface.name == "main_tun")
+        .expect("Interfaccia main_tun non trovata");
+    
+    println!("Trovata interfaccia: {}", main_tun.name);
+    
+    // Crea il canale per l'interfaccia TUN (main_tun)
+    let (mut tx, mut rx) = match datalink::channel(&main_tun, Default::default()) {
+        Ok(pnet::datalink::Channel::Ethernet(tx, rx)) => (tx, rx),
+        Ok(_) => panic!("Tipo di canale non supportato"),
+        Err(e) => panic!("Errore nell'aprire il canale: {}", e),
+    };
+    
+    println!("In ascolto su main_tun...");
+    
+    // Leggi i pacchetti che arrivano sull'interfaccia TUN
     loop {
-        match tun_reader.recv(&mut buf).await {
-            Ok(n) => {
-                if n > 0 {
-                    match handle_tun_msg(graph.clone(), buf, n).await {
-                        Ok(msg) => {
-                            if !msg.is_empty() {
-                                // Optional: send packet if needed
+        match rx.next() {
+            Ok(packet) => {
+                // Decodifica il pacchetto Ethernet
+                if let Some(ethernet_packet) = EthernetPacket::new(packet) {
+                    match ethernet_packet.get_ethertype() {
+                        EtherTypes::Ipv4 => {
+                            // Se il pacchetto è di tipo IPv4
+                            if let Some(ipv4_packet) = pnet::packet::ipv4::Ipv4Packet::new(ethernet_packet.payload()) {
+                                let src_ip = ipv4_packet.get_source();
+                                let dst_ip = ipv4_packet.get_destination();
+                                
+                                // Stampa le informazioni del pacchetto
+                                println!("Pacchetto IPv4 ricevuto:");
+                                println!("  Fonte IP: {}", src_ip);
+                                println!("  Destinazione IP: {}", dst_ip);
                             }
                         }
-                        Err(e) => {        
-                            eprintln!("Error while processing packet: {}", e);
+                        EtherTypes::Ipv6 => {
+                            println!("Pacchetto IPv6 ricevuto");
+                        }
+                        _ => {
+                            println!("Pacchetto di tipo sconosciuto");
                         }
                     }
                 }
             }
-            Err(e) => {        
-                eprintln!("Error receiving data from TUN interface: {}", e);
+            Err(e) => {
+                eprintln!("Errore nella lettura del pacchetto: {}", e);
             }
         }
-    }
+        
+        // Aggiungi un timeout per evitare che il loop si blocchi indefinitamente
+        std::thread::sleep(Duration::from_millis(100));
+    }    
+
+
 }
-    */
