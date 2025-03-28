@@ -1,31 +1,20 @@
-use std::{collections::HashMap, fmt, net::Ipv4Addr, process::Command, sync::{Arc, RwLock}};
+use std::{collections::HashMap, fmt, net::Ipv4Addr, process::Command, sync::{Arc, RwLock, Mutex}};
 #[cfg(target_os = "linux")]
 use tokio_tun::Tun;
 use tracing::{info, error};
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 
 
 use crate::virtual_net::graph::NetworkGraph;
 
 
-static mut TUN_INTERFACES: Option<Arc<RwLock<Vec<Arc<Tun>>>>> = None;
+static TUN_INTERFACES: Lazy<Mutex<Vec<Arc<Tun>>>> = Lazy::new(|| Mutex::new(Vec::new()));
 
-pub fn initialize_tun_interfaces() {
-    unsafe {
-        if TUN_INTERFACES.is_none() {
-            TUN_INTERFACES = Some(Arc::new(RwLock::new(Vec::new())));
-        }
-    }
-}
-
-pub fn add_tun_interface(tun: Arc<Tun>) {
-    unsafe {
-        if let Some(ref interfaces) = TUN_INTERFACES {
-            let mut interfaces_lock = interfaces.write().unwrap();
-            interfaces_lock.push(tun);
-            println!("TUN interface added!");
-        }
-    }
+// Funzione per aggiungere un'interfaccia TUN alla lista
+fn add_tun_interface(tun: Arc<Tun>) {
+    let mut interfaces = TUN_INTERFACES.lock().unwrap();
+    interfaces.push(tun);
+    println!("TUN interface added!");
 }
 
 #[derive(Clone)]
