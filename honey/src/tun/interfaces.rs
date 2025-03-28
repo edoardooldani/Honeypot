@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::Ipv4Addr, process::Command, sync::Arc};
+use std::{collections::HashMap, fmt, net::Ipv4Addr, process::Command, sync::Arc};
 #[cfg(target_os = "linux")]
 use tokio_tun::Tun;
 use tracing::{info, error};
@@ -6,10 +6,20 @@ use tracing::{info, error};
 use crate::virtual_net::graph::NetworkGraph;
 
 
-#[derive(Debug)]
+#[derive(Clone)]
 pub struct TunInterfaces {
-    pub interfaces: HashMap<String, Arc<Tun>>,  // Tieni traccia delle interfacce TUN create
+    pub interfaces: HashMap<String, Arc<Tun>>,
 }
+
+impl fmt::Debug for TunInterfaces {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TunInterfaces")
+            .field("interfaces", &self.interfaces.keys().collect::<Vec<_>>()) // Stampa solo le chiavi delle interfacce TUN
+            .finish()
+    }
+}
+
+
 
 impl TunInterfaces {
     // Funzione per aggiungere una nuova interfaccia TUN alla struttura

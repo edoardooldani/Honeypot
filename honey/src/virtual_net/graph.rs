@@ -1,7 +1,6 @@
 use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
 use tokio::sync::Mutex;
-use tracing::info;
 use std::{collections::HashMap, net::Ipv4Addr, str::FromStr, sync::Arc};
 use rand::Rng;
 

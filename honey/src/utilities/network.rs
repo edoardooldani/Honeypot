@@ -1,4 +1,4 @@
-use std::{net::Ipv4Addr, str::FromStr, sync::{Arc, Mutex}, thread, time::Duration};
+use std::{net::Ipv4Addr, str::FromStr, sync::{Arc, Mutex}, time::Duration};
 
 use pnet::{datalink::{Channel, NetworkInterface}, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, ipv4::Ipv4Packet, Packet}, util::MacAddr};
 use pnet::datalink;
