@@ -3,6 +3,8 @@ use pnet::util::MacAddr;
 use tokio::sync::Mutex;
 use std::{collections::HashMap, net::Ipv4Addr, str::FromStr, sync::Arc};
 use rand::Rng;
+#[cfg(target_os = "linux")]
+use tokio_tun::Tun;
 
 use crate::{tun::interfaces::{create_virtual_tun_interface, TunInterfaces}, utilities::network::find_ip_by_mac};
 
