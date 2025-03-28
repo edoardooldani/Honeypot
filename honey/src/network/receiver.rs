@@ -84,7 +84,7 @@ pub async fn scan_datalink(
                         } 
 
                         if graph.nodes.contains_key(&src_mac_addr) && graph.nodes.contains_key(&dest_mac_addr) {
-                            graph.add_connection(src_mac, dest_mac, &protocol.to_string(), bytes);
+                            graph.add_connection(src_mac, dest_mac, &protocol.to_string(), bytes).await;
                         }
                     }       
 
@@ -121,7 +121,7 @@ pub async fn scan_datalink(
                         Arc::clone(&arp_req_tracker), 
                         Arc::clone(&arp_res_tracker), 
                         tcp_syn_tracker.clone()
-                    );
+                    ).await;
 
                 }
             }
@@ -131,10 +131,10 @@ pub async fn scan_datalink(
 }
 
 
-fn detect_attacks(
+async fn detect_attacks<'a>(
     tx: futures_channel::mpsc::UnboundedSender<Message>,
     session_id: Arc<Mutex<u32>>,
-    ethernet_packet: &EthernetPacket,
+    ethernet_packet: &'a EthernetPacket<'a>, 
     graph: &mut NetworkGraph,
     local_mac: MacAddr,
     alert_tracker: AlertTracker,
@@ -152,7 +152,7 @@ fn detect_attacks(
             alert_tracker,
             graph, 
             local_mac.clone()
-        );
+        ).await;
     }
     if ethernet_packet.get_ethertype() == EtherTypes::Ipv4 {
 
@@ -180,7 +180,7 @@ fn detect_attacks(
                         ethernet_packet.get_source(),
                         local_mac,
                         tcp_syn_tracker
-                    );    
+                    ).await;    
                 }
                 _ => {
                     

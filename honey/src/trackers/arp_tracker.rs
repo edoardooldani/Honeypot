@@ -92,7 +92,7 @@ pub async fn detect_arp_attacks<'a>(
                                 });
                         
                                 let mac_bytes = mac_to_bytes(&self_mac);
-                                send_arp_alert(tx.clone(), arp_alert_payload, session_id.clone(), DataType::ArpAlert.to_u8(), mac_bytes);
+                                send_arp_alert(tx.clone(), arp_alert_payload, session_id.clone(), DataType::ArpAlert.to_u8(), mac_bytes).await;
                         
                                 alerts.insert(key, now);
                             }
@@ -131,7 +131,7 @@ impl ArpRepliesTracker {
         }
     }
 
-    pub fn record_arp_poisoning(&mut self,
+    pub async fn record_arp_poisoning(&mut self,
         tx: futures_channel::mpsc::UnboundedSender<Message>, 
         session_id: Arc<Mutex<u32>>,
         ip: Ipv4Addr, 
@@ -153,13 +153,13 @@ impl ArpRepliesTracker {
             });
                                                                                         
             let mac_bytes = mac_to_bytes(&self_mac);
-            send_arp_alert(tx, arp_alert_payload, session_id, DataType::ArpAlert.to_u8(), mac_bytes);
+            send_arp_alert(tx, arp_alert_payload, session_id, DataType::ArpAlert.to_u8(), mac_bytes).await;
         
         }
     }
 
     /// Registra quante ARP Replies ha inviato un MAC address
-    pub fn record_arp_flooding(&mut self, 
+    pub async fn record_arp_flooding(&mut self, 
         tx: futures_channel::mpsc::UnboundedSender<Message>, 
         session_id: Arc<Mutex<u32>>,
         mac: MacAddr, 
@@ -179,7 +179,7 @@ impl ArpRepliesTracker {
             });
                                                                                         
             let mac_bytes = mac_to_bytes(&self_mac);
-            send_arp_alert(tx, arp_alert_payload, session_id, DataType::ArpAlert.to_u8(), mac_bytes);
+            send_arp_alert(tx, arp_alert_payload, session_id, DataType::ArpAlert.to_u8(), mac_bytes).await;
         }
     }
 }
