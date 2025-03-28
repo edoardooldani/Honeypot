@@ -1,8 +1,8 @@
 use tokio_tungstenite::tungstenite::Message;
 use tracing::info;
-use std::{net::Ipv4Addr, sync::Arc};
+use std::sync::Arc;
 use tokio_tun::{TunBuilder, Tun};
-use tokio::{io, sync::Mutex};
+use tokio::sync::Mutex;
 
 use crate::virtual_net::{graph::NetworkGraph, virtual_node::handle_tun_msg};
 
@@ -13,26 +13,12 @@ pub async fn create_main_tun(
 ) {
 
     let tun_name = "main_tun";
-    let ipv4_address: Ipv4Addr = "192.168.1.251".parse().map_err(|e| {
-        io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid IP: {}", e))
-    }).expect("Error parsing IP");    
-
-    let netmask = "255.255.255.0".parse::<Ipv4Addr>().expect("Error parsing netmask");
 
     let tun = Arc::new(
-        TunBuilder::new()
-            .name(tun_name)
-            .address(ipv4_address)
-            .netmask(netmask)
-            .persist()
-            .up()
-            .build()
-            .unwrap()
-            .pop()
-            .unwrap()
+        Tun::open(tun_name).expect("Failed to open existing TUN interface")
     );
-    info!("Main TUN inteface UP");
-    
+    info!("Main TUN interface opened");
+
     let tun_reader: Arc<Tun> = Arc::clone(&tun);
     let mut buf = [0u8; 1024];
 
@@ -42,27 +28,18 @@ pub async fn create_main_tun(
                 if n > 0 {
                     match handle_tun_msg(graph.clone(), buf, n).await {
                         Ok(msg) => {
-                            
-                            if !msg.is_empty(){
-                                /* 
-                                println!("Message to send: {:?}", msg);
-
-                                if let Err(e) = tun_writer.send(msg.as_slice()).await {
-                                    eprintln!("Error while sending packet: {:?}", e);
-                                } else {
-                                    println!("Packet sent successfully!");
-                                }
-                                */
+                            if !msg.is_empty() {
+                                // Optional: send packet if needed
                             }
-                            
-                        }Err(e) => {        
-                            eprintln!("Errore: {}", e);
+                        }
+                        Err(e) => {        
+                            eprintln!("Error while processing packet: {}", e);
                         }
                     }
                 }
             }
             Err(e) => {        
-                eprintln!("Errore: {}", e);
+                eprintln!("Error receiving data from TUN interface: {}", e);
             }
         }
     }

@@ -1,0 +1,5 @@
+#!/bin/bash
+sudo ip tuntap add dev main_tun mode tun
+sudo ip addr add 10.0.0.1/24 dev main_tun
+sudo ip link set main_tun up
+sudo ip route add 10.0.0.0/24 dev main_tun
