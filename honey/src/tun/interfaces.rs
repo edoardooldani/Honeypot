@@ -8,6 +8,26 @@ use lazy_static::lazy_static;
 use crate::virtual_net::graph::NetworkGraph;
 
 
+static mut TUN_INTERFACES: Option<Arc<RwLock<Vec<Arc<Tun>>>>> = None;
+
+pub fn initialize_tun_interfaces() {
+    unsafe {
+        if TUN_INTERFACES.is_none() {
+            TUN_INTERFACES = Some(Arc::new(RwLock::new(Vec::new())));
+        }
+    }
+}
+
+pub fn add_tun_interface(tun: Arc<Tun>) {
+    unsafe {
+        if let Some(ref interfaces) = TUN_INTERFACES {
+            let mut interfaces_lock = interfaces.write().unwrap();
+            interfaces_lock.push(tun);
+            println!("TUN interface added!");
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct TunInterfaces {
     pub interfaces: HashMap<String, Arc<Tun>>,
@@ -64,6 +84,7 @@ pub async fn create_virtual_tun_interface(graph: &mut NetworkGraph, ipv4_address
     let _ = add_iptables_rule(&tun_name);
 
     info!("TUN interface created: {tun_name}");
+    add_tun_interface(tun.clone());
     tun.clone()
 }
 

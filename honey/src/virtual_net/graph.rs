@@ -1,7 +1,7 @@
 use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
 use tokio::sync::Mutex;
-use std::{collections::HashMap, net::Ipv4Addr, str::FromStr, sync::{Arc, RwLock}};
+use std::{collections::HashMap, net::Ipv4Addr, str::FromStr, sync::Arc};
 use rand::Rng;
 #[cfg(target_os = "linux")]
 use tokio_tun::Tun;
@@ -101,12 +101,8 @@ impl NetworkGraph {
         let node_index = self.graph.add_node(node);
         self.nodes.insert(assigned_mac.clone(), node_index);
 
-        let tun= create_virtual_tun_interface(self, assigned_ip.clone()).await;
-        
-        {
-            let mut tun_interfaces = tun_interfaces.lock().await;
-            tun_interfaces.add_interface(&format!("tun{}", assigned_ip.octets()[3]), tun.clone());
-        }
+        create_virtual_tun_interface(self, assigned_ip.clone()).await;
+
         node_index
     }
 
