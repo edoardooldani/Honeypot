@@ -77,7 +77,7 @@ pub fn mac_to_bytes(mac: &MacAddr) -> [u8; 6] {
 }
 
 
-pub fn find_ip_by_mac(target_mac: &MacAddr) -> Ipv4Addr {
+pub async fn find_ip_by_mac(target_mac: &MacAddr) -> Ipv4Addr {
     let interface = get_primary_interface().expect("Nessuna interfaccia valida trovata");
 
     let my_ip = match interface.ips.iter().find(|ip| ip.is_ipv4()) {
@@ -99,12 +99,13 @@ pub fn find_ip_by_mac(target_mac: &MacAddr) -> Ipv4Addr {
 
     let tx_arc = Arc::new(Mutex::new(tx_datalink));
 
+    // Spawning async tasks using tokio::spawn
     for i in 1..=254 {
         let target_ip = Ipv4Addr::new(subnet.0, subnet.1, subnet.2, i);
         let tx_clone = Arc::clone(&tx_arc);
         let my_mac_clone = my_mac.clone();
 
-        let _ = thread::spawn(move || {
+        tokio::spawn(async move {
             let mut tx_lock = tx_clone.lock().unwrap();
             send_arp_request(&mut **tx_lock, my_mac_clone, my_ip, target_ip);
         });
@@ -124,7 +125,7 @@ pub fn find_ip_by_mac(target_mac: &MacAddr) -> Ipv4Addr {
                                 let sender_ip = arp_packet.get_sender_proto_addr();
 
                                 if sender_mac == *target_mac {
-                                    return sender_ip; 
+                                    return sender_ip;
                                 }
                             }
                         }
@@ -135,5 +136,5 @@ pub fn find_ip_by_mac(target_mac: &MacAddr) -> Ipv4Addr {
         }
     }
 
-    Ipv4Addr::new(0, 0, 0, 0) 
+    Ipv4Addr::new(0, 0, 0, 0)
 }

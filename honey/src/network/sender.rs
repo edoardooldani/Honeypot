@@ -1,7 +1,7 @@
 use etherparse::Ipv4Header;
 use pnet::datalink::{self, Channel, DataLinkSender};
-use pnet::packet::arp::{ArpOperations, ArpPacket, MutableArpPacket};
-use pnet::packet::ethernet::{EthernetPacket, MutableEthernetPacket, EtherTypes};
+use pnet::packet::arp::{ArpOperations, MutableArpPacket};
+use pnet::packet::ethernet::{MutableEthernetPacket, EtherTypes};
 use pnet::packet::icmp::echo_reply::MutableEchoReplyPacket;
 use pnet::packet::icmp::echo_request::EchoRequestPacket;
 use pnet::packet::icmp::{checksum, IcmpPacket, IcmpTypes};
@@ -14,9 +14,8 @@ use std::collections::HashSet;
 use std::net::Ipv4Addr;
 use std::process::Command;
 use std::str::FromStr;
-use std::time::Duration;
-use std::{str, thread};
-use std::sync::{Arc, Mutex};
+use std::str;
+use std::sync::Mutex;
 use lazy_static::lazy_static;
 
 
