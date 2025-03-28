@@ -26,7 +26,6 @@ impl TunInterfaces {
     pub fn add_interface(&mut self, name: &str, tun: Arc<Tun>) {
         self.interfaces.insert(name.to_string(), tun);
         info!("TUN interface added: {}", name);
-        println!("Interfaces: {:?}", self.interfaces.len());
     }
 
     // Funzione per ottenere un'interfaccia TUN per nome
@@ -56,7 +55,7 @@ pub async fn create_virtual_tun_interface(graph: &mut NetworkGraph, ipv4_address
     );
     let _ = add_iptables_rule(&tun_name);
 
-    graph.add_tun_interface(&tun_name, tun.clone()).await;
+    //graph.add_tun_interface(&tun_name, tun.clone()).await;
 
     info!("TUN interface created: {tun_name}")
 }
