@@ -10,7 +10,6 @@ pub fn create_virtual_tun_interface(ipv4_address: Ipv4Addr) {
     let tun_name = format!("tun{}", last_octet);
     let netmask = "255.255.255.0".parse::<Ipv4Addr>().expect("Error parsing netmask");
 
-    // Crea l'interfaccia TUN
     let _tun = Arc::new(
         Tun::builder()
             .name(&tun_name)
@@ -22,8 +21,7 @@ pub fn create_virtual_tun_interface(ipv4_address: Ipv4Addr) {
             .pop()
             .unwrap(),
     );
-
-    // Configura iptables per il forwarding tra la TUN interface e main_tun
+    loop {}
     let _ = add_iptables_rule(&tun_name);
     info!("TUN interface created: {tun_name}")
 }
