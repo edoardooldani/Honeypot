@@ -78,10 +78,8 @@ pub fn mac_to_bytes(mac: &MacAddr) -> [u8; 6] {
 
 
 pub fn find_ip_by_mac(target_mac: &MacAddr) -> Ipv4Addr {
-    // Ottieni l'interfaccia primaria
     let interface = get_primary_interface().expect("Nessuna interfaccia valida trovata");
 
-    // Ottieni l'indirizzo IPv4 della macchina locale
     let my_ip = match interface.ips.iter().find(|ip| ip.is_ipv4()) {
         Some(ip) => match ip.ip() {
             std::net::IpAddr::V4(ipv4) => ipv4,
@@ -90,38 +88,31 @@ pub fn find_ip_by_mac(target_mac: &MacAddr) -> Ipv4Addr {
         None => return Ipv4Addr::new(0, 0, 0, 0),
     };
 
-    // Ottieni l'indirizzo MAC della macchina locale
     let my_mac = interface.mac.unwrap();
     let subnet = (my_ip.octets()[0], my_ip.octets()[1], my_ip.octets()[2]);
 
-    // Crea il canale Ethernet per inviare pacchetti ARP
     let (tx_datalink, mut rx) = match datalink::channel(&interface, Default::default()) {
         Ok(Channel::Ethernet(tx, rx)) => (tx, rx),
         Ok(_) => return Ipv4Addr::new(0, 0, 0, 0),
         Err(_) => return Ipv4Addr::new(0, 0, 0, 0),
     };
 
-    // Crea un Arc<Mutex> per il trasmettitore
     let tx_arc = Arc::new(Mutex::new(tx_datalink));
 
-    // Invia pacchetti ARP per cercare l'indirizzo IP corrispondente al MAC
     for i in 1..=254 {
         let target_ip = Ipv4Addr::new(subnet.0, subnet.1, subnet.2, i);
         let tx_clone = Arc::clone(&tx_arc);
         let my_mac_clone = my_mac.clone();
 
-        // Crea un thread separato per inviare richieste ARP
         let _ = thread::spawn(move || {
             let mut tx_lock = tx_clone.lock().unwrap();
             send_arp_request(&mut **tx_lock, my_mac_clone, my_ip, target_ip);
         });
     }
 
-    // Timeout per aspettare la risposta ARP
     let timeout = Duration::from_secs(2);
     let start_time = std::time::Instant::now();
 
-    // Ricevi pacchetti ARP in risposta
     while start_time.elapsed() < timeout {
         match rx.next() {
             Ok(packet) => {
@@ -132,9 +123,8 @@ pub fn find_ip_by_mac(target_mac: &MacAddr) -> Ipv4Addr {
                                 let sender_mac = arp_packet.get_sender_hw_addr();
                                 let sender_ip = arp_packet.get_sender_proto_addr();
 
-                                // Confronta l'indirizzo MAC ricevuto con quello cercato
                                 if sender_mac == *target_mac {
-                                    return sender_ip; // Restituisci l'indirizzo IP trovato
+                                    return sender_ip; 
                                 }
                             }
                         }
@@ -145,5 +135,5 @@ pub fn find_ip_by_mac(target_mac: &MacAddr) -> Ipv4Addr {
         }
     }
 
-    Ipv4Addr::new(0, 0, 0, 0) // Se non trovi l'IP, restituisci 0.0.0.0
+    Ipv4Addr::new(0, 0, 0, 0) 
 }
