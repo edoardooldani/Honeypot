@@ -35,8 +35,6 @@ pub struct NetworkNode {
 pub struct NetworkGraph {
     pub graph: Graph<NetworkNode, Connection>,
     pub nodes: HashMap<MacAddr, NodeIndex>,
-    pub tun_interfaces: Arc<Mutex<TunInterfaces>>,
-
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -53,14 +51,11 @@ impl NetworkGraph {
     pub fn new() -> Self {
         Self {
             graph: Graph::new(),
-            nodes: HashMap::new(),
-            tun_interfaces: Arc::new(Mutex::new(TunInterfaces {
-                interfaces: HashMap::new(),
-            })),        
+            nodes: HashMap::new()     
         }
     }
 
-    pub async fn add_node(&mut self, mac_address: MacAddr, mut ip_address: Ipv4Addr, node_type: NodeType) -> NodeIndex {
+    pub async fn add_node(&mut self, mac_address: MacAddr, mut ip_address: Ipv4Addr, node_type: NodeType, tun_interfaces: Arc<Mutex<TunInterfaces>>) -> NodeIndex {
         if let Some(&existing_node) = self.nodes.get(&mac_address) {
             return existing_node;
         }
@@ -84,12 +79,12 @@ impl NetworkGraph {
         let node_index = self.graph.add_node(node);
         self.nodes.insert(mac_address, node_index);
     
-        self.add_virtual_node().await;
+        self.add_virtual_node(tun_interfaces).await;
         node_index
     }
 
 
-    async fn add_virtual_node(&mut self) -> NodeIndex {
+    async fn add_virtual_node(&mut self, tun_interfaces: Arc<Mutex<TunInterfaces>>) -> NodeIndex {
 
         let assigned_ip = self.generate_virtual_ip();
         let assigned_ipv6 = self.generate_virtual_ipv6();
@@ -105,7 +100,12 @@ impl NetworkGraph {
 
         let node_index = self.graph.add_node(node);
         self.nodes.insert(assigned_mac.clone(), node_index);
-        create_virtual_tun_interface(self, assigned_ip.clone()).await;
+
+
+        let tun = create_virtual_tun_interface(self, assigned_ip.clone()).await;
+
+        let mut tun_interfaces = tun_interfaces.lock().await;
+        tun_interfaces.add_interface(&format!("tun{}", assigned_ip.octets()[3]), tun.clone());
 
         node_index
     }
@@ -133,9 +133,9 @@ impl NetworkGraph {
 
 
 
-    pub async fn add_connection(&mut self, src_mac: MacAddr, dst_mac: MacAddr, protocol: &str, bytes: u64) {
-        let src_index = self.add_node(src_mac, Ipv4Addr::new(0, 0, 0, 0), NodeType::Real).await;
-        let dst_index = self.add_node(dst_mac, Ipv4Addr::new(0, 0, 0, 0), NodeType::Real).await;
+    pub async fn add_connection(&mut self, src_mac: MacAddr, dst_mac: MacAddr, protocol: &str, bytes: u64, tun_interfaces: Arc<Mutex<TunInterfaces>>) {
+        let src_index = self.add_node(src_mac, Ipv4Addr::new(0, 0, 0, 0), NodeType::Real, tun_interfaces.clone()).await;
+        let dst_index = self.add_node(dst_mac, Ipv4Addr::new(0, 0, 0, 0), NodeType::Real, tun_interfaces.clone()).await;
 
         if let Some(edge) = self.graph.find_edge(src_index, dst_index) {
             let connection = self.graph.edge_weight_mut(edge).unwrap();
@@ -150,12 +150,6 @@ impl NetworkGraph {
             self.graph.add_edge(src_index, dst_index, new_connection);
         }
 
-    }
-
-
-    pub async fn add_tun_interface(&mut self, name: &str, tun: Arc<Tun>) {
-        let mut tun_interfaces = self.tun_interfaces.lock().await;
-        tun_interfaces.add_interface(name, tun);
     }
 
 

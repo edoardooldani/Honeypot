@@ -10,6 +10,7 @@ use std::net::Ipv4Addr;
 use tokio::sync::Mutex;
 use std::sync::Arc;
 use std::time::Instant;
+use crate::tun::interfaces::TunInterfaces;
 use crate::utilities::network::{classify_mac_address, get_local_mac, get_primary_interface, get_src_dest_ip};
 use crate::trackers::arp_tracker::{detect_arp_attacks, AlertTracker, ArpRepliesTracker, ArpRequestTracker};
 use crate::trackers::tcp_tracker::{detect_tcp_syn_attack, TcpSynDetector};
@@ -34,6 +35,8 @@ pub async fn scan_datalink(
     
     let alert_tracker: Arc<Mutex<HashMap<MacAddr, Instant>>> = Arc::new(Mutex::new(HashMap::new()));
     
+    let tun_interfaces = Arc::new(Mutex::new(TunInterfaces::new()));
+
     let arp_req_tracker = Arc::new(Mutex::new(ArpRequestTracker::new()));
     let arp_res_tracker = Arc::new(Mutex::new(ArpRepliesTracker::new()));
     let tcp_syn_tracker = Arc::new(Mutex::new(TcpSynDetector::new()));
@@ -76,15 +79,15 @@ pub async fn scan_datalink(
                         let dest_mac_addr = dest_mac;
 
                         if !graph.nodes.contains_key(&src_mac_addr) {
-                            graph.add_node(src_mac, src_ip.clone(), src_type).await;
+                            graph.add_node(src_mac, src_ip.clone(), src_type, Arc::clone(&tun_interfaces)).await;
                         } 
                         
                         if !graph.nodes.contains_key(&dest_mac_addr) {
-                            graph.add_node(dest_mac, dest_ip.clone(), dest_type).await;
+                            graph.add_node(dest_mac, dest_ip.clone(), dest_type, Arc::clone(&tun_interfaces)).await;
                         } 
 
                         if graph.nodes.contains_key(&src_mac_addr) && graph.nodes.contains_key(&dest_mac_addr) {
-                            graph.add_connection(src_mac, dest_mac, &protocol.to_string(), bytes).await;
+                            graph.add_connection(src_mac, dest_mac, &protocol.to_string(), bytes, Arc::clone(&tun_interfaces)).await;
                         }
                     }       
 

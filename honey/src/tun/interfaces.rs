@@ -22,6 +22,12 @@ impl fmt::Debug for TunInterfaces {
 
 
 impl TunInterfaces {
+    pub fn new() -> Self {
+        TunInterfaces {
+            interfaces: HashMap::new(),
+        }
+    }
+
     // Funzione per aggiungere una nuova interfaccia TUN alla struttura
     pub fn add_interface(&mut self, name: &str, tun: Arc<Tun>) {
         self.interfaces.insert(name.to_string(), tun);
@@ -35,7 +41,7 @@ impl TunInterfaces {
 }
 
 
-pub async fn create_virtual_tun_interface(graph: &mut NetworkGraph, ipv4_address: Ipv4Addr) {
+pub async fn create_virtual_tun_interface(graph: &mut NetworkGraph, ipv4_address: Ipv4Addr) -> Arc<Tun>{
 
     // Crea il nome dell'interfaccia TUN usando l'ultimo ottetto dell'IP
     let last_octet = ipv4_address.octets()[3];
@@ -55,9 +61,8 @@ pub async fn create_virtual_tun_interface(graph: &mut NetworkGraph, ipv4_address
     );
     let _ = add_iptables_rule(&tun_name);
 
-    //graph.add_tun_interface(&tun_name, tun.clone()).await;
-
-    info!("TUN interface created: {tun_name}")
+    info!("TUN interface created: {tun_name}");
+    tun.clone()
 }
 
 // Funzione per aggiungere regole iptables per il forwarding
