@@ -8,7 +8,6 @@ use tokio::io;
 
 use crate::virtual_net::{graph::NetworkGraph, virtual_node::handle_tun_msg};
 
-#[cfg(target_os = "linux")]
 pub async fn create_main_tun(
     tx: futures_channel::mpsc::UnboundedSender<Message>, 
     session_id: Arc<Mutex<u32>>, 
