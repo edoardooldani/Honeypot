@@ -35,14 +35,14 @@ impl TunInterfaces {
 }
 
 
-pub fn create_virtual_tun_interface(graph: &mut NetworkGraph, ipv4_address: Ipv4Addr) {
+pub async fn create_virtual_tun_interface(graph: &mut NetworkGraph, ipv4_address: Ipv4Addr) {
 
     // Crea il nome dell'interfaccia TUN usando l'ultimo ottetto dell'IP
     let last_octet = ipv4_address.octets()[3];
     let tun_name = format!("tun{}", last_octet);
     let netmask = "255.255.255.0".parse::<Ipv4Addr>().expect("Error parsing netmask");
 
-    let _tun = Arc::new(
+    let tun = Arc::new(
         Tun::builder()
             .name(&tun_name)
             .address(ipv4_address)
@@ -55,7 +55,7 @@ pub fn create_virtual_tun_interface(graph: &mut NetworkGraph, ipv4_address: Ipv4
     );
     let _ = add_iptables_rule(&tun_name);
 
-    graph.add_tun_interface(&tun_name, tun.clone());
+    graph.add_tun_interface(&tun_name, tun.clone()).await;
 
     info!("TUN interface created: {tun_name}")
 }
