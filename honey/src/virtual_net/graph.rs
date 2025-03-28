@@ -1,5 +1,6 @@
 use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
+use tracing::info;
 use std::{collections::HashMap, net::Ipv4Addr, str::FromStr};
 use rand::Rng;
 
@@ -88,6 +89,7 @@ impl NetworkGraph {
         let assigned_ipv6 = self.generate_virtual_ipv6();
 
         let assigned_mac = generate_virtual_mac();
+        info!("Creating virtual node with IP: {}", assigned_ip);
 
         let node = NetworkNode {
             mac_address: assigned_mac.clone(),
