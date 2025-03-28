@@ -72,16 +72,17 @@ pub async fn scan_datalink(
                     
                     let mut graph = graph.lock().await;
 
-                    if dest_ip != Ipv4Addr::new(0, 0, 0, 0) {  // Modifica per usare Ipv4Addr al posto di "0.0.0.0"
+                    if dest_ip != Ipv4Addr::new(0, 0, 0, 0) {  
                         let src_mac_addr = src_mac;
                         let dest_mac_addr = dest_mac;
 
                         if !graph.nodes.contains_key(&src_mac_addr) {
-                            info!("Node not found for MAC: {}", src_mac_addr);  // Log per verificarlo
+                            info!("Node not found for MAC src: {}", src_mac_addr); 
                             graph.add_node(src_mac, src_ip.clone(), src_type);
                         }
 
                         if dest_mac_addr != MacAddr::broadcast() && !graph.nodes.contains_key(&dest_mac_addr) {
+                            info!("Node not found for MAC dest: {}", dest_mac_addr);  
                             graph.add_node(dest_mac, dest_ip.clone(), dest_type);
                         }
 
