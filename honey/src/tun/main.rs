@@ -41,6 +41,8 @@ pub async fn create_main_tun(
         match tun_reader.recv(&mut buf).await {
             Ok(n) => {
                 if n > 0 {
+                    println!("Received {} bytes on main_tun", n);
+
                     match handle_tun_msg(graph.clone(), buf, n).await {
                         Ok(msg) => {
                             
