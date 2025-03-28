@@ -1,17 +1,13 @@
 use pnet::datalink;
-use pnet::ipnetwork::IpNetwork;
 use pnet::packet::ethernet::{EtherTypes, EthernetPacket};
 use pnet::packet::Packet;
+use tokio::time::sleep;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::info;
-use std::net::IpAddr;
 use std::sync::Arc;
-use std::fs::File;
 use std::time::Duration;
 use tokio_tun::{TunBuilder, Tun};
 use tokio::sync::Mutex;
-use std::io::{self, Read, Write};
-use std::os::unix::io::AsRawFd;
 
 
 
@@ -24,21 +20,17 @@ pub async fn create_main_tun(
 ) {
     let interfaces = datalink::interfaces();
     
-    // Trova l'interfaccia main_tun
     let main_tun = interfaces.into_iter()
         .find(|iface| iface.name == "main_tun")
         .expect("Interfaccia main_tun non trovata");
-    
-    println!("Trovata interfaccia: {}", main_tun.name);
-    
-    // Crea il canale per l'interfaccia TUN (main_tun)
+        
     let (_tx, mut rx) = match datalink::channel(&main_tun, Default::default()) {
         Ok(pnet::datalink::Channel::Ethernet(tx, rx)) => (tx, rx),
         Ok(_) => panic!("Tipo di canale non supportato"),
         Err(e) => panic!("Errore nell'aprire il canale: {}", e),
     };
     
-    println!("In ascolto su main_tun...");
+    info!("In ascolto su main_tun...");
     
     // Leggi i pacchetti che arrivano sull'interfaccia TUN
     loop {
@@ -73,7 +65,7 @@ pub async fn create_main_tun(
             }
         }
         
-        tokio::sync::s::sleep(Duration::from_millis(200));
+        sleep(Duration::from_millis(100)).await;
     }    
 
 
