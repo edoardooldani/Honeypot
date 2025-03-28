@@ -1,9 +1,31 @@
-use std::{net::Ipv4Addr, process::Command, sync::Arc};
+use std::{collections::HashMap, net::Ipv4Addr, process::Command, sync::Arc};
 #[cfg(target_os = "linux")]
 use tokio_tun::Tun;
 use tracing::{info, error};
 
-pub fn create_virtual_tun_interface(ipv4_address: Ipv4Addr) {
+use crate::virtual_net::graph::NetworkGraph;
+
+
+#[derive(Debug)]
+pub struct TunInterfaces {
+    pub interfaces: HashMap<String, Arc<Tun>>,  // Tieni traccia delle interfacce TUN create
+}
+
+impl TunInterfaces {
+    // Funzione per aggiungere una nuova interfaccia TUN alla struttura
+    pub fn add_interface(&mut self, name: &str, tun: Arc<Tun>) {
+        self.interfaces.insert(name.to_string(), tun);
+        info!("TUN interface added: {}", name);
+    }
+
+    // Funzione per ottenere un'interfaccia TUN per nome
+    pub fn get_interface(&self, name: &str) -> Option<Arc<Tun>> {
+        self.interfaces.get(name).cloned()
+    }
+}
+
+
+pub fn create_virtual_tun_interface(graph: &mut NetworkGraph, ipv4_address: Ipv4Addr) {
 
     // Crea il nome dell'interfaccia TUN usando l'ultimo ottetto dell'IP
     let last_octet = ipv4_address.octets()[3];
@@ -21,7 +43,6 @@ pub fn create_virtual_tun_interface(ipv4_address: Ipv4Addr) {
             .pop()
             .unwrap(),
     );
-    loop {}
     let _ = add_iptables_rule(&tun_name);
     info!("TUN interface created: {tun_name}")
 }

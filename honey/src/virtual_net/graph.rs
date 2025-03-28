@@ -1,10 +1,11 @@
 use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
+use tokio::sync::Mutex;
 use tracing::info;
-use std::{collections::HashMap, net::Ipv4Addr, str::FromStr};
+use std::{collections::HashMap, net::Ipv4Addr, str::FromStr, sync::Arc};
 use rand::Rng;
 
-use crate::{tun::interfaces::create_virtual_tun_interface, utilities::network::find_ip_by_mac};
+use crate::{tun::interfaces::{create_virtual_tun_interface, TunInterfaces}, utilities::network::find_ip_by_mac};
 
 
 #[derive(Debug, Clone)]
@@ -33,6 +34,8 @@ pub struct NetworkNode {
 pub struct NetworkGraph {
     pub graph: Graph<NetworkNode, Connection>,
     pub nodes: HashMap<MacAddr, NodeIndex>,
+    pub tun_interfaces: Arc<Mutex<TunInterfaces>>,
+
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,6 +53,9 @@ impl NetworkGraph {
         Self {
             graph: Graph::new(),
             nodes: HashMap::new(),
+            tun_interfaces: Arc::new(Mutex::new(TunInterfaces {
+                interfaces: HashMap::new(),
+            })),        
         }
     }
 
@@ -98,7 +104,7 @@ impl NetworkGraph {
 
         let node_index = self.graph.add_node(node);
         self.nodes.insert(assigned_mac.clone(), node_index);
-        create_virtual_tun_interface(assigned_ip.clone());
+        create_virtual_tun_interface(self, assigned_ip.clone());
 
         node_index
     }
