@@ -73,8 +73,7 @@ pub async fn create_main_tun(
             }
         }
         
-        // Aggiungi un timeout per evitare che il loop si blocchi indefinitamente
-        std::thread::sleep(Duration::from_millis(100));
+        tokio::sync::s::sleep(Duration::from_millis(200));
     }    
 
 
