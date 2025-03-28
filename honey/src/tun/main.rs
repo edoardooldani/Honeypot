@@ -1,6 +1,7 @@
 use pnet::datalink;
 use pnet::ipnetwork::IpNetwork;
 use pnet::packet::ethernet::{EtherTypes, EthernetPacket};
+use pnet::packet::Packet;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::info;
 use std::net::IpAddr;
