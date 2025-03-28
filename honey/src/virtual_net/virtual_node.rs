@@ -104,12 +104,11 @@ pub fn handle_virtual_packet(
 ) -> Result<Vec<u8>, String>  {
 
     if let Ok((ipv4_header_received, remaining_payload)) = Ipv4Header::from_slice(&buf[..n]) {
-        println!("Packet received: {:?}, source: {:?}, dest: {:?}", ipv4_header_received.protocol, ipv4_header_received.source, ipv4_header_received.destination);
         if ipv4_header_received.protocol == IpNumber::ICMP {
             match EchoRequestPacket::new(remaining_payload).expect("Failed to extract icmpv4 packet") {
 
                 icmp_packet=> {
-                    println!("ICMP packet request");
+                    println!("\n\nICMP packet request");
 
                     let dest_addr = format!("{}.{}.{}.{}", ipv4_header_received.destination[0], ipv4_header_received.destination[1], ipv4_header_received.destination[2], ipv4_header_received.destination[3]);
                     let parsed_dest_ip = Ipv4Addr::from_str(&dest_addr).expect("Error parsing ip addr");

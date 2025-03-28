@@ -1,7 +1,7 @@
 use std::{net::Ipv4Addr, process::Command, sync::Arc};
 #[cfg(target_os = "linux")]
 use tokio_tun::Tun;
-use tracing::info;
+use tracing::{info, error};
 
 pub fn create_virtual_tun_interface(ipv4_address: Ipv4Addr) {
 
@@ -42,7 +42,6 @@ fn add_iptables_rule(tun_interface: &str) -> Result<(), String> {
         .map_err(|e| format!("Errore nell'esecuzione di iptables: {}", e))?;
 
     if check_result.status.success() {
-        println!("La regola è già presente.");
         return Ok(());
     }
 
@@ -60,6 +59,7 @@ fn add_iptables_rule(tun_interface: &str) -> Result<(), String> {
         .map_err(|e| format!("Errore nell'esecuzione di iptables: {}", e))?;
 
     if !result.status.success() {
+        error!("Couldn't launch iptables command!");
         return Err(format!("Comando iptables non riuscito: {}", String::from_utf8_lossy(&result.stderr)));
     }
     
