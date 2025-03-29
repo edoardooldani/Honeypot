@@ -21,18 +21,26 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
             .unwrap()
             .pop()
             .unwrap()
-    );
+    );  
 
-    let result = tun.send(reply_packet.as_slice()).await;
+    let tun_c = tun.clone();
+    tokio::spawn(async move{
+        let buf = reply_packet.as_slice();
+        let result = tun_c.send_all(buf).await.unwrap();
 
-    match result {
-        Ok(bytes) => {
-            println!("Inviati {} bytes", bytes);
+        match result {
+            Ok(bytes) => {
+                println!("Inviati {} bytes", bytes);
+            }
+            Err(e) => {
+                eprintln!("Errore durante l'invio dei pacchetti: {}", e);
+            }
         }
-        Err(e) => {
-            eprintln!("Errore durante l'invio dei pacchetti: {}", e);
-        }
-    }
+
+
+    });
+
+    
     info!("TUN interface created: {tun_name}");
 
 }
