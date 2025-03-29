@@ -25,16 +25,19 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
 
     let tun_writer: Arc<Tun>= tun.clone();
 
-    change_mac_tun(&tun_name, virtual_mac, &virtual_ip).await;
+    let router_ip = Ipv4Addr::new(192, 168, 1, 254);
+
+    change_mac_tun(&tun_name, virtual_mac, &virtual_ip, &router_ip).await;
+
     let sliced = reply_packet.as_slice();
     tun_writer.send(sliced).await;
-    print_interface(&tun_name);
-    remove_forwarding_rule(&tun_name, &virtual_ip).await;
+
+    remove_forwarding_rule(&tun_name, &router_ip).await;
 
 }
 
 
-async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, virtual_ip: &Ipv4Addr)  -> Result<(), Box<dyn Error>> {
+async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, _virtual_ip: &Ipv4Addr, router_ip: &Ipv4Addr)  -> Result<(), Box<dyn Error>> {
 
 
     let result  = Command::new("ifconfig")
@@ -47,7 +50,7 @@ async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, virtual_ip: &Ipv4A
 
     match result {
         Ok(output) if output.status.success() => {
-            add_forwarding_rule(&tun_name, &virtual_ip).await;
+            add_forwarding_rule(&tun_name, &router_ip).await;
 
             Ok(())
         }
@@ -64,13 +67,13 @@ async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, virtual_ip: &Ipv4A
 
 }
 
-async fn add_forwarding_rule(interface: &str, virtual_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
+async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
     let result = Command::new("ip")
         .arg("route")
         .arg("add")
         .arg("0.0.0.0/0")  
         .arg("via")
-        .arg(virtual_ip.to_string())
+        .arg(router_ip.to_string())
         .arg("dev")
         .arg(interface)
         .output()
@@ -91,13 +94,13 @@ async fn add_forwarding_rule(interface: &str, virtual_ip: &Ipv4Addr) -> Result<(
     }
 }
 
-async fn remove_forwarding_rule(interface: &str, virtual_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
+async fn remove_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
     let result = Command::new("ip")
         .arg("route")
         .arg("del")
         .arg("0.0.0.0/0")  // Aggiungi il prefisso di rete
         .arg("via")
-        .arg(virtual_ip.to_string())  // Via l'IP virtuale
+        .arg(router_ip.to_string())  // Via l'IP virtuale
         .arg("dev")
         .arg(interface)
         .output()
