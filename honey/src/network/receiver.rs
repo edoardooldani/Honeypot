@@ -22,7 +22,7 @@ pub async fn scan_datalink(
     graph: Arc<Mutex<NetworkGraph>>) {
 
     let interface = get_primary_interface().expect("Nessuna interfaccia valida trovata");
-
+    println!("Interface: {:?}", interface);
     let mut config = Config::default();
     config.promiscuous = true;
     
