@@ -1,7 +1,7 @@
 use std::{net::Ipv4Addr, sync::Arc};
 use pnet::util::MacAddr;
+use tokio::process::Command;
 use tokio_tun::Tun;
-
 
 pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual_ip: Ipv4Addr){
 
@@ -25,7 +25,18 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
     let tun_writer: Arc<Tun>= tun.clone();
 
     tokio::spawn(async move{
+        change_mac_tun(&tun_name, virtual_mac);
         let sliced = reply_packet.as_slice();
         tun_writer.send(sliced).await;
     });
+}
+
+
+fn change_mac_tun(interface: &str, virtual_mac: MacAddr) {
+    Command::new("ifconfig")
+        .arg(interface)
+        .arg("hw")
+        .arg("ether")
+        .arg(virtual_mac.to_string())
+        .output();
 }
