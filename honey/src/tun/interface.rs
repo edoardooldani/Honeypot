@@ -46,7 +46,7 @@ async fn change_mac_tun(interface: &str, virtual_mac: MacAddr) {
         .output()
         .await;
 
-    println!("AFTER MODIFICATION");
+    println!("\nAFTER MODIFICATION");
     print_interface(interface);
 
 }
@@ -63,10 +63,9 @@ fn print_interface(interface_name: &str){
             // Stampa le informazioni dell'interfaccia
             println!("Interfaccia trovata: {}", iface.name);
             println!("Indirizzo MAC: {}", iface.mac.unwrap_or_default());
-            println!("Indirizzi IP:");
-            for ip in &iface.ips {
-                println!("  {}", ip);
-            }
+            println!("Is running {:?}:", iface.is_running());
+            println!("Is UP {:?}:", iface.is_up());
+
         }
         None => {
             println!("Interfaccia {} non trovata", interface_name);
