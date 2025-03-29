@@ -53,7 +53,6 @@ pub fn build_arp_reply(my_mac: pnet::util::MacAddr, my_ip: Ipv4Addr, target_mac:
 
     let mut sent_replies = SENT_ARP_REPLIES.lock().unwrap();
     if sent_replies.contains(&key) {
-        println!("⚠️ ARP Reply già inviata per {}", key);
         return Err(io::Error::new(io::ErrorKind::Other, "ARP reply already sent"));
     }
     sent_replies.insert(key);

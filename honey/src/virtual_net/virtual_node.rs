@@ -7,8 +7,8 @@ use super::graph::NetworkGraph;
 
 
 
-pub fn handle_broadcast(
-    ethernet_packet: &EthernetPacket,
+pub async fn handle_broadcast<'a>(
+    ethernet_packet: &EthernetPacket<'a>,
     graph: &mut NetworkGraph,
     _tx_datalink: &mut dyn DataLinkSender,
     local_mac: MacAddr
@@ -36,7 +36,7 @@ pub fn handle_broadcast(
                         match reply {
 
                             Ok(reply_packet) => {
-                                send_tun_reply(reply_packet, virtual_mac, virtual_ip);
+                                send_tun_reply(reply_packet, virtual_mac, virtual_ip).await;
 
                                 //tx_datalink.send_to(&reply_packet,None);
                             }
