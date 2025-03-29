@@ -98,7 +98,7 @@ impl NetworkGraph {
             node_type: NodeType::Virtual,
         };
 
-        let node_index = self.graph.add_node(node);
+        let node_index = self.graph.add_node(node.clone());
         self.nodes.insert(assigned_mac.clone(), node_index);
 
         Some(node)
