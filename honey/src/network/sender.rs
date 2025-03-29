@@ -1,12 +1,8 @@
-use etherparse::Ipv4Header;
 use pnet::datalink::{self, Channel, DataLinkSender};
 use pnet::packet::arp::{ArpOperations, MutableArpPacket};
 use pnet::packet::ethernet::{MutableEthernetPacket, EtherTypes};
-use pnet::packet::icmp::echo_reply::MutableEchoReplyPacket;
-use pnet::packet::icmp::echo_request::EchoRequestPacket;
-use pnet::packet::icmp::{checksum, IcmpPacket, IcmpTypes};
 use pnet::packet::ip::IpNextHeaderProtocols;
-use pnet::packet::ipv4::{Ipv4Packet, MutableIpv4Packet};
+use pnet::packet::ipv4::MutableIpv4Packet;
 use pnet::packet::tcp::{MutableTcpPacket, TcpFlags};
 use pnet::packet::Packet;
 use pnet::util::MacAddr;
@@ -52,7 +48,7 @@ lazy_static! {
 }
 
 pub fn send_arp_reply(tx: &mut dyn DataLinkSender, my_mac: pnet::util::MacAddr, my_ip: Ipv4Addr, target_mac: pnet::util::MacAddr, target_ip: Ipv4Addr) {
-    /* 
+    
     let key = format!("{}->{}", my_ip, target_ip);
 
     // Evita di inviare più risposte per lo stesso IP
@@ -61,7 +57,7 @@ pub fn send_arp_reply(tx: &mut dyn DataLinkSender, my_mac: pnet::util::MacAddr, 
         println!("⚠️ ARP Reply già inviata per {}", key);
         return;
     }
-    sent_replies.insert(key);*/
+    sent_replies.insert(key);
 
     let mut ethernet_buffer = [0u8; 42];
     let mut ethernet_packet = MutableEthernetPacket::new(&mut ethernet_buffer).unwrap();
@@ -127,56 +123,6 @@ pub fn send_tcp_syn_ack(
     ipv4_packet.set_payload(tcp_packet.packet());
 
     tx.send_to(ethernet_packet.packet(), None).unwrap().unwrap();
-}
-
-
-
-pub async fn build_tun_icmp_reply(
-    ipv4_header_received: &Ipv4Header,
-    icmp_request: &EchoRequestPacket<'_>,
-    virtual_ipv4_address: &Ipv4Addr,
-    virtual_mac: MacAddr,
-    dst_mac: MacAddr
-) -> Result<Vec<u8>, String> {
-
-    let mut icmp_reply_buffer = vec![0u8; MutableEchoReplyPacket::minimum_packet_size() + icmp_request.payload().len()];
-    let mut icmp_reply = MutableEchoReplyPacket::new(&mut icmp_reply_buffer).unwrap();
-
-    icmp_reply.set_icmp_type(IcmpTypes::EchoReply);
-    icmp_reply.set_identifier(icmp_request.get_identifier());
-    icmp_reply.set_sequence_number(icmp_request.get_sequence_number());
-    icmp_reply.set_payload(icmp_request.payload());
-
-    let icmp_packet = IcmpPacket::new(icmp_reply.packet()).unwrap();
-    let checksum_value = checksum(&icmp_packet);
-    icmp_reply.set_checksum(checksum_value);
-
-    let mut ipv4_buffer = vec![0u8; Ipv4Packet::minimum_packet_size() + icmp_reply.packet().len()];
-    let mut ipv4_reply = MutableIpv4Packet::new(&mut ipv4_buffer).unwrap();
-    ipv4_reply.set_version(4);
-    ipv4_reply.set_header_length(5);
-    ipv4_reply.set_total_length((20 + icmp_reply.packet().len()) as u16);
-    ipv4_reply.set_ttl(64);
-    ipv4_reply.set_next_level_protocol(pnet::packet::ip::IpNextHeaderProtocols::Icmp);
-    ipv4_reply.set_source(*virtual_ipv4_address);
-    ipv4_reply.set_destination(ipv4_header_received.destination.into());
-    ipv4_reply.set_payload(icmp_reply.packet());
-
-    let checksum_value = pnet::packet::ipv4::checksum(&ipv4_reply.to_immutable());
-    ipv4_reply.set_checksum(checksum_value);
-
-    /*
-    println!("ICMP received: {:?}", icmp_request);
-    println!("ICMP to send: {:?}", icmp_reply);
-
-    println!("IPv4 received: {:?}", ipv4_packet);
-    println!("IPv4 to send: {:?}", ipv4_reply);
-    */
-
-    send_ipv4_packet(ipv4_reply.packet().to_vec(),  virtual_mac, dst_mac).await.unwrap();
-    println!("return build msg");
-
-    Ok(ipv4_reply.packet().to_vec())
 }
 
 
