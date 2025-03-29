@@ -39,7 +39,7 @@ pub async fn scan_datalink(
     let arp_res_tracker = Arc::new(Mutex::new(ArpRepliesTracker::new()));
     let tcp_syn_tracker = Arc::new(Mutex::new(TcpSynDetector::new()));
 
-    create_interface_bridge();
+    let _ = create_interface_bridge().await;
 
     println!("📡 In ascolto del traffico di rete...");
     let local_mac = get_local_mac();
