@@ -1,6 +1,7 @@
 use std::{net::Ipv4Addr, sync::Arc};
 use pnet::{datalink, util::MacAddr};
 use tokio::process::Command;
+use std::error::Error;
 use tokio_tun::Tun;
 
 pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual_ip: Ipv4Addr){
@@ -24,30 +25,74 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
 
     let tun_writer: Arc<Tun>= tun.clone();
 
-    change_mac_tun(&tun_name, virtual_mac).await;
+    change_mac_tun(&tun_name, virtual_mac, &virtual_ip).await;
     let sliced = reply_packet.as_slice();
     tun_writer.send(sliced).await;
-    println!("AFTER SEND");
-    print_interface(&tun_name);
+    remove_forwarding_rule(&tun_name, &virtual_ip).await;
 
-    
 }
 
 
-async fn change_mac_tun(interface: &str, virtual_mac: MacAddr) {
+async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, virtual_ip: &Ipv4Addr) {
 
-    print_interface(interface);
+    add_forwarding_rule(&tun_name, &virtual_ip).await;
+
     Command::new("ifconfig")
-        .arg(interface)
+        .arg(tun_name)
         .arg("hw")
         .arg("ether")
         .arg(virtual_mac.to_string())
         .output()
         .await;
 
-    println!("\nAFTER MODIFICATION");
-    print_interface(interface);
+}
 
+async fn add_forwarding_rule(interface: &str, virtual_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
+    let result = Command::new("ip")
+        .arg("route")
+        .arg("add")
+        .arg(format!("default via {} dev {}", virtual_ip, interface))
+        .output()
+        .await;
+
+    match result {
+        Ok(output) if output.status.success() => {
+            println!("Forwarding rule added successfully");
+            Ok(())
+        }
+        Ok(output) => {
+            eprintln!("Failed to add forwarding rule: {:?}", output);
+            Err("Failed to add forwarding rule".into())
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            Err(Box::new(e))
+        }
+    }
+}
+
+async fn remove_forwarding_rule(interface: &str, virtual_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
+    let result = Command::new("ip")
+        .arg("route")
+        .arg("del")
+        .arg(format!("default via {} dev {}", virtual_ip, interface))
+        .output()
+        .await;
+
+    match result {
+        Ok(output) if output.status.success() => {
+            println!("Forwarding rule removed successfully");
+            Ok(())
+        }
+        Ok(output) => {
+            eprintln!("Failed to remove forwarding rule: {:?}", output);
+            Err("Failed to remove forwarding rule".into())
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            Err(Box::new(e))
+        }
+    }
 }
 
 
