@@ -16,6 +16,7 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
             .name(&tun_name)
             .address(virtual_ip)
             .netmask(netmask)
+            .mtu(2000)
             .up()                
             .build()
             .unwrap()
@@ -29,6 +30,8 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
 
         let sliced = reply_packet.as_slice();
         println!("Vec : {:?} Sliced: {:?}", reply_packet, sliced);
+        println!("Lunghezza pacchetto: {}", sliced.len());
+
         let result = tun_writer.send(sliced).await;
 
         match result {
