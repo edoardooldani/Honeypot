@@ -36,7 +36,7 @@ pub async fn scan_datalink(
     
     let alert_tracker: Arc<Mutex<HashMap<MacAddr, Instant>>> = Arc::new(Mutex::new(HashMap::new()));
     
-    let tun_interfaces: Vec<Arc<Tun>> = Vec::new();
+    let mut tun_interfaces: Vec<Arc<Tun>> = Vec::new();
 
     let arp_req_tracker = Arc::new(Mutex::new(ArpRequestTracker::new()));
     let arp_res_tracker = Arc::new(Mutex::new(ArpRepliesTracker::new()));
