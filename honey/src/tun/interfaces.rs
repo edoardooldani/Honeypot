@@ -7,42 +7,6 @@ use once_cell::sync::Lazy;
 use crate::virtual_net::graph::NetworkGraph;
 
 
-
-#[derive(Clone)]
-pub struct TunInterfaces {
-    pub interfaces: HashMap<String, Arc<Tun>>,
-}
-
-impl fmt::Debug for TunInterfaces {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TunInterfaces")
-            .field("interfaces", &self.interfaces.keys().collect::<Vec<_>>()) // Stampa solo le chiavi delle interfacce TUN
-            .finish()
-    }
-}
-
-
-
-impl TunInterfaces {
-    pub fn new() -> Self {
-        TunInterfaces {
-            interfaces: HashMap::new(),
-        }
-    }
-
-    // Funzione per aggiungere una nuova interfaccia TUN alla struttura
-    pub fn add_interface(&mut self, name: &str, tun: Arc<Tun>) {
-        self.interfaces.insert(name.to_string(), tun);
-        info!("TUN interface added: {}", name);
-    }
-
-    // Funzione per ottenere un'interfaccia TUN per nome
-    pub fn get_interface(&self, name: &str) -> Option<Arc<Tun>> {
-        self.interfaces.get(name).cloned()
-    }
-}
-
-
 pub async fn create_virtual_tun_interface(ipv4_address: Ipv4Addr) -> Arc<Tun>{
 
     let last_octet = ipv4_address.octets()[3];

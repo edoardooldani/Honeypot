@@ -1,7 +1,6 @@
 use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
-use tokio::sync::Mutex;
-use std::{collections::HashMap, net::Ipv4Addr, str::FromStr, sync::Arc};
+use std::{collections::HashMap, net::Ipv4Addr, str::FromStr};
 use rand::Rng;
 #[cfg(target_os = "linux")]
 use tokio_tun::Tun;
@@ -56,7 +55,7 @@ impl NetworkGraph {
     }
 
     pub async fn add_node(&mut self, mac_address: MacAddr, mut ip_address: Ipv4Addr, node_type: NodeType) -> Option<NetworkNode> {
-        if let Some(&existing_node) = self.nodes.get(&mac_address) {
+        if let Some(_existing_node) = self.nodes.get(&mac_address) {
             return None;
         }
 
