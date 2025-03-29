@@ -26,18 +26,6 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
 
     tokio::spawn(async move{
         let sliced = reply_packet.as_slice();
-        println!("Vec : {:?} Sliced: {:?}", reply_packet, sliced);
-        println!("Lunghezza pacchetto: {}", sliced.len());
-
-        let result = tun_writer.send(sliced).await;
-
-        match result {
-            Ok(bytes) => {
-                println!("Inviati {} bytes", bytes);
-            }
-            Err(e) => {
-                eprintln!("Errore durante l'invio dei pacchetti: {}", e);
-            }
-        }
+        tun_writer.send(sliced).await;
     });
 }

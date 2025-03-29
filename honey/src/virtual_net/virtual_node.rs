@@ -34,11 +34,9 @@ pub async fn handle_broadcast<'a>(
                         );
 
                         match reply {
-
                             Ok(reply_packet) => {
+                                println!("IP: {:?}, MAC: {:?}", virtual_ip, virtual_mac);
                                 send_tun_reply(reply_packet, virtual_mac, virtual_ip).await;
-
-                                //tx_datalink.send_to(&reply_packet,None);
                             }
                             Err(_e) => {}
                         }
