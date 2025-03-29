@@ -31,6 +31,7 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
 
     let sliced = reply_packet.as_slice();
     tun_writer.send(sliced).await;
+    print_ip_routes();
 
     remove_forwarding_rule(&tun_name, &router_ip).await;
 
@@ -139,6 +140,32 @@ fn print_interface(interface_name: &str){
         }
         None => {
             println!("Interfaccia {} non trovata", interface_name);
+        }
+    }
+}
+
+
+async fn print_ip_routes() -> Result<(), Box<dyn Error>> {
+    // Esegui il comando per mostrare le rotte IP
+    let result = Command::new("ip")
+        .arg("route")
+        .arg("show")  // Mostra tutte le rotte
+        .output()
+        .await;
+
+    match result {
+        Ok(output) if output.status.success() => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            println!("IP Routes:\n{}", stdout);  // Stampa le rotte
+            Ok(())
+        }
+        Ok(output) => {
+            eprintln!("Failed to fetch IP routes: {:?}", output);
+            Err("Failed to fetch IP routes".into())
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            Err(Box::new(e))
         }
     }
 }
