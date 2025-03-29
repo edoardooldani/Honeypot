@@ -24,22 +24,19 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
     );  
 
     let tun_writer: Arc<Tun>= tun.clone();
-
     let router_ip = Ipv4Addr::new(192, 168, 1, 254);
 
-    change_mac_tun(&tun_name, virtual_mac, &virtual_ip, &router_ip).await;
+    change_mac_tun(&tun_name, virtual_mac, &router_ip).await;
 
     let sliced = reply_packet.as_slice();
     tun_writer.send(sliced).await;
-    print_ip_routes().await;
 
-    remove_forwarding_rule(&tun_name, &router_ip, &virtual_ip).await;
+    remove_forwarding_rule(&tun_name, &router_ip).await;
 
 }
 
 
-async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, virtual_ip: &Ipv4Addr, router_ip: &Ipv4Addr)  -> Result<(), Box<dyn Error>> {
-
+async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, router_ip: &Ipv4Addr)  -> Result<(), Box<dyn Error>> {
 
     let result  = Command::new("ifconfig")
         .arg(tun_name)
@@ -51,7 +48,7 @@ async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, virtual_ip: &Ipv4A
 
     match result {
         Ok(output) if output.status.success() => {
-            add_forwarding_rule(&tun_name, &router_ip, virtual_ip).await;
+            add_forwarding_rule(&tun_name, &router_ip).await;
 
             Ok(())
         }
@@ -68,199 +65,47 @@ async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, virtual_ip: &Ipv4A
 
 }
 
-async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr, virtual_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
-    let result = Command::new("ip")
-        .arg("route")
-        .arg("add")
-        .arg("0.0.0.0/0")  
-        .arg("via")
-        .arg(router_ip.to_string())
-        .arg("dev")
-        .arg(interface)
+async fn run_command(command: &str, args: Vec<&str>) -> Result<(), Box<dyn Error>> {
+    let result = Command::new(command)
+        .args(args)
         .output()
         .await;
 
     match result {
-        Ok(output) if output.status.success() => {
-
-            let nat_result = Command::new("iptables")
-                .arg("-t")
-                .arg("nat")
-                .arg("-A")
-                .arg("POSTROUTING")
-                .arg("-o")
-                .arg("wlan0")  
-                .arg("-j")
-                .arg("MASQUERADE")
-                .output()
-                .await;
-
-            match nat_result {
-                Ok(nat_output) if nat_output.status.success() => {
-                    let forward_result = Command::new("iptables")
-                        .arg("-A")
-                        .arg("FORWARD")
-                        .arg("-i")
-                        .arg(interface)
-                        .arg("-o")
-                        .arg("wlan0")  
-                        .arg("-j")
-                        .arg("ACCEPT")
-                        .output()
-                        .await;
-
-                    match forward_result {
-                        Ok(forward_output) if forward_output.status.success() => Ok(()),
-                        Ok(forward_output) => {
-                            eprintln!("Failed to add forward rule: {:?}", forward_output);
-                            Err("Failed to add forward rule".into())
-                        }
-                        Err(e) => {
-                            eprintln!("Error: {}", e);
-                            Err(Box::new(e))
-                        }
-                    }
-                }
-                
-                ,
-                Ok(nat_output) => {
-                    eprintln!("Failed to add NAT rule: {:?}", nat_output);
-                    Err("Failed to add NAT rule".into())
-                }
-                Err(e) => {
-                    eprintln!("Error: {}", e);
-                    Err(Box::new(e))
-                }
-            }
-        }
+        Ok(output) if output.status.success() => Ok(()),
         Ok(output) => {
-            eprintln!("Failed to add forwarding rule: {:?}", output);
-            Err("Failed to add forwarding rule".into())
+            eprintln!("Failed to execute {}: {:?}", command, output);
+            Err(format!("Failed to execute {}: {:?}", command, output).into())
         }
         Err(e) => {
-            eprintln!("Error: {}", e);
+            eprintln!("Error executing {}: {}", command, e);
             Err(Box::new(e))
         }
     }
 }
 
-async fn remove_forwarding_rule(interface: &str, router_ip: &Ipv4Addr, virtual_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
-    let result = Command::new("ip")
-        .arg("route")
-        .arg("del")
-        .arg("0.0.0.0/0")  // Aggiungi il prefisso di rete
-        .arg("via")
-        .arg(router_ip.to_string())  // Via l'IP virtuale
-        .arg("dev")
-        .arg(interface)
-        .output()
-        .await;
+async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
+    run_command("ip", vec!["route", "add", "0.0.0.0/0", "via", &router_ip.to_string(), "dev", interface]).await?;
+    run_command("iptables", vec!["-t", "nat", "-A", "POSTROUTING", "-o", "wlan0", "-j", "MASQUERADE"]).await?;
+    run_command("iptables", vec!["-A", "FORWARD", "-i", interface, "-o", "wlan0", "-j", "ACCEPT"]).await?;
+    run_command("brctl", vec!["addif", "br0", interface]).await?;
 
-    match result {
-        Ok(output) if output.status.success() => {
-            let nat_result = Command::new("iptables")
-                .arg("-t")
-                .arg("nat")
-                .arg("-D")
-                .arg("POSTROUTING")
-                .arg("-o")
-                .arg("wlan0")  
-                .arg("-j")
-                .arg("MASQUERADE")
-                .output()
-                .await;
-            match nat_result {
-                Ok(nat_output) if nat_output.status.success() => {
-                    let forward_result = Command::new("iptables")
-                        .arg("-D")
-                        .arg("FORWARD")
-                        .arg("-i")
-                        .arg(interface)
-                        .arg("-o")
-                        .arg("wlan0")  
-                        .arg("-j")
-                        .arg("ACCEPT")
-                        .output()
-                        .await;
+    Ok(())
+}
 
-                    match forward_result {
-                        Ok(forward_output) if forward_output.status.success() => Ok(()),
-                        Ok(forward_output) => {
-                            eprintln!("Failed to add forward rule: {:?}", forward_output);
-                            Err("Failed to add forward rule".into())
-                        }
-                        Err(e) => {
-                            eprintln!("Error: {}", e);
-                            Err(Box::new(e))
-                        }
-                    }
-                }
-                ,
-                Ok(nat_output) => {
-                    eprintln!("Failed to add NAT rule: {:?}", nat_output);
-                    Err("Failed to add NAT rule".into())
-                }
-                Err(e) => {
-                    eprintln!("Error: {}", e);
-                    Err(Box::new(e))
-                }
-            }
-            }
-        Ok(output) => {
-            eprintln!("Failed to remove forwarding rule: {:?}", output);
-            Err("Failed to remove forwarding rule".into())
-        }
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            Err(Box::new(e))
-        }
-    }
+async fn remove_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
+    run_command("ip", vec!["route", "del", "0.0.0.0/0", "via", &router_ip.to_string(), "dev", interface]).await?;
+    run_command("iptables", vec!["-t", "nat", "-D", "POSTROUTING", "-o", "wlan0", "-j", "MASQUERADE"]).await?;
+    run_command("iptables", vec!["-D", "FORWARD", "-i", interface, "-o", "wlan0", "-j", "ACCEPT"]).await?;
+    run_command("brctl", vec!["delif", "br0", interface]).await?;
+
+    Ok(())
 }
 
 
+pub async fn create_interface_bridge() -> Result<(), Box<dyn Error>> {
+    run_command("brctl", vec!["addbr", "br0"]).await?;
+    run_command("ip", vec!["link", "set", "br0", "up"]).await?;
 
-fn print_interface(interface_name: &str){
-    let interfaces = datalink::interfaces();
-
-    let interface = interfaces.iter().find(|&iface| iface.name == interface_name);
-
-    match interface {
-        Some(iface) => {
-            // Stampa le informazioni dell'interfaccia
-            println!("Interfaccia trovata: {}", iface.name);
-            println!("Indirizzo MAC: {}", iface.mac.unwrap_or_default());
-            println!("Is running {:?}:", iface.is_running());
-            println!("Is UP {:?}:", iface.is_up());
-
-        }
-        None => {
-            println!("Interfaccia {} non trovata", interface_name);
-        }
-    }
-}
-
-
-async fn print_ip_routes() -> Result<(), Box<dyn Error>> {
-    // Esegui il comando per mostrare le rotte IP
-    let result = Command::new("ip")
-        .arg("route")
-        .arg("show")  // Mostra tutte le rotte
-        .output()
-        .await;
-
-    match result {
-        Ok(output) if output.status.success() => {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            println!("IP Routes:\n{}", stdout);  // Stampa le rotte
-            Ok(())
-        }
-        Ok(output) => {
-            eprintln!("Failed to fetch IP routes: {:?}", output);
-            Err("Failed to fetch IP routes".into())
-        }
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            Err(Box::new(e))
-        }
-    }
+    Ok(())
 }

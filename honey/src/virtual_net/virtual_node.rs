@@ -19,7 +19,7 @@ pub async fn handle_broadcast<'a>(
             if arp_packet.get_operation() == ArpOperations::Request {
                 let requested_ip = arp_packet.get_target_proto_addr();
                 let sender_mac = ethernet_packet.get_source(); 
-
+                
                 // Don't answer to router
                 if !graph.is_router(sender_mac) {  
                     if let Some(virtual_node) = graph.find_virtual_node_by_ip(requested_ip) {
