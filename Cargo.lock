@@ -1251,6 +1251,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tokio-tun",
  "tokio-tungstenite 0.26.2",
  "tracing",
  "tracing-subscriber",
@@ -3698,6 +3699,18 @@ checksum = "eca58d7bba4a75707817a2c44174253f9236b2d5fbd055602e9d5c07c139a047"
 dependencies = [
  "futures-core",
  "pin-project-lite",
+ "tokio",
+]
+
+[[package]]
+name = "tokio-tun"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be25a316a2d10d0ddd46de9ddd73cdb4262678e1e52f4a32a31421f1e2b816b4"
+dependencies = [
+ "libc",
+ "nix",
+ "thiserror 2.0.12",
  "tokio",
 ]
 

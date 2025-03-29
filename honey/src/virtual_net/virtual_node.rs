@@ -1,6 +1,6 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tracing::error;
-use crate::network::sender::{build_arp_reply, send_tcp_syn_ack};
+use crate::{network::sender::{build_arp_reply, send_tcp_syn_ack}, tun::interface::send_tun_reply};
 use std::{net::Ipv4Addr, str::FromStr};
 
 use super::graph::NetworkGraph;
@@ -34,8 +34,11 @@ pub fn handle_broadcast(
                         );
 
                         match reply {
+
                             Ok(reply_packet) => {
-                                tx_datalink.send_to(&reply_packet,None);
+                                send_tun_reply(reply_packet, virtual_mac, virtual_ip);
+
+                                //tx_datalink.send_to(&reply_packet,None);
                             }
                             Err(_e) => {}
                         }
@@ -46,6 +49,8 @@ pub fn handle_broadcast(
         }
     }
 }
+
+
 
 
 
