@@ -26,7 +26,10 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
     let tun_writer: Arc<Tun>= tun.clone();
 
     tokio::spawn(async move{
-        let result = tun_writer.send(reply_packet).await;
+
+        let sliced = reply_packet.as_slice();
+        println!("Vec : {:?} Sliced: {:?}", reply_packet, sliced);
+        let result = tun_writer.send(sliced).await;
 
         match result {
             Ok(bytes) => {
