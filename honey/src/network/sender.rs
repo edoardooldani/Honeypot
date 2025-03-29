@@ -75,12 +75,12 @@ pub fn build_arp_reply(my_mac: pnet::util::MacAddr, my_ip: Ipv4Addr, target_mac:
     arp_packet.set_sender_proto_addr(my_ip);
     arp_packet.set_target_hw_addr(target_mac);
     arp_packet.set_target_proto_addr(target_ip);
+    
+    println!("📤 Inviando ARP Reply ARP: {:?}", arp_packet);
 
-    let arp_payload = arp_buffer.clone();
-    ethernet_packet.set_payload(&arp_payload);
+    ethernet_packet.set_payload(&arp_buffer);
 
-
-    println!("📤 Inviando ARP Reply Ethernet: {:?}, ARP: {:?}", ethernet_packet, arp_packet);
+    println!("📤 Inviando ARP Reply Ethernet: {:?}", ethernet_packet);
 
     Ok(ethernet_packet.packet().to_vec())
 
