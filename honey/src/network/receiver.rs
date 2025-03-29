@@ -87,10 +87,10 @@ pub async fn scan_datalink(
                         if !graph.nodes.contains_key(&dest_mac_addr) {
                             added_node = graph.add_node(dest_mac, dest_ip.clone(), dest_type).await;
                         } 
-
+                        /*
                         if graph.nodes.contains_key(&src_mac_addr) && graph.nodes.contains_key(&dest_mac_addr) {
                             added_node = graph.add_connection(src_mac, dest_mac, &protocol.to_string(), bytes).await;
-                        }
+                        }*/
                     }       
 
                     match added_node {

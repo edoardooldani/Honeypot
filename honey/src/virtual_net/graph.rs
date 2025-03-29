@@ -6,7 +6,7 @@ use rand::Rng;
 #[cfg(target_os = "linux")]
 use tokio_tun::Tun;
 
-use crate::{tun::interfaces::{create_virtual_tun_interface, TunInterfaces}, utilities::network::find_ip_by_mac};
+use crate::utilities::network::find_ip_by_mac;
 
 
 #[derive(Debug, Clone)]
@@ -55,7 +55,7 @@ impl NetworkGraph {
         }
     }
 
-    pub async fn add_node(&mut self, mac_address: MacAddr, mut ip_address: Ipv4Addr, node_type: NodeType,) -> Option<NetworkNode> {
+    pub async fn add_node(&mut self, mac_address: MacAddr, mut ip_address: Ipv4Addr, node_type: NodeType) -> Option<NetworkNode> {
         if let Some(&existing_node) = self.nodes.get(&mac_address) {
             return None;
         }
@@ -101,7 +101,7 @@ impl NetworkGraph {
         let node_index = self.graph.add_node(node);
         self.nodes.insert(assigned_mac.clone(), node_index);
 
-        node
+        Some(node)
     }
 
 
@@ -126,7 +126,7 @@ impl NetworkGraph {
     }
 
 
-
+    /* 
     pub async fn add_connection(&mut self, src_mac: MacAddr, dst_mac: MacAddr, protocol: &str, bytes: u64) {
         let src_index = self.add_node(src_mac, Ipv4Addr::new(0, 0, 0, 0), NodeType::Real).await;
         let dst_index = self.add_node(dst_mac, Ipv4Addr::new(0, 0, 0, 0), NodeType::Real).await;
@@ -144,7 +144,7 @@ impl NetworkGraph {
             self.graph.add_edge(src_index, dst_index, new_connection);
         }
 
-    }
+    }*/
 
 
     fn generate_virtual_ipv6(&self) -> String {
