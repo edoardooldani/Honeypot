@@ -104,7 +104,15 @@ async fn remove_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result
 
 //sudo apt-get install bridge-utils
 pub async fn create_interface_bridge() -> Result<(), Box<dyn Error>> {
+
+    let bridge_ip = Ipv4Addr::new(192, 168, 1, 99);
+    let netmask = Ipv4Addr::new(255, 255, 255, 0);
+
+    let router_ip = Ipv4Addr::new(192, 168, 1, 254);
+
     run_command("brctl", vec!["addbr", "br0"]).await?;
+    run_command("ip", vec!["addr", "add", &format!("{}/{}", bridge_ip, netmask),"dev", "br0"]).await?;
+    run_command("ip", vec!["route", "add", "default", "via", &router_ip.to_string(), "dev", "br0"]).await?;
     run_command("ip", vec!["link", "set", "br0", "up"]).await?;
 
     Ok(())
