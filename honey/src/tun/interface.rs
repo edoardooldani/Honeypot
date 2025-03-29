@@ -1,5 +1,5 @@
 use std::{net::Ipv4Addr, sync::Arc};
-use pnet::util::MacAddr;
+use pnet::{datalink, util::MacAddr};
 use tokio::process::Command;
 use tokio_tun::Tun;
 
@@ -28,13 +28,17 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
         change_mac_tun(&tun_name, virtual_mac).await;
         let sliced = reply_packet.as_slice();
         tun_writer.send(sliced).await;
+        println!("AFTER SEND");
+        print_interface(&tun_name);
+
     });
 }
 
 
 async fn change_mac_tun(interface: &str, virtual_mac: MacAddr) {
 
-    let output = Command::new("ifconfig")
+    print_interface(interface);
+    Command::new("ifconfig")
         .arg(interface)
         .arg("hw")
         .arg("ether")
@@ -42,16 +46,30 @@ async fn change_mac_tun(interface: &str, virtual_mac: MacAddr) {
         .output()
         .await;
 
-    match output {
-        Ok(result) => {
-            if result.status.success() {
-                println!("MAC from {} to MAC: {}", interface, virtual_mac.to_string());
-            } else {
-                eprintln!("Errore durante il cambio dell'indirizzo MAC per l'interfaccia {}. Errore: {}", interface, String::from_utf8_lossy(&result.stderr));
+    println!("AFTER MODIFICATION");
+    print_interface(interface);
+
+}
+
+
+
+fn print_interface(interface_name: &str){
+    let interfaces = datalink::interfaces();
+
+    let interface = interfaces.iter().find(|&iface| iface.name == interface_name);
+
+    match interface {
+        Some(iface) => {
+            // Stampa le informazioni dell'interfaccia
+            println!("Interfaccia trovata: {}", iface.name);
+            println!("Indirizzo MAC: {}", iface.mac.unwrap_or_default());
+            println!("Indirizzi IP:");
+            for ip in &iface.ips {
+                println!("  {}", ip);
             }
         }
-        Err(e) => {
-            eprintln!("Errore nell'esecuzione del comando 'ifconfig' per cambiare l'indirizzo MAC: {}", e);
+        None => {
+            println!("Interfaccia {} non trovata", interface_name);
         }
     }
 }
