@@ -110,6 +110,7 @@ impl DataType {
             1 => Some(DataType::Network),
             2 => Some(DataType::Process),
             3 => Some(DataType::ArpAlert),
+            4 => Some(DataType::TcpAlert),
             _ => None, // Valore non valido
         }
     }

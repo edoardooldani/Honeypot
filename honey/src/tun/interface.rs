@@ -23,7 +23,16 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
             .unwrap()
     );
 
-    tun.send(reply_packet.as_slice());
+    let result = tun.send(reply_packet.as_slice()).await;
+
+    match result {
+        Ok(bytes) => {
+            println!("Inviati {} bytes", bytes);
+        }
+        Err(e) => {
+            eprintln!("Errore durante l'invio dei pacchetti: {}", e);
+        }
+    }
     info!("TUN interface created: {tun_name}");
 
 }

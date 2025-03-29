@@ -10,7 +10,7 @@ use super::graph::NetworkGraph;
 pub fn handle_broadcast(
     ethernet_packet: &EthernetPacket,
     graph: &mut NetworkGraph,
-    tx_datalink: &mut dyn DataLinkSender,
+    _tx_datalink: &mut dyn DataLinkSender,
     local_mac: MacAddr
 ) {
 

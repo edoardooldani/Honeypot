@@ -92,7 +92,7 @@ async fn process_packet(wss_state: &Arc<WssAppState>, device_name: &str, bin: &[
     }
 
     if DeviceType::from_u8(packet.header.data_type).is_none() {
-        return Err(format!("Invalid device type: {}", packet.header.data_type));
+        return Err(format!("Invalid data type: {}", packet.header.data_type));
     }
 
     if PriorityLevel::from_u8(packet.header.priority).is_none() {
