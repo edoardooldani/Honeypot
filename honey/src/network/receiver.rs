@@ -96,7 +96,8 @@ pub async fn scan_datalink(
 
                     match added_node {
                         Some(virtual_node) => {
-                            tun_interfaces.append(create_virtual_tun_interface( virtual_node.ipv4_address));
+                            let tun = create_virtual_tun_interface(virtual_node.ipv4_address).await;
+                            tun_interfaces.push(tun);
                         }
                         None => {}
                     }
