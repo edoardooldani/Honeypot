@@ -31,7 +31,7 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
 
     let sliced = reply_packet.as_slice();
     tun_writer.send(sliced).await;
-    print_ip_routes();
+    print_ip_routes().await;
 
     remove_forwarding_rule(&tun_name, &router_ip).await;
 
