@@ -54,9 +54,9 @@ impl NetworkGraph {
         }
     }
 
-    pub async fn add_node(&mut self, mac_address: MacAddr, mut ip_address: Ipv4Addr, node_type: NodeType) -> Option<NetworkNode> {
-        if let Some(_existing_node) = self.nodes.get(&mac_address) {
-            return None;
+    pub async fn add_node(&mut self, mac_address: MacAddr, mut ip_address: Ipv4Addr, node_type: NodeType) -> NodeIndex {
+        if let Some(&existing_node) = self.nodes.get(&mac_address) {
+            return existing_node;
         }
 
         if ip_address != Ipv4Addr::new(0, 0, 0, 0){
@@ -78,12 +78,13 @@ impl NetworkGraph {
         let node_index = self.graph.add_node(node);
         self.nodes.insert(mac_address, node_index);
     
-        self.add_virtual_node().await
+        self.add_virtual_node();
+        node_index
         
     }
 
 
-    async fn add_virtual_node(&mut self) -> Option<NetworkNode> {
+    fn add_virtual_node(&mut self) -> NodeIndex {
 
         let assigned_ip = self.generate_virtual_ip();
         let assigned_ipv6 = self.generate_virtual_ipv6();
@@ -100,7 +101,7 @@ impl NetworkGraph {
         let node_index = self.graph.add_node(node.clone());
         self.nodes.insert(assigned_mac.clone(), node_index);
 
-        Some(node)
+        node_index
     }
 
 
@@ -125,7 +126,7 @@ impl NetworkGraph {
     }
 
 
-    /* 
+    
     pub async fn add_connection(&mut self, src_mac: MacAddr, dst_mac: MacAddr, protocol: &str, bytes: u64) {
         let src_index = self.add_node(src_mac, Ipv4Addr::new(0, 0, 0, 0), NodeType::Real).await;
         let dst_index = self.add_node(dst_mac, Ipv4Addr::new(0, 0, 0, 0), NodeType::Real).await;
@@ -143,7 +144,7 @@ impl NetworkGraph {
             self.graph.add_edge(src_index, dst_index, new_connection);
         }
 
-    }*/
+    }
 
 
     fn generate_virtual_ipv6(&self) -> String {

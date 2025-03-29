@@ -10,13 +10,11 @@ use std::net::Ipv4Addr;
 use tokio::sync::Mutex;
 use std::sync::Arc;
 use std::time::Instant;
-use crate::tun::interfaces::create_virtual_tun_interface;
-use tokio_tun::Tun;
 use crate::utilities::network::{classify_mac_address, get_local_mac, get_primary_interface, get_src_dest_ip};
 use crate::trackers::arp_tracker::{detect_arp_attacks, AlertTracker, ArpRepliesTracker, ArpRequestTracker};
 use crate::trackers::tcp_tracker::{detect_tcp_syn_attack, TcpSynDetector};
 use crate::virtual_net::virtual_node::handle_broadcast;
-use crate::virtual_net::graph::{NetworkGraph, NetworkNode};
+use crate::virtual_net::graph::NetworkGraph;
 
 pub async fn scan_datalink(
     tx: futures_channel::mpsc::UnboundedSender<Message>, 
@@ -36,8 +34,6 @@ pub async fn scan_datalink(
     
     let alert_tracker: Arc<Mutex<HashMap<MacAddr, Instant>>> = Arc::new(Mutex::new(HashMap::new()));
     
-    let mut tun_interfaces: Vec<Arc<Tun>> = Vec::new();
-
     let arp_req_tracker = Arc::new(Mutex::new(ArpRequestTracker::new()));
     let arp_res_tracker = Arc::new(Mutex::new(ArpRepliesTracker::new()));
     let tcp_syn_tracker = Arc::new(Mutex::new(TcpSynDetector::new()));
@@ -75,33 +71,23 @@ pub async fn scan_datalink(
                     let dest_type = classify_mac_address(dest_mac);
                     
                     let mut graph = graph.lock().await;
-                    let mut added_node: Option<NetworkNode> = None;
 
                     if dest_ip != Ipv4Addr::new(0, 0, 0, 0) {  
                         let src_mac_addr = src_mac;
                         let dest_mac_addr = dest_mac;
 
                         if !graph.nodes.contains_key(&src_mac_addr) {
-                            added_node = graph.add_node(src_mac, src_ip.clone(), src_type).await;
+                            graph.add_node(src_mac, src_ip.clone(), src_type).await;
                         } 
                         
                         if !graph.nodes.contains_key(&dest_mac_addr) {
-                            added_node = graph.add_node(dest_mac, dest_ip.clone(), dest_type).await;
+                            graph.add_node(dest_mac, dest_ip.clone(), dest_type).await;
                         } 
-                        /*
+                        
                         if graph.nodes.contains_key(&src_mac_addr) && graph.nodes.contains_key(&dest_mac_addr) {
-                            added_node = graph.add_connection(src_mac, dest_mac, &protocol.to_string(), bytes).await;
-                        }*/
-                    }       
-
-                    match added_node {
-                        Some(virtual_node) => {
-                            let tun = create_virtual_tun_interface(virtual_node.ipv4_address).await;
-                            tun_interfaces.push(tun);
+                            graph.add_connection(src_mac, dest_mac, &protocol.to_string(), bytes).await;
                         }
-                        None => {}
-                    }
-                    
+                    }       
 
                     if dest_mac.octets().iter().all(|&byte| byte == 0xFF) {
                         handle_broadcast(&ethernet_packet, &mut *graph, &mut *tx_datalink);
