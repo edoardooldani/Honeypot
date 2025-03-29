@@ -36,7 +36,7 @@ pub async fn handle_broadcast<'a>(
                         match reply {
 
                             Ok(reply_packet) => {
-                                send_tun_reply(&reply_packet, virtual_mac, virtual_ip).await;
+                                send_tun_reply(reply_packet, virtual_mac, virtual_ip).await;
 
                                 //tx_datalink.send_to(&reply_packet,None);
                             }

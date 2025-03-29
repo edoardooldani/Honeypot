@@ -5,7 +5,7 @@ use tracing::info;
 
 
 
-pub async fn send_tun_reply(reply_packet: &Vec<u8>, virtual_mac: MacAddr, virtual_ip: Ipv4Addr){
+pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual_ip: Ipv4Addr){
 
     let last_octet = virtual_ip.octets()[3];
     let tun_name = format!("tun{}", last_octet);
@@ -26,7 +26,7 @@ pub async fn send_tun_reply(reply_packet: &Vec<u8>, virtual_mac: MacAddr, virtua
     let tun_writer: Arc<Tun>= tun.clone();
 
     tokio::spawn(async move{
-        let result = tun_writer.send(reply_packet.as_slice()).await;
+        let result = tun_writer.send(reply_packet).await;
 
         match result {
             Ok(bytes) => {
