@@ -26,7 +26,16 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
     let tun_c = tun.clone();
     tokio::spawn(async move{
         let buf = reply_packet.as_slice();
-        tun_c.send_all(buf).await.unwrap();
+        let result = tun_c.send(buf).await;
+
+        match result {
+            Ok(bytes) => {
+                println!("Inviati {} bytes", bytes);
+            }
+            Err(e) => {
+                eprintln!("Errore durante l'invio dei pacchetti: {}", e);
+            }
+        }
     });
 
     
