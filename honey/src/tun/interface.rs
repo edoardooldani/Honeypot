@@ -1,4 +1,4 @@
-use std::{net::Ipv4Addr, sync::Arc};
+use std::{net::Ipv4Addr, sync::Arc, thread, time::Duration};
 use pnet::util::MacAddr;
 use tokio_tun::Tun;
 use tracing::info;
@@ -16,7 +16,6 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
             .name(&tun_name)
             .address(virtual_ip)
             .netmask(netmask)
-            .mtu(2000)
             .up()                
             .build()
             .unwrap()
@@ -27,7 +26,7 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
     let tun_writer: Arc<Tun>= tun.clone();
 
     tokio::spawn(async move{
-
+        thread::sleep(Duration::new(30, 0));
         let sliced = reply_packet.as_slice();
         println!("Vec : {:?} Sliced: {:?}", reply_packet, sliced);
         println!("Lunghezza pacchetto: {}", sliced.len());
