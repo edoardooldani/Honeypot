@@ -32,11 +32,12 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
 }
 
 
-fn change_mac_tun(interface: &str, virtual_mac: MacAddr) {
+async fn change_mac_tun(interface: &str, virtual_mac: MacAddr) {
     Command::new("ifconfig")
         .arg(interface)
         .arg("hw")
         .arg("ether")
         .arg(virtual_mac.to_string())
-        .output();
+        .output()
+        .await;
 }
