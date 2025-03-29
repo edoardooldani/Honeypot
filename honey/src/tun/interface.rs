@@ -25,7 +25,7 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
     let tun_writer: Arc<Tun>= tun.clone();
 
     tokio::spawn(async move{
-        change_mac_tun(&tun_name, virtual_mac);
+        change_mac_tun(&tun_name, virtual_mac).await;
         let sliced = reply_packet.as_slice();
         tun_writer.send(sliced).await;
     });
