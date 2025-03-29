@@ -23,10 +23,10 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
             .unwrap()
     );  
 
-    let tun_c = tun.clone();
+    let tun_writer: Arc<Tun>= tun.clone();
+
     tokio::spawn(async move{
-        let buf = reply_packet.as_slice();
-        let result = tun_c.send(buf).await;
+        let result = tun_writer.send(reply_packet.as_slice().first()).await;
 
         match result {
             Ok(bytes) => {
@@ -37,8 +37,4 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
             }
         }
     });
-
-    
-    info!("TUN interface created: {tun_name}");
-
 }
