@@ -96,7 +96,33 @@ async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr, virtual_ip: 
                 .await;
 
             match nat_result {
-                Ok(nat_output) if nat_output.status.success() => Ok(()),
+                Ok(nat_output) if nat_output.status.success() => {
+                    let forward_result = Command::new("iptables")
+                        .arg("-A")
+                        .arg("FORWARD")
+                        .arg("-i")
+                        .arg(interface)
+                        .arg("-o")
+                        .arg("wlan0")  
+                        .arg("-j")
+                        .arg("ACCEPT")
+                        .output()
+                        .await;
+
+                    match forward_result {
+                        Ok(forward_output) if forward_output.status.success() => Ok(()),
+                        Ok(forward_output) => {
+                            eprintln!("Failed to add forward rule: {:?}", forward_output);
+                            Err("Failed to add forward rule".into())
+                        }
+                        Err(e) => {
+                            eprintln!("Error: {}", e);
+                            Err(Box::new(e))
+                        }
+                    }
+                }
+                
+                ,
                 Ok(nat_output) => {
                     eprintln!("Failed to add NAT rule: {:?}", nat_output);
                     Err("Failed to add NAT rule".into())
@@ -143,12 +169,36 @@ async fn remove_forwarding_rule(interface: &str, router_ip: &Ipv4Addr, virtual_i
                 .arg("MASQUERADE")
                 .output()
                 .await;
-
             match nat_result {
-                Ok(nat_output) if nat_output.status.success() => Ok(()),
+                Ok(nat_output) if nat_output.status.success() => {
+                    let forward_result = Command::new("iptables")
+                        .arg("-D")
+                        .arg("FORWARD")
+                        .arg("-i")
+                        .arg(interface)
+                        .arg("-o")
+                        .arg("wlan0")  
+                        .arg("-j")
+                        .arg("ACCEPT")
+                        .output()
+                        .await;
+
+                    match forward_result {
+                        Ok(forward_output) if forward_output.status.success() => Ok(()),
+                        Ok(forward_output) => {
+                            eprintln!("Failed to add forward rule: {:?}", forward_output);
+                            Err("Failed to add forward rule".into())
+                        }
+                        Err(e) => {
+                            eprintln!("Error: {}", e);
+                            Err(Box::new(e))
+                        }
+                    }
+                }
+                ,
                 Ok(nat_output) => {
-                    eprintln!("Failed to remove NAT rule: {:?}", nat_output);
-                    Err("Failed to remove NAT rule".into())
+                    eprintln!("Failed to add NAT rule: {:?}", nat_output);
+                    Err("Failed to add NAT rule".into())
                 }
                 Err(e) => {
                     eprintln!("Error: {}", e);
