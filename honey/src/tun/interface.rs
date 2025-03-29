@@ -51,7 +51,11 @@ async fn add_forwarding_rule(interface: &str, virtual_ip: &Ipv4Addr) -> Result<(
     let result = Command::new("ip")
         .arg("route")
         .arg("add")
-        .arg(format!("default via {} dev {}", virtual_ip, interface))
+        .arg("0.0.0.0/0")  
+        .arg("via")
+        .arg(virtual_ip.to_string())
+        .arg("dev")
+        .arg(interface)
         .output()
         .await;
 
@@ -75,7 +79,11 @@ async fn remove_forwarding_rule(interface: &str, virtual_ip: &Ipv4Addr) -> Resul
     let result = Command::new("ip")
         .arg("route")
         .arg("del")
-        .arg(format!("default via {} dev {}", virtual_ip, interface))
+        .arg("0.0.0.0/0")  // Aggiungi il prefisso di rete
+        .arg("via")
+        .arg(virtual_ip.to_string())  // Via l'IP virtuale
+        .arg("dev")
+        .arg(interface)
         .output()
         .await;
 
