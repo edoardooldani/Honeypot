@@ -89,7 +89,7 @@ async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr, virtual_ip: 
                 .arg("-A")
                 .arg("POSTROUTING")
                 .arg("-o")
-                .arg(virtual_ip.to_string())  // L'interfaccia attraverso la quale esce il traffico
+                .arg("wlan0")  
                 .arg("-j")
                 .arg("MASQUERADE")
                 .output()
@@ -138,7 +138,7 @@ async fn remove_forwarding_rule(interface: &str, router_ip: &Ipv4Addr, virtual_i
                 .arg("-D")
                 .arg("POSTROUTING")
                 .arg("-o")
-                .arg(virtual_ip.to_string())  // L'interfaccia attraverso la quale esce il traffico
+                .arg("wlan0")  
                 .arg("-j")
                 .arg("MASQUERADE")
                 .output()
