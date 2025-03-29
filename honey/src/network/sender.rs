@@ -51,7 +51,6 @@ pub fn send_arp_reply(tx: &mut dyn DataLinkSender, my_mac: pnet::util::MacAddr, 
     
     let key = format!("{}->{}", my_ip, target_ip);
 
-    // Evita di inviare più risposte per lo stesso IP
     let mut sent_replies = SENT_ARP_REPLIES.lock().unwrap();
     if sent_replies.contains(&key) {
         println!("⚠️ ARP Reply già inviata per {}", key);
@@ -80,7 +79,13 @@ pub fn send_arp_reply(tx: &mut dyn DataLinkSender, my_mac: pnet::util::MacAddr, 
     ethernet_packet.set_payload(&arp_buffer);
 
     println!("📤 Inviando ARP Reply UNA SOLA VOLTA: {} → {}", my_ip, target_ip);
-    tx.send_to(ethernet_packet.packet(), None).unwrap().unwrap();
+
+    match tx.send_to(ethernet_packet.packet(), None) {
+        Some(Ok(_)) => println!("📤 ARP Reply inviata con successo"),
+        Some(Err(e)) => eprintln!("❌ Errore durante l'invio di ARP Reply: {}", e),
+        None => {}
+    }
+
 }
 
 
@@ -162,50 +167,6 @@ pub async fn send_ipv4_packet(ipv4_packet: Vec<u8>, src_mac: MacAddr, dst_mac: M
     }
     Ok(())
 }
-
-
-/* 
-pub fn send_tun_icmpv6_reply(
-    tun: Arc<tokio_tun::Tun>,
-    ipv6_packet: &Ipv6Header,
-    icmpv6_request: &Icmpv6Slice,
-    ipv6_address: &Ipv6Addr
-) {
-    let mut icmp_reply_buffer = vec![0u8; MutableIcmpv6Packet::minimum_packet_size()];
-    let mut icmpv6_packet = MutableIcmpv6Packet::new(&mut icmp_reply_buffer).expect("Icmpv6 packet failed to create");
-    icmpv6_packet.set_icmpv6_type(Icmpv6Types::EchoReply);
-    icmpv6_packet.set_payload(icmpv6_request.payload());
-
-    let pack = icmpv6_packet.to_immutable();
-    let checksum_value = Icmpv6Checksum(&pack, &ipv6_address, &ipv6_packet.source_addr());
-    icmpv6_packet.set_checksum(checksum_value);
-
-    let icmpv6_reply = icmpv6_packet.to_immutable();
-    //let icmpv6_reply = Icmpv6Packet::new(&icmpv6_packet).expect("Icmpv6 reply failed to create");
-    
-
-    // Crea il pacchetto IPv6 che conterrà la risposta ICMPv6
-    let mut ipv6_reply_buffer = vec![0u8; Ipv6Header::LEN + icmpv6_reply.packet().len()];
-    let mut ipv6_reply = MutableIpv6Packet::new(&mut ipv6_reply_buffer).unwrap();
-
-    // Imposta i dettagli dell'header IPv6
-    ipv6_reply.set_version(6);
-    ipv6_reply.set_traffic_class(0); 
-    ipv6_reply.set_flow_label(0);
-    ipv6_reply.set_payload_length(icmpv6_packet.packet().len() as u16); 
-    ipv6_reply.set_next_header(IpNextHeaderProtocols::Icmpv6); 
-    ipv6_reply.set_hop_limit(64); 
-    ipv6_reply.set_source(ipv6_address.clone()); // L'indirizzo di origine è l'indirizzo di destinazione della richiesta
-    ipv6_reply.set_destination(ipv6_packet.source_addr()); // L'indirizzo di destinazione è l'indirizzo di origine della richiesta
-    // Imposta il payload come il pacchetto ICMPv6
-    ipv6_reply.set_payload(icmpv6_reply.packet());
-
-    let ipv6_sent_packet = ipv6_reply.consume_to_immutable();
-    //println!("\n\nRECEIVED ipv6 packet: {:?}", ipv6_packet);
-
-    //println!("\nSENT ipv6 packet: {:?}", ipv6_sent_packet);
-    tun.send(    ipv6_sent_packet.packet());
-}*/
 
 
 
