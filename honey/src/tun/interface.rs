@@ -28,22 +28,39 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
     change_mac_tun(&tun_name, virtual_mac, &virtual_ip).await;
     let sliced = reply_packet.as_slice();
     tun_writer.send(sliced).await;
+    print_interface(&tun_name);
     remove_forwarding_rule(&tun_name, &virtual_ip).await;
 
 }
 
 
-async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, virtual_ip: &Ipv4Addr) {
+async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, virtual_ip: &Ipv4Addr)  -> Result<(), Box<dyn Error>> {
 
-    add_forwarding_rule(&tun_name, &virtual_ip).await;
 
-    Command::new("ifconfig")
+    let result  = Command::new("ifconfig")
         .arg(tun_name)
         .arg("hw")
         .arg("ether")
         .arg(virtual_mac.to_string())
         .output()
         .await;
+
+    match result {
+        Ok(output) if output.status.success() => {
+            add_forwarding_rule(&tun_name, &virtual_ip).await;
+
+            Ok(())
+        }
+        Ok(output) => {
+            eprintln!("Failed to change mac address: {:?}", output);
+            Err("Failed to change mac address".into())
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            Err(Box::new(e))
+        }
+    }
+
 
 }
 
@@ -61,7 +78,6 @@ async fn add_forwarding_rule(interface: &str, virtual_ip: &Ipv4Addr) -> Result<(
 
     match result {
         Ok(output) if output.status.success() => {
-            println!("Forwarding rule added successfully");
             Ok(())
         }
         Ok(output) => {
@@ -89,7 +105,6 @@ async fn remove_forwarding_rule(interface: &str, virtual_ip: &Ipv4Addr) -> Resul
 
     match result {
         Ok(output) if output.status.success() => {
-            println!("Forwarding rule removed successfully");
             Ok(())
         }
         Ok(output) => {
