@@ -11,6 +11,7 @@ pub fn handle_broadcast(
     ethernet_packet: &EthernetPacket,
     graph: &mut NetworkGraph,
     tx_datalink: &mut dyn DataLinkSender,
+    local_mac: MacAddr
 ) {
 
     if ethernet_packet.get_ethertype() == EtherTypes::Arp {
@@ -26,7 +27,7 @@ pub fn handle_broadcast(
                         let virtual_ip = virtual_node.ipv4_address.clone();
     
                         let reply = build_arp_reply(
-                            virtual_mac,
+                            local_mac,
                             virtual_ip,
                             arp_packet.get_sender_hw_addr(),
                             arp_packet.get_sender_proto_addr(),
