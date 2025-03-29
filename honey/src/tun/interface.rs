@@ -33,11 +33,25 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
 
 
 async fn change_mac_tun(interface: &str, virtual_mac: MacAddr) {
-    Command::new("ifconfig")
+
+    let output = Command::new("ifconfig")
         .arg(interface)
         .arg("hw")
         .arg("ether")
         .arg(virtual_mac.to_string())
         .output()
         .await;
+
+    match output {
+        Ok(result) => {
+            if result.status.success() {
+                println!("MAC from {} to MAC: {}", interface, virtual_mac.to_string());
+            } else {
+                eprintln!("Errore durante il cambio dell'indirizzo MAC per l'interfaccia {}. Errore: {}", interface, String::from_utf8_lossy(&result.stderr));
+            }
+        }
+        Err(e) => {
+            eprintln!("Errore nell'esecuzione del comando 'ifconfig' per cambiare l'indirizzo MAC: {}", e);
+        }
+    }
 }
