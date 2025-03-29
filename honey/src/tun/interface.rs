@@ -33,12 +33,12 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
     tun_writer.send(sliced).await;
     print_ip_routes().await;
 
-    remove_forwarding_rule(&tun_name, &router_ip).await;
+    remove_forwarding_rule(&tun_name, &router_ip, &virtual_ip).await;
 
 }
 
 
-async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, _virtual_ip: &Ipv4Addr, router_ip: &Ipv4Addr)  -> Result<(), Box<dyn Error>> {
+async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, virtual_ip: &Ipv4Addr, router_ip: &Ipv4Addr)  -> Result<(), Box<dyn Error>> {
 
 
     let result  = Command::new("ifconfig")
@@ -51,7 +51,7 @@ async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, _virtual_ip: &Ipv4
 
     match result {
         Ok(output) if output.status.success() => {
-            add_forwarding_rule(&tun_name, &router_ip).await;
+            add_forwarding_rule(&tun_name, &router_ip, virtual_ip).await;
 
             Ok(())
         }
@@ -68,7 +68,7 @@ async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, _virtual_ip: &Ipv4
 
 }
 
-async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
+async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr, virtual_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
     let result = Command::new("ip")
         .arg("route")
         .arg("add")
@@ -82,7 +82,30 @@ async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<()
 
     match result {
         Ok(output) if output.status.success() => {
-            Ok(())
+
+            let nat_result = Command::new("iptables")
+                .arg("-t")
+                .arg("nat")
+                .arg("-A")
+                .arg("POSTROUTING")
+                .arg("-o")
+                .arg(virtual_ip.to_string())  // L'interfaccia attraverso la quale esce il traffico
+                .arg("-j")
+                .arg("MASQUERADE")
+                .output()
+                .await;
+
+            match nat_result {
+                Ok(nat_output) if nat_output.status.success() => Ok(()),
+                Ok(nat_output) => {
+                    eprintln!("Failed to add NAT rule: {:?}", nat_output);
+                    Err("Failed to add NAT rule".into())
+                }
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    Err(Box::new(e))
+                }
+            }
         }
         Ok(output) => {
             eprintln!("Failed to add forwarding rule: {:?}", output);
@@ -95,7 +118,7 @@ async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<()
     }
 }
 
-async fn remove_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
+async fn remove_forwarding_rule(interface: &str, router_ip: &Ipv4Addr, virtual_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
     let result = Command::new("ip")
         .arg("route")
         .arg("del")
@@ -109,8 +132,30 @@ async fn remove_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result
 
     match result {
         Ok(output) if output.status.success() => {
-            Ok(())
-        }
+            let nat_result = Command::new("iptables")
+                .arg("-t")
+                .arg("nat")
+                .arg("-D")
+                .arg("POSTROUTING")
+                .arg("-o")
+                .arg(virtual_ip.to_string())  // L'interfaccia attraverso la quale esce il traffico
+                .arg("-j")
+                .arg("MASQUERADE")
+                .output()
+                .await;
+
+            match nat_result {
+                Ok(nat_output) if nat_output.status.success() => Ok(()),
+                Ok(nat_output) => {
+                    eprintln!("Failed to remove NAT rule: {:?}", nat_output);
+                    Err("Failed to remove NAT rule".into())
+                }
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    Err(Box::new(e))
+                }
+            }
+            }
         Ok(output) => {
             eprintln!("Failed to remove forwarding rule: {:?}", output);
             Err("Failed to remove forwarding rule".into())
