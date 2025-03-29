@@ -78,7 +78,8 @@ pub fn build_arp_reply(my_mac: pnet::util::MacAddr, my_ip: Ipv4Addr, target_mac:
 
     ethernet_packet.set_payload(&arp_buffer);
 
-    println!("📤 Inviando ARP Reply UNA SOLA VOLTA: {} → {}", my_ip, target_ip);
+
+    println!("📤 Inviando ARP Reply UNA SOLA VOLTA: {:?}", ethernet_packet);
 
     Ok(ethernet_packet.packet().to_vec())
 
