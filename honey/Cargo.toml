@@ -28,4 +28,4 @@ pnet = "0.35"
 tun = "0.7.13"
 etherparse = "0.17"
 
-tokio-tun = {version= "0.13", optional = true}
+tokio-tun = {version= "0.13", optional = false}
