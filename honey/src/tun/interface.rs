@@ -110,6 +110,7 @@ pub async fn create_interface_bridge() -> Result<(), Box<dyn Error>> {
     let router_ip = Ipv4Addr::new(192, 168, 1, 254);
 
     run_command("brctl", vec!["addbr", "br0"]).await?;
+    run_command("brctl", vec!["addif", "br0", "wlan0"]).await?;
     run_command("ip", vec!["addr", "add", &format!("{}/{}", bridge_ip, netmask),"dev", "br0"]).await?;
     run_command("ip", vec!["route", "add", "default", "via", &router_ip.to_string(), "dev", "br0"]).await?;
     run_command("iptables", vec!["-t", "nat", "-A", "POSTROUTING", "-o", "wlan0", "-j", "MASQUERADE"]).await?;
