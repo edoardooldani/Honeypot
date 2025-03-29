@@ -5,7 +5,7 @@ use tracing::info;
 
 
 
-pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual_ip: Ipv4Addr) -> Arc<Tun>{
+pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual_ip: Ipv4Addr){
 
     let last_octet = virtual_ip.octets()[3];
     let tun_name = format!("tun{}", last_octet);
