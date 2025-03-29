@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use std::net::Ipv4Addr;
 use std::process::Command;
 use std::str::FromStr;
-use std::str;
+use std::{io, str};
 use std::sync::Mutex;
 use lazy_static::lazy_static;
 
@@ -47,14 +47,14 @@ lazy_static! {
     static ref SENT_ARP_REPLIES: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
 }
 
-pub fn send_arp_reply(tx: &mut dyn DataLinkSender, my_mac: pnet::util::MacAddr, my_ip: Ipv4Addr, target_mac: pnet::util::MacAddr, target_ip: Ipv4Addr) {
+pub fn build_arp_reply(my_mac: pnet::util::MacAddr, my_ip: Ipv4Addr, target_mac: pnet::util::MacAddr, target_ip: Ipv4Addr) -> Result<Vec<u8>, io::Error>{
     
     let key = format!("{}->{}", my_ip, target_ip);
 
     let mut sent_replies = SENT_ARP_REPLIES.lock().unwrap();
     if sent_replies.contains(&key) {
         println!("⚠️ ARP Reply già inviata per {}", key);
-        return;
+        return Err(io::Error::new(io::ErrorKind::Other, "ARP reply already sent"));
     }
     sent_replies.insert(key);
 
@@ -80,11 +80,7 @@ pub fn send_arp_reply(tx: &mut dyn DataLinkSender, my_mac: pnet::util::MacAddr, 
 
     println!("📤 Inviando ARP Reply UNA SOLA VOLTA: {} → {}", my_ip, target_ip);
 
-    match tx.send_to(ethernet_packet.packet(), None) {
-        Some(Ok(_)) => println!("📤 ARP Reply inviata con successo"),
-        Some(Err(e)) => eprintln!("❌ Errore durante l'invio di ARP Reply: {}", e),
-        None => {}
-    }
+    Ok(ethernet_packet.packet().to_vec())
 
 }
 

@@ -1,6 +1,6 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tracing::error;
-use crate::network::sender::{send_arp_reply, send_tcp_syn_ack};
+use crate::network::sender::{build_arp_reply, send_tcp_syn_ack};
 use std::{net::Ipv4Addr, str::FromStr};
 
 use super::graph::NetworkGraph;
@@ -25,13 +25,21 @@ pub fn handle_broadcast(
                         let virtual_mac = virtual_node.mac_address;
                         let virtual_ip = virtual_node.ipv4_address.clone();
     
-                        send_arp_reply(
-                            tx_datalink,
+                        let reply = build_arp_reply(
                             virtual_mac,
                             virtual_ip,
                             arp_packet.get_sender_hw_addr(),
                             arp_packet.get_sender_proto_addr(),
                         );
+
+                        match reply {
+                            Ok(reply_packet) => {
+                                tx_datalink.send_to(&reply_packet,None);
+                            }
+                            Err(e) => {
+                                eprintln!("Error building ARP reply: {}", e);
+                            }
+                        }
                         
                     }
                 }
@@ -62,7 +70,7 @@ pub fn handle_virtual_packet(
                     && arp_packet.get_target_proto_addr() == virtual_ip
                 {
                     let sender_ip = arp_packet.get_sender_proto_addr();
-                    send_arp_reply(tx, virtual_mac, virtual_ip, sender_mac, sender_ip);
+                    build_arp_reply(virtual_mac, virtual_ip, sender_mac, sender_ip);
                 }
             }
         }
