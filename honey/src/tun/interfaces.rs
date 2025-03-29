@@ -4,18 +4,9 @@ use tokio_tun::Tun;
 use tracing::{info, error};
 use once_cell::sync::Lazy;
 
-
 use crate::virtual_net::graph::NetworkGraph;
 
 
-static TUN_INTERFACES: Lazy<Mutex<Vec<Arc<Tun>>>> = Lazy::new(|| Mutex::new(Vec::new()));
-
-// Funzione per aggiungere un'interfaccia TUN alla lista
-fn add_tun_interface(tun: Arc<Tun>) {
-    let mut interfaces = TUN_INTERFACES.lock().unwrap();
-    interfaces.push(tun);
-    println!("TUN interface added!");
-}
 
 #[derive(Clone)]
 pub struct TunInterfaces {
@@ -52,9 +43,8 @@ impl TunInterfaces {
 }
 
 
-pub async fn create_virtual_tun_interface(graph: &mut NetworkGraph, ipv4_address: Ipv4Addr) -> Arc<Tun>{
+pub async fn create_virtual_tun_interface(ipv4_address: Ipv4Addr) -> Arc<Tun>{
 
-    // Crea il nome dell'interfaccia TUN usando l'ultimo ottetto dell'IP
     let last_octet = ipv4_address.octets()[3];
     let tun_name = format!("tun{}", last_octet);
     let netmask = "255.255.255.0".parse::<Ipv4Addr>().expect("Error parsing netmask");
@@ -73,8 +63,8 @@ pub async fn create_virtual_tun_interface(graph: &mut NetworkGraph, ipv4_address
     let _ = add_iptables_rule(&tun_name);
 
     info!("TUN interface created: {tun_name}");
-    add_tun_interface(tun.clone());
-    tun.clone()
+
+    tun
 }
 
 // Funzione per aggiungere regole iptables per il forwarding
