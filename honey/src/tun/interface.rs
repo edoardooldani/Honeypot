@@ -27,7 +27,7 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
     let router_ip = Ipv4Addr::new(192, 168, 1, 254);
 
     tokio::spawn(async move {
-        run_command("brctl", vec!["addif", "br0", tun_name]).await;
+        run_command("brctl", vec!["addif", "br0", &tun_name]).await;
 
         let sliced = reply_packet.as_slice();
         tun_writer.send(sliced).await.expect("No bytes sent");
