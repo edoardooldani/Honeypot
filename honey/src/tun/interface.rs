@@ -45,7 +45,7 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
 async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, router_ip: &Ipv4Addr){
     run_command("ifconfig", vec![tun_name, "hw", "ether", &virtual_mac.to_string()]).await;
     run_command("brctl", vec!["addif", "br0", tun_name]).await;
-    run_command("ebtables", vec!["-t", "broute", "-A", "BROUTING", "-i", tun_name, "-j", "ACCEPT"]).await;
+    run_command("ebtables", vec!["-t", "filter", "-A", "BROUTING", "-i", tun_name, "-j", "ACCEPT"]).await;
 
 }
 
