@@ -30,15 +30,6 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
 
     let sliced = reply_packet.as_slice();
     tun_writer.send(sliced).await;
-    let result = run_command("iptables", vec!["-L", "-n", "-v"]).await;
-
-    match result {
-        Ok(output) => {
-            println!("Command output: {}", output);
-        },
-        Err(e) => {
-        }
-    }
 
     remove_forwarding_rule(&tun_name, &router_ip).await;
 
@@ -62,6 +53,8 @@ async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<()
 }
 
 async fn remove_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
+    println!("\nList: {}", run_command("iptables", vec!["-L", "-n", "-v"]).await?);
+
     run_command("iptables", vec!["-D", "FORWARD", "-i", interface, "-o", "eth0", "-j", "ACCEPT"]).await?;
     run_command("iptables", vec!["-D", "FORWARD", "-i", "eth0", "-o", interface, "-j", "ACCEPT"]).await?;
 
