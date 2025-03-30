@@ -28,9 +28,11 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
 
     tokio::spawn(async move {
         run_command("brctl", vec!["addif", "br0", &tun_name]).await;
+        run_command("ip", vec!["link", "set", "dev", &tun_name, "promisc", "on"]).await;
 
         let sliced = reply_packet.as_slice();
         tun_writer.send(sliced).await.expect("No bytes sent");
+
         run_command("brctl", vec!["delif", "br0", &tun_name]).await;
     });
     
@@ -60,9 +62,8 @@ pub async fn run_command(command: &str, args: Vec<&str>) -> Result<String, Box<d
     }
 }
 
-pub async fn create_bridge_interface(local_mac: MacAddr) {
+pub async fn create_bridge_interface() {
     run_command("brctl", vec!["addbr", "br0"]).await;
     run_command("brctl", vec!["addif", "br0", "eth0"]).await;
-
     run_command("ip", vec!["link", "set", "br0", "up"]).await;
 }
