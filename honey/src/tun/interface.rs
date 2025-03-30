@@ -45,37 +45,9 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
 async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, router_ip: &Ipv4Addr){
     run_command("ifconfig", vec![tun_name, "hw", "ether", &virtual_mac.to_string()]).await;
     run_command("brctl", vec!["addif", "br0", tun_name]).await;
-    //add_forwarding_rule(&tun_name, &router_ip).await;
+    run_command("ebtables", vec!["-t", "broute", "-A", "BROUTING", "-i", tun_name, "-j", "ACCEPT"]).await;
+
 }
-
-
-async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
-    run_command("iptables", vec!["-A", "FORWARD", "-i", interface, "-o", "eth0", "-j", "ACCEPT"]).await?;
-    run_command("iptables", vec!["-A", "FORWARD", "-i", "eth0", "-o", interface, "-j", "ACCEPT"]).await?;
-
-
-    run_command("ip", vec!["route", "add", "default", "via", &router_ip.to_string(), "dev", interface]).await?;
-    println!("\nPing: \n{}", run_command("ping", vec!["-c", "1", "-I", interface, "192.168.1.66"]).await?);
-
-    println!("\nROUTE SHOW: \n{}", run_command("ip", vec!["route", "show"]).await?);
-
-    //println!("\nList before: \n{}", run_command("iptables", vec!["-L", "-n", "-v"]).await?);
-
-
-    Ok(())
-}
-
-async fn remove_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
-    //println!("\nList after: \n{}", run_command("iptables", vec!["-L", "-n", "-v"]).await?);
-
-    //println!("\nList NAT after: \n{}", run_command("iptables", vec!["-t", "nat", "-L", "-n", "-v"]).await?);
-
-    //run_command("iptables", vec!["-D", "FORWARD", "-i", interface, "-o", "eth0", "-j", "ACCEPT"]).await?;
-    //run_command("iptables", vec!["-D", "FORWARD", "-i", "eth0", "-o", interface, "-j", "ACCEPT"]).await?;
-
-    Ok(())
-}
-
 
 
 pub async fn run_command(command: &str, args: Vec<&str>) -> Result<String, Box<dyn Error>> {
@@ -104,5 +76,4 @@ pub async fn create_bridge_interface() {
     run_command("brctl", vec!["addbr", "br0"]).await;
     run_command("brctl", vec!["addif", "br0", "eth0"]).await;
     run_command("ip", vec!["link", "set", "br0", "up"]).await;
-
 }
