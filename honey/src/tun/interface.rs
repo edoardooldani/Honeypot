@@ -37,10 +37,9 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
             println!("Command output: {}", output);
         },
         Err(e) => {
-            eprintln!("Error: {}", e);
         }
     }
-    
+
     remove_forwarding_rule(&tun_name, &router_ip).await;
 
 }
