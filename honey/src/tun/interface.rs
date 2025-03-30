@@ -36,34 +36,30 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
 }
 
 
-async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, router_ip: &Ipv4Addr)  -> Result<(), Box<dyn Error>> {
-
-    let result  = Command::new("ifconfig")
-        .arg(tun_name)
-        .arg("hw")
-        .arg("ether")
-        .arg(virtual_mac.to_string())
-        .output()
-        .await;
-
-    match result {
-        Ok(output) if output.status.success() => {
-            add_forwarding_rule(&tun_name, &router_ip).await;
-
-            Ok(())
-        }
-        Ok(output) => {
-            eprintln!("Failed to change mac address: {:?}", output);
-            Err("Failed to change mac address".into())
-        }
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            Err(Box::new(e))
-        }
-    }
-
+async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, router_ip: &Ipv4Addr){
+    run_command("ifconfig", vec![tun_name, "hw", "ether", &virtual_mac.to_string()]);
+    add_forwarding_rule(&tun_name, &router_ip).await;
 
 }
+
+
+async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
+    run_command("iptables", vec!["-A", "FORWARD", "-i", interface, "-o", "eth0", "-j", "ACCEPT"]).await?;
+    run_command("iptables", vec!["-A", "FORWARD", "-i", "eth0", "-o", interface, "-j", "ACCEPT"]).await?;
+    run_command("iptables", vec!["-t", "nat", "-A", "POSTROUTING", "-o", "eth0", "-j", "MASQUERADE"]).await?;
+
+    Ok(())
+}
+
+async fn remove_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
+    run_command("iptables", vec!["-D", "FORWARD", "-i", interface, "-o", "eth0", "-j", "ACCEPT"]).await?;
+    run_command("iptables", vec!["-D", "FORWARD", "-i", "eth0", "-o", interface, "-j", "ACCEPT"]).await?;
+    run_command("iptables", vec!["-t", "nat", "-D", "POSTROUTING", "-o", "eth0", "-j", "MASQUERADE"]).await?;
+
+    Ok(())
+}
+
+
 
 async fn run_command(command: &str, args: Vec<&str>) -> Result<(), Box<dyn Error>> {
     let result = Command::new(command)
@@ -82,20 +78,4 @@ async fn run_command(command: &str, args: Vec<&str>) -> Result<(), Box<dyn Error
             Err(Box::new(e))
         }
     }
-}
-
-async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
-    run_command("iptables", vec!["-A", "FORWARD", "-i", interface, "-o", "eth0", "-j", "ACCEPT"]).await?;
-    run_command("iptables", vec!["-A", "FORWARD", "-i", "eth0", "-o", interface, "-j", "ACCEPT"]).await?;
-    run_command("iptables", vec!["-t", "nat", "-A", "POSTROUTING", "-o", "eth0", "-j", "MASQUERADE"]).await?;
-
-    Ok(())
-}
-
-async fn remove_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
-    run_command("iptables", vec!["-D", "FORWARD", "-i", interface, "-o", "eth0", "-j", "ACCEPT"]).await?;
-    run_command("iptables", vec!["-D", "FORWARD", "-i", "eth0", "-o", interface, "-j", "ACCEPT"]).await?;
-    run_command("iptables", vec!["-t", "nat", "-D", "POSTROUTING", "-o", "eth0", "-j", "MASQUERADE"]).await?;
-
-    Ok(())
 }
