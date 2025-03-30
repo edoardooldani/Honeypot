@@ -10,6 +10,7 @@ use std::net::Ipv4Addr;
 use tokio::sync::Mutex;
 use std::sync::Arc;
 use std::time::Instant;
+use crate::tun::interface::run_command;
 use crate::utilities::network::{classify_mac_address, get_local_mac, get_primary_interface, get_src_dest_ip};
 use crate::trackers::arp_tracker::{detect_arp_attacks, AlertTracker, ArpRepliesTracker, ArpRequestTracker};
 use crate::trackers::tcp_tracker::{detect_tcp_syn_attack, TcpSynDetector};
@@ -40,6 +41,8 @@ pub async fn scan_datalink(
 
     println!("📡 In ascolto del traffico di rete...");
     let local_mac = get_local_mac();
+
+    run_command("iptables", vec!["-t", "nat", "-A", "POSTROUTING", "-o", "eth0", "-j", "MASQUERADE"]).await;
 
     loop {
         match rx.next() {
