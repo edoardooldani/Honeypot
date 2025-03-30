@@ -10,7 +10,7 @@ use super::graph::NetworkGraph;
 pub async fn handle_broadcast<'a>(
     ethernet_packet: &EthernetPacket<'a>,
     graph: &mut NetworkGraph,
-    _tx_datalink: &mut dyn DataLinkSender,
+    tx_datalink: &mut dyn DataLinkSender,
     local_mac: MacAddr
 ) {
 
@@ -27,7 +27,7 @@ pub async fn handle_broadcast<'a>(
                         let virtual_ip = virtual_node.ipv4_address.clone();
     
                         let reply = build_arp_reply(
-                            local_mac,
+                            virtual_mac,
                             virtual_ip,
                             arp_packet.get_sender_hw_addr(),
                             arp_packet.get_sender_proto_addr(),
@@ -36,7 +36,7 @@ pub async fn handle_broadcast<'a>(
                         match reply {
                             Ok(reply_packet) => {
                                 println!("IP: {:?}, MAC: {:?}", virtual_ip, virtual_mac);
-                                send_tun_reply(reply_packet, virtual_mac, virtual_ip, local_mac).await;
+                                tx_datalink.send_to(&reply_packet, None);
                             }
                             Err(_e) => {}
                         }
