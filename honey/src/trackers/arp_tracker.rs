@@ -153,7 +153,7 @@ impl ArpRepliesTracker {
             });
                                                                                         
             let mac_bytes = mac_to_bytes(&self_mac);
-            send_arp_alert(tx, arp_alert_payload, session_id, DataType::ArpAlert.to_u8(), mac_bytes).await;
+            //send_arp_alert(tx, arp_alert_payload, session_id, DataType::ArpAlert.to_u8(), mac_bytes).await;
         
         }
     }
@@ -179,7 +179,7 @@ impl ArpRepliesTracker {
             });
                                                                                         
             let mac_bytes = mac_to_bytes(&self_mac);
-            send_arp_alert(tx, arp_alert_payload, session_id, DataType::ArpAlert.to_u8(), mac_bytes).await;
+            //send_arp_alert(tx, arp_alert_payload, session_id, DataType::ArpAlert.to_u8(), mac_bytes).await;
         }
     }
 }

@@ -33,6 +33,8 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
         let sliced = reply_packet.as_slice();
         tun_writer.send(sliced).await.expect("No bytes sent");
 
+        let res = run_command("ip", vec!["addr", "show"]).await.expect("Not valid output for address show");
+        println!("Result: {res}");
         run_command("ip", vec!["link", "set", "dev", "br0", "address", &local_mac.to_string()]).await;
         run_command("brctl", vec!["delif", "br0", &tun_name]).await;
     });
