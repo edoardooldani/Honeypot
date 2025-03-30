@@ -4,7 +4,7 @@ use tokio::process::Command;
 use std::error::Error;
 use tokio_tun::Tun;
 
-pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual_ip: Ipv4Addr){
+pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual_ip: Ipv4Addr, local_mac: MacAddr){
 
     let last_octet = virtual_ip.octets()[3];
     let tun_name = format!("tun{}", last_octet);
@@ -28,11 +28,12 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
 
     tokio::spawn(async move {
         run_command("brctl", vec!["addif", "br0", &tun_name]).await;
-        run_command("arp", vec!["-s", &virtual_ip.to_string(), &virtual_mac.to_string()]).await;
+        run_command("ip", vec!["link", "set", "dev", "br0", "address", &virtual_mac.to_string()]).await;
 
         let sliced = reply_packet.as_slice();
         tun_writer.send(sliced).await.expect("No bytes sent");
 
+        run_command("ip", vec!["link", "set", "dev", "br0", "address", &local_mac.to_string()]).await;
         run_command("brctl", vec!["delif", "br0", &tun_name]).await;
     });
     
@@ -62,8 +63,9 @@ pub async fn run_command(command: &str, args: Vec<&str>) -> Result<String, Box<d
     }
 }
 
-pub async fn create_bridge_interface() {
+pub async fn create_bridge_interface(local_mac: &MacAddr) {
     run_command("brctl", vec!["addbr", "br0"]).await;
     run_command("brctl", vec!["addif", "br0", "eth0"]).await;
+    run_command("ip", vec!["link", "set", "dev", "br0", "address", &local_mac.to_string()]).await;
     run_command("ip", vec!["link", "set", "br0", "up"]).await;
 }
