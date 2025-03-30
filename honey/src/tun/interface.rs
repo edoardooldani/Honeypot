@@ -27,24 +27,14 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
     let router_ip = Ipv4Addr::new(192, 168, 1, 254);
 
     tokio::spawn(async move {
-        change_mac_tun(&tun_name, virtual_mac, &router_ip).await;
-        
-        let sliced = reply_packet.as_slice();
-        let bytes: usize = tun_writer.send(sliced).await.expect("No bytes sent");
+        run_command("brctl", vec!["addif", "br0", tun_name]).await;
 
-        println!("Bytes sent: {:?}", bytes);
+        let sliced = reply_packet.as_slice();
+        tun_writer.send(sliced).await.expect("No bytes sent");
         run_command("brctl", vec!["delif", "br0", &tun_name]).await;
-        //run_command("nft", vec!["del", "rule", "inet", "filter", "input", "iifname", &tun_name, "accept"]).await;
     });
     
 
-}
-
-
-async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, router_ip: &Ipv4Addr){
-    //run_command("ifconfig", vec!["br0", "hw", "ether", &virtual_mac.to_string()]).await;
-    run_command("brctl", vec!["addif", "br0", tun_name]).await;
-    //run_command("nft", vec!["add", "rule", "inet", "filter", "input", "iifname", tun_name, "accept"]).await;
 }
 
 
