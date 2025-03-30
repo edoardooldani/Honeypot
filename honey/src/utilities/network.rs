@@ -46,7 +46,7 @@ pub fn classify_mac_address(mac: MacAddr) -> NodeType {
 pub fn get_local_mac() -> MacAddr {
     let interfaces = datalink::interfaces();
 
-    let preferred_interfaces = ["eth", "wlan", "en"]; // Ethernet, Wi-Fi, etc.
+    let preferred_interfaces = ["eth", "en"]; // Ethernet, Wi-Fi, etc.
 
     let mac = interfaces
         .into_iter()

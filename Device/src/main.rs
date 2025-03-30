@@ -26,7 +26,6 @@ use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::udp::UdpPacket;
 use pnet::util::MacAddr;
-use wss_client::{ClientConfig, WebSocketClient};
 
 #[tokio::main]
 async fn main() {
@@ -348,7 +347,7 @@ fn get_mac_address() -> Option<[u8; 6]> {
 fn get_primary_interface() -> Option<NetworkInterface> {
     let interfaces = datalink::interfaces();
 
-    let preferred_interfaces = ["eth", "wlan", "en"]; // Ethernet, Wi-Fi, etc.
+    let preferred_interfaces = ["eth", "en"]; // Ethernet, Wi-Fi, etc.
 
     interfaces
         .into_iter()

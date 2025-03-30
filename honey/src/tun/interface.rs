@@ -113,8 +113,8 @@ pub async fn create_interface_bridge() -> Result<(), Box<dyn Error>> {
     run_command("brctl", vec!["addif", "br0", "eth0"]).await?;
     run_command("ip", vec!["addr", "add", &format!("{}/{}", bridge_ip, netmask),"dev", "br0"]).await?;
     run_command("ip", vec!["route", "add", "default", "via", &router_ip.to_string(), "dev", "br0"]).await?;
-    run_command("iptables", vec!["-t", "nat", "-A", "POSTROUTING", "-o", "wlan0", "-j", "MASQUERADE"]).await?;
-    run_command("iptables", vec!["-A", "FORWARD", "-i", "br0", "-o", "wlan0", "-j", "ACCEPT"]).await?;
+    run_command("iptables", vec!["-t", "nat", "-A", "POSTROUTING", "-o", "eth0", "-j", "MASQUERADE"]).await?;
+    run_command("iptables", vec!["-A", "FORWARD", "-i", "br0", "-o", "eth0", "-j", "ACCEPT"]).await?;
     run_command("ip", vec!["link", "set", "br0", "up"]).await?;
 
     Ok(())
