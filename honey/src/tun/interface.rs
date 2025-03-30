@@ -31,9 +31,9 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
         run_command("arp", vec!["-s", &virtual_ip.to_string(), &virtual_mac.to_string()]).await;
 
         let sliced = reply_packet.as_slice();
-        //tun_writer.send(sliced).await.expect("No bytes sent");
+        tun_writer.send(sliced).await.expect("No bytes sent");
 
-        //run_command("brctl", vec!["delif", "br0", &tun_name]).await;
+        run_command("brctl", vec!["delif", "br0", &tun_name]).await;
     });
     
 
