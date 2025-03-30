@@ -86,8 +86,8 @@ async fn run_command(command: &str, args: Vec<&str>) -> Result<(), Box<dyn Error
 
 async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
     run_command("ip", vec!["route", "add", "0.0.0.0/0", "via", &router_ip.to_string(), "dev", interface]).await?;
-    run_command("iptables", vec!["-t", "nat", "-A", "POSTROUTING", "-o", "wlan0", "-j", "MASQUERADE"]).await?;
-    run_command("iptables", vec!["-A", "FORWARD", "-i", interface, "-o", "wlan0", "-j", "ACCEPT"]).await?;
+    run_command("iptables", vec!["-t", "nat", "-A", "POSTROUTING", "-o", "eth0", "-j", "MASQUERADE"]).await?;
+    run_command("iptables", vec!["-A", "FORWARD", "-i", interface, "-o", "eth0", "-j", "ACCEPT"]).await?;
     run_command("brctl", vec!["addif", "br0", interface]).await?;
 
     Ok(())
@@ -95,8 +95,8 @@ async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<()
 
 async fn remove_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
     run_command("ip", vec!["route", "del", "0.0.0.0/0", "via", &router_ip.to_string(), "dev", interface]).await?;
-    run_command("iptables", vec!["-t", "nat", "-D", "POSTROUTING", "-o", "wlan0", "-j", "MASQUERADE"]).await?;
-    run_command("iptables", vec!["-D", "FORWARD", "-i", interface, "-o", "wlan0", "-j", "ACCEPT"]).await?;
+    run_command("iptables", vec!["-t", "nat", "-D", "POSTROUTING", "-o", "eth0", "-j", "MASQUERADE"]).await?;
+    run_command("iptables", vec!["-D", "FORWARD", "-i", interface, "-o", "eth0", "-j", "ACCEPT"]).await?;
     run_command("brctl", vec!["delif", "br0", interface]).await?;
 
     Ok(())
@@ -110,7 +110,7 @@ pub async fn create_interface_bridge() -> Result<(), Box<dyn Error>> {
     let router_ip = Ipv4Addr::new(192, 168, 1, 254);
 
     run_command("brctl", vec!["addbr", "br0"]).await?;
-    run_command("brctl", vec!["addif", "br0", "wlan0"]).await?;
+    run_command("brctl", vec!["addif", "br0", "eth0"]).await?;
     run_command("ip", vec!["addr", "add", &format!("{}/{}", bridge_ip, netmask),"dev", "br0"]).await?;
     run_command("ip", vec!["route", "add", "default", "via", &router_ip.to_string(), "dev", "br0"]).await?;
     run_command("iptables", vec!["-t", "nat", "-A", "POSTROUTING", "-o", "wlan0", "-j", "MASQUERADE"]).await?;
