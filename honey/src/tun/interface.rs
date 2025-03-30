@@ -65,8 +65,6 @@ async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<()
 
 async fn remove_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
     println!("\nList after: \n{}", run_command("iptables", vec!["-L", "-n", "-v"]).await?);
-    println!("\nIP ADDR SHOW: \n{}", run_command("ip", vec!["addr", "show", interface]).await?);
-
 
     //println!("\nList NAT after: \n{}", run_command("iptables", vec!["-t", "nat", "-L", "-n", "-v"]).await?);
 

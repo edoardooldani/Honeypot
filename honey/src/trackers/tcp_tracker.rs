@@ -72,7 +72,7 @@ pub async fn detect_tcp_syn_attack<'a>(
                 });
                                                                                             
                 let mac_bytes = mac_to_bytes(&self_mac);
-                send_tcp_alert(tx, tcp_alert_payload, session_id, DataType::TcpAlert.to_u8(), mac_bytes).await;
+                //send_tcp_alert(tx, tcp_alert_payload, session_id, DataType::TcpAlert.to_u8(), mac_bytes).await;
 
             }
         }
