@@ -72,8 +72,10 @@ pub async fn run_command(command: &str, args: Vec<&str>) -> Result<String, Box<d
     }
 }
 
-pub async fn create_bridge_interface() {
+pub async fn create_bridge_interface(local_mac: MacAddr) {
     run_command("brctl", vec!["addbr", "br0"]).await;
     run_command("brctl", vec!["addif", "br0", "eth0"]).await;
+    run_command("ifconfig", vec!["br0", "hw", "ether", &local_mac.to_string()]).await;
+
     run_command("ip", vec!["link", "set", "br0", "up"]).await;
 }

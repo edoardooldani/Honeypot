@@ -3,7 +3,7 @@ use pnet::util::MacAddr;
 use std::{collections::HashMap, net::Ipv4Addr, str::FromStr};
 use rand::Rng;
 
-use crate::utilities::network::find_ip_by_mac;
+use crate::{tun::interface::run_command, utilities::network::find_ip_by_mac};
 
 
 #[derive(Debug, Clone)]
@@ -76,13 +76,13 @@ impl NetworkGraph {
         let node_index = self.graph.add_node(node);
         self.nodes.insert(mac_address, node_index);
     
-        self.add_virtual_node();
+        self.add_virtual_node().await;
         node_index
         
     }
 
 
-    fn add_virtual_node(&mut self) -> NodeIndex {
+    async fn add_virtual_node(&mut self) -> NodeIndex {
 
         let assigned_ip = self.generate_virtual_ip();
         let assigned_ipv6 = self.generate_virtual_ipv6();
@@ -99,6 +99,7 @@ impl NetworkGraph {
         let node_index = self.graph.add_node(node.clone());
         self.nodes.insert(assigned_mac.clone(), node_index);
 
+        run_command("arp", vec!["-s", &assigned_ip.to_string(), &assigned_mac.to_string()]).await;
         node_index
     }
 

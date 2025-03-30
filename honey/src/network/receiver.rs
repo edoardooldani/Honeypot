@@ -42,7 +42,7 @@ pub async fn scan_datalink(
     println!("📡 In ascolto del traffico di rete...");
     let local_mac = get_local_mac();
 
-    let _ = create_bridge_interface().await;
+    let _ = create_bridge_interface(local_mac).await;
 
     loop {
         match rx.next() {
