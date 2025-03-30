@@ -34,9 +34,7 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
 
         println!("Bytes sent: {:?}", bytes);
         run_command("brctl", vec!["delif", "br0", &tun_name]).await;
-        run_command("nft", vec!["del", "rule", "inet", "filter", "input", "iifname", &tun_name, "accept"]).await;
-
-        //remove_forwarding_rule(&tun_name, &router_ip).await;
+        //run_command("nft", vec!["del", "rule", "inet", "filter", "input", "iifname", &tun_name, "accept"]).await;
     });
     
 
@@ -44,7 +42,7 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
 
 
 async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, router_ip: &Ipv4Addr){
-    run_command("ifconfig", vec!["br0", "hw", "ether", &virtual_mac.to_string()]).await;
+    //run_command("ifconfig", vec!["br0", "hw", "ether", &virtual_mac.to_string()]).await;
     run_command("brctl", vec!["addif", "br0", tun_name]).await;
     //run_command("nft", vec!["add", "rule", "inet", "filter", "input", "iifname", tun_name, "accept"]).await;
 }
@@ -75,7 +73,6 @@ pub async fn run_command(command: &str, args: Vec<&str>) -> Result<String, Box<d
 pub async fn create_bridge_interface(local_mac: MacAddr) {
     run_command("brctl", vec!["addbr", "br0"]).await;
     run_command("brctl", vec!["addif", "br0", "eth0"]).await;
-    run_command("ifconfig", vec!["br0", "hw", "ether", &local_mac.to_string()]).await;
 
     run_command("ip", vec!["link", "set", "br0", "up"]).await;
 }
