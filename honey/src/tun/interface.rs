@@ -54,6 +54,9 @@ async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<()
 
     run_command("ip", vec!["route", "add", "default", "via", &router_ip.to_string(), "dev", interface]).await?;
     println!("\nPing: \n{}", run_command("ping", vec!["-c", "1", "-I", interface, "192.168.1.66"]).await?);
+
+    println!("\nROUTE SHOW: \n{}", run_command("ip", vec!["route", "show"]).await?);
+
     //println!("\nList before: \n{}", run_command("iptables", vec!["-L", "-n", "-v"]).await?);
 
 
