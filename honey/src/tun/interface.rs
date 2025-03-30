@@ -30,9 +30,17 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
 
     let sliced = reply_packet.as_slice();
     tun_writer.send(sliced).await;
-    println!("\nList: {}", run_command("iptables", vec!["-L", "-n", "-v"]).await?);
+    let result = run_command("iptables", vec!["-L", "-n", "-v"]).await;
 
-
+    match result {
+        Ok(output) => {
+            println!("Command output: {}", output);
+        },
+        Err(e) => {
+            eprintln!("Error: {}", e);
+        }
+    }
+    
     remove_forwarding_rule(&tun_name, &router_ip).await;
 
 }
