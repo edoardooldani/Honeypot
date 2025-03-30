@@ -31,14 +31,14 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
     let sliced = reply_packet.as_slice();
     tun_writer.send(sliced).await;
 
-    //remove_forwarding_rule(&tun_name, &router_ip).await;
+    remove_forwarding_rule(&tun_name, &router_ip).await;
 
 }
 
 
 async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, router_ip: &Ipv4Addr){
-    run_command("ifconfig", vec![tun_name, "hw", "ether", &virtual_mac.to_string()]);
-    //add_forwarding_rule(&tun_name, &router_ip).await;
+    run_command("ifconfig", vec![tun_name, "hw", "ether", &virtual_mac.to_string()]).await;
+    add_forwarding_rule(&tun_name, &router_ip).await;
 
 }
 
