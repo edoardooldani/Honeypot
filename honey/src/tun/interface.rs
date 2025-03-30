@@ -47,9 +47,9 @@ async fn change_mac_tun(tun_name: &str, virtual_mac: MacAddr, router_ip: &Ipv4Ad
 async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
     run_command("iptables", vec!["-A", "FORWARD", "-i", interface, "-o", "eth0", "-j", "ACCEPT"]).await?;
     run_command("iptables", vec!["-A", "FORWARD", "-i", "eth0", "-o", interface, "-j", "ACCEPT"]).await?;
+    println!("\nPing: \n{}", run_command("ping", vec!["-I", interface, "192.168.1.254"]).await?);
 
     println!("\nList before: \n{}", run_command("iptables", vec!["-L", "-n", "-v"]).await?);
-    println!("\nList NAT before: \n{}", run_command("iptables", vec!["-t", "nat", "-L", "-n", "-v"]).await?);
 
 
     Ok(())
