@@ -29,9 +29,10 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
     tokio::spawn(async move {
         //run_command("brctl", vec!["addif", "br0", &tun_name]).await;
         //run_command("ip", vec!["link", "set", "dev", "br0", "address", &virtual_mac.to_string()]).await;
-
-        run_command("ip", vec!["route", "add", "192.168.1.0/24", "dev", &tun_name, "via", "192.168.1.254"]).await;
-
+        run_command("ip", vec!["route", "add", "192.168.1.0/24", "dev", &tun_name]).await;
+        let result = run_command("ping", vec!["-I", &tun_name, "192.168.1.51"]).await.expect("No valid ping output");
+        
+        println!("Result {result}\n");
         let sliced = reply_packet.as_slice();
         tun_writer.send(sliced).await.expect("No bytes sent");
 
@@ -39,7 +40,7 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
         //println!("Result: {res}");
         //run_command("ip", vec!["link", "set", "dev", "br0", "address", &local_mac.to_string()]).await;
         //run_command("brctl", vec!["delif", "br0", &tun_name]).await;
-        run_command("ip", vec!["route", "del", "192.168.1.0/24", "dev", &tun_name, "via", "192.168.1.254"]).await;
+        run_command("ip", vec!["route", "del", "192.168.1.0/24", "dev", &tun_name]).await;
 
     });
     
@@ -77,3 +78,4 @@ pub async fn create_bridge_interface(local_mac: &MacAddr) {
 
     //run_command("ip", vec!["link", "set", "br0", "up"]).await;
 }
+
