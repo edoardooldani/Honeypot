@@ -27,10 +27,23 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
     let router_ip = Ipv4Addr::new(192, 168, 1, 254);
 
     change_mac_tun(&tun_name, virtual_mac, &router_ip).await;
-
+    let result_before = run_command("iptables", vec!["-L", "-n", "-v"]).await;
+    match result_before {
+        Ok(output) => println!("Before \n{output}"),
+        Err(e) => {}
+    
+    }
+    
     let sliced = reply_packet.as_slice();
     tun_writer.send(sliced).await;
 
+    let result_after = run_command("iptables", vec!["-L", "-n", "-v"]).await;
+
+    match result_after {
+        Ok(output) => println!("After \n{output}"),
+        Err(e) => {}
+    
+    }
     //remove_forwarding_rule(&tun_name, &router_ip).await;
 
 }
