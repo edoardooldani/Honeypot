@@ -27,16 +27,21 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
     let router_ip = Ipv4Addr::new(192, 168, 1, 254);
 
     tokio::spawn(async move {
-        run_command("brctl", vec!["addif", "br0", &tun_name]).await;
-        run_command("ip", vec!["link", "set", "dev", "br0", "address", &virtual_mac.to_string()]).await;
+        //run_command("brctl", vec!["addif", "br0", &tun_name]).await;
+        //run_command("ip", vec!["link", "set", "dev", "br0", "address", &virtual_mac.to_string()]).await;
+
+        run_command("ip", vec!["route", "add", "192.168.1.0/24", "dev", &tun_name, "via", "192.168.1.254"]).await;
+        run_command("iptables", vec!["-t", "nat", "-A", "POSTROUTING", "-o", "eth0", "-j", "MASQUERADE"]).await;
 
         let sliced = reply_packet.as_slice();
         tun_writer.send(sliced).await.expect("No bytes sent");
 
-        let res = run_command("ip", vec!["addr", "show"]).await.expect("Not valid output for address show");
-        println!("Result: {res}");
-        run_command("ip", vec!["link", "set", "dev", "br0", "address", &local_mac.to_string()]).await;
-        run_command("brctl", vec!["delif", "br0", &tun_name]).await;
+        //let res = run_command("ip", vec!["addr", "show"]).await.expect("Not valid output for address show");
+        //println!("Result: {res}");
+        //run_command("ip", vec!["link", "set", "dev", "br0", "address", &local_mac.to_string()]).await;
+        //run_command("brctl", vec!["delif", "br0", &tun_name]).await;
+        run_command("ip", vec!["route", "del", "192.168.1.0/24", "dev", &tun_name, "via", "192.168.1.254"]).await;
+
     });
     
 
@@ -66,8 +71,8 @@ pub async fn run_command(command: &str, args: Vec<&str>) -> Result<String, Box<d
 }
 
 pub async fn create_bridge_interface(local_mac: &MacAddr) {
-    run_command("brctl", vec!["addbr", "br0"]).await;
-    run_command("brctl", vec!["addif", "br0", "eth0"]).await;
-    run_command("ip", vec!["link", "set", "dev", "br0", "address", &local_mac.to_string()]).await;
-    run_command("ip", vec!["link", "set", "br0", "up"]).await;
+    //run_command("brctl", vec!["addbr", "br0"]).await;
+    //run_command("brctl", vec!["addif", "br0", "eth0"]).await;
+    run_command("ip", vec!["route", "add", "default", "via", "192.168.1.254", "dev", "eth0"]).await;
+    //run_command("ip", vec!["link", "set", "br0", "up"]).await;
 }
