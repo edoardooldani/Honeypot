@@ -1,6 +1,6 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tracing::error;
-use crate::{network::sender::{build_arp_reply, send_tcp_syn_ack}, tun::interface::send_tun_reply};
+use crate::network::sender::{build_arp_reply, send_tcp_syn_ack};
 use std::{net::Ipv4Addr, str::FromStr};
 
 use super::graph::NetworkGraph;
