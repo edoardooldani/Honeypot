@@ -26,13 +26,16 @@ pub async fn send_tun_reply(reply_packet: Vec<u8>, virtual_mac: MacAddr, virtual
     let tun_writer: Arc<Tun>= tun.clone();
     let router_ip = Ipv4Addr::new(192, 168, 1, 254);
 
-    change_mac_tun(&tun_name, virtual_mac, &router_ip).await;
-    
-    let sliced = reply_packet.as_slice();
-    let bytes: usize = tun_writer.send(sliced).await.expect("No bytes sent");
+    tokio::spawn(async move {
+        change_mac_tun(&tun_name, virtual_mac, &router_ip).await;
+        
+        let sliced = reply_packet.as_slice();
+        let bytes: usize = tun_writer.send(sliced).await.expect("No bytes sent");
 
-    println!("Bytes sent: {:?}", bytes);
-    remove_forwarding_rule(&tun_name, &router_ip).await;
+        println!("Bytes sent: {:?}", bytes);
+        remove_forwarding_rule(&tun_name, &router_ip).await;
+    });
+    
 
 }
 
@@ -58,7 +61,7 @@ async fn add_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<()
 async fn remove_forwarding_rule(interface: &str, router_ip: &Ipv4Addr) -> Result<(), Box<dyn Error>> {
     println!("\nList after: \n{}", run_command("iptables", vec!["-L", "-n", "-v"]).await?);
 
-    println!("\nList NAT after: \n{}", run_command("iptables", vec!["-t", "nat", "-L", "-n", "-v"]).await?);
+    //println!("\nList NAT after: \n{}", run_command("iptables", vec!["-t", "nat", "-L", "-n", "-v"]).await?);
 
     run_command("iptables", vec!["-D", "FORWARD", "-i", interface, "-o", "eth0", "-j", "ACCEPT"]).await?;
     run_command("iptables", vec!["-D", "FORWARD", "-i", "eth0", "-o", interface, "-j", "ACCEPT"]).await?;
