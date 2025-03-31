@@ -1,9 +1,9 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, ip::IpNextHeaderProtocols, tcp::TcpPacket, Packet}, util::MacAddr};
 use tracing::error;
-use crate::network::sender::{send_arp_reply, send_tcp_syn_ack};
+use crate::network::sender::send_arp_reply;
 use std::net::Ipv4Addr;
 
-use super::graph::NetworkGraph;
+use super::{graph::NetworkGraph, tcp::handle_tcp_packet};
 
 
 
@@ -48,7 +48,6 @@ pub fn handle_virtual_packet(
     ethernet_packet: &EthernetPacket,
     virtual_mac: &MacAddr,
     virtual_ip: &Ipv4Addr,
-    sender_mac: &MacAddr,
     tx: &mut dyn DataLinkSender
 ) {
 
@@ -75,16 +74,16 @@ pub fn handle_virtual_packet(
                 match next_protocol {
                     IpNextHeaderProtocols::Tcp => {
                         if let Some(tcp_packet) = TcpPacket::new(ipv4_packet.payload()) {
-                            if tcp_packet.get_flags() == 2 {
 
-                                let src_ip = ipv4_packet.get_source();
-                                let virtual_port = tcp_packet.get_destination();
-                                if virtual_port == 22 || virtual_port == 80 {
-
-                                    println!("TCP packet: {:?}\n", tcp_packet);
-                                    send_tcp_syn_ack(&mut *tx, *virtual_mac, *virtual_ip, *sender_mac, src_ip, virtual_port, tcp_packet);
-                                }
-                            }
+                            handle_tcp_packet(
+                                &mut *tx, 
+                                tcp_packet, 
+                                ethernet_packet.get_destination(), 
+                                ipv4_packet.get_destination(),
+                                ipv4_packet.get_source(), 
+                                ethernet_packet.get_source(),
+                            );
+                            
                         }
                     }
                     _ => {

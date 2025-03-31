@@ -7,7 +7,7 @@ use axum::{
 use chrono::Utc;
 use futures_util::SinkExt;
 use bincode;
-use common::types::{DataType, DeviceType, Packet, PayloadType, PriorityLevel};
+use common::types::{DataType, Packet, PayloadType, PriorityLevel};
 use rdkafka::producer::FutureRecord;
 use tracing::{info, warn, error};
 use tokio::time::{self, Duration};

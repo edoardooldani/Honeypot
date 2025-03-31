@@ -3,7 +3,7 @@ use pnet::packet::arp::{ArpOperations, MutableArpPacket};
 use pnet::packet::ethernet::{MutableEthernetPacket, EtherTypes};
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::MutableIpv4Packet;
-use pnet::packet::tcp::{MutableTcpPacket, TcpFlags, TcpPacket};
+use pnet::packet::tcp::{MutableTcpPacket, TcpPacket};
 use pnet::packet::Packet;
 use pnet::util::MacAddr;
 use rand::Rng;
@@ -97,7 +97,8 @@ pub fn send_tcp_syn_ack(
     sender_mac: MacAddr,
     sender_ip: Ipv4Addr,
     virtual_port: u16,
-    tcp_received_packet: TcpPacket
+    tcp_received_packet: TcpPacket,
+    response_flag: u8
 ) {
     let mut ethernet_buffer = [0u8; 66]; // Ethernet (14) + IPv4 (20) + TCP (32)
     let mut ethernet_packet = MutableEthernetPacket::new(&mut ethernet_buffer).unwrap();
@@ -124,7 +125,7 @@ pub fn send_tcp_syn_ack(
     tcp_packet.set_destination(tcp_received_packet.get_source());
     tcp_packet.set_sequence(sequence);
     tcp_packet.set_acknowledgement(tcp_received_packet.get_sequence()+1); 
-    tcp_packet.set_flags(TcpFlags::SYN | TcpFlags::ACK);
+    tcp_packet.set_flags(response_flag);
     tcp_packet.set_window(8192);
     tcp_packet.set_data_offset(5);
 

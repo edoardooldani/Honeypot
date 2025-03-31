@@ -102,7 +102,6 @@ pub async fn scan_datalink(
                             &ethernet_packet, 
                             &dest_node.mac_address, 
                             &dest_node.ipv4_address, 
-                            &src_mac, 
                             &mut *tx_datalink
                         );            
                     }
