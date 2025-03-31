@@ -1,4 +1,4 @@
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, TcpStream};
 
 use pnet::{datalink::DataLinkSender, packet::tcp::{TcpFlags, TcpPacket}, util::MacAddr};
 
@@ -42,11 +42,11 @@ pub async fn handle_tcp_packet<'a>(
             println!("TCP ack: {:?}", tcp_received_packet);
             match tcp_received_packet.get_destination() {
                 22 => {
-                    handle_ssh_connection(
-                        &mut *tx,
-                    source_ip,
-                    tcp_received_packet.get_destination()
-                ).await;
+                    tokio::spawn(async move {
+                        handle_ssh_connection(
+                        )
+                    });    
+                
                 }
                 _ => {}
             }
