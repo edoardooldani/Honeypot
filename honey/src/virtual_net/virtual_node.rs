@@ -80,7 +80,9 @@ pub fn handle_virtual_packet(
                                 let src_ip = ipv4_packet.get_source();
                                 let src_port = tcp_packet.get_source();
                                 let virtual_port = tcp_packet.get_destination();
-                                send_tcp_syn_ack(&mut *tx, *virtual_mac, *virtual_ip, *sender_mac, src_ip, virtual_port, src_port);
+                                if virtual_port == 22 || virtual_port == 80 {
+                                    send_tcp_syn_ack(&mut *tx, *virtual_mac, *virtual_ip, *sender_mac, src_ip, virtual_port, src_port);
+                                }
                             }
                         }
                     }
