@@ -2,7 +2,7 @@ use std::net::Ipv4Addr;
 
 use pnet::{datalink::DataLinkSender, packet::tcp::{TcpFlags, TcpPacket}, util::MacAddr};
 
-use crate::network::sender::send_tcp_syn_ack;
+use crate::{network::sender::send_tcp_syn_ack, virtual_net::application::handle_ssh_connection};
 
 pub fn handle_tcp_packet(
     tx: &mut dyn DataLinkSender,
@@ -23,6 +23,8 @@ pub fn handle_tcp_packet(
                 response_flags = TcpFlags::RST;
             }
 
+            let empty_payload: &[u8] = &[];
+
             send_tcp_syn_ack(
                 &mut *tx, 
                 virtual_mac, 
@@ -31,12 +33,26 @@ pub fn handle_tcp_packet(
                 source_ip, 
                 virtual_port, 
                 tcp_received_packet,
-                response_flags
+                response_flags,
+                empty_payload
                 );
             
         }
         TcpFlags::ACK => {
             println!("TCP ack: {:?}", tcp_received_packet);
+            match tcp_received_packet.get_destination() {
+                22 => {
+                    handle_ssh_connection(
+                        &mut *tx, 
+                        tcp_received_packet,
+                        virtual_mac,
+                        virtual_ip,
+                        source_ip,
+                        source_mac
+                    );
+                }
+                _ => {}
+            }
         }
         _ => {}
     }
