@@ -132,6 +132,8 @@ pub fn send_tcp_syn_ack(
     ipv4_packet.set_payload(tcp_packet.packet());
 
     ethernet_packet.set_payload(ipv4_packet.packet());
+
+    println!("\nRECEIVED packet: {:?}\n", tcp_received_packet);
     println!("REPLY packet: {:?}\n", tcp_packet);
 
 
