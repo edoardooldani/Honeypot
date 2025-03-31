@@ -53,6 +53,7 @@ pub fn handle_virtual_packet(
     tx: &mut dyn DataLinkSender
 ) {
 
+    println!("Virtual node");
 
     match ethernet_packet.get_ethertype() {
         EtherTypes::Arp => {
