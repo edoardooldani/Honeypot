@@ -31,15 +31,9 @@ pub async fn handle_broadcast<'a>(
                             virtual_ip,
                             arp_packet.get_sender_hw_addr(),
                             arp_packet.get_sender_proto_addr(),
-                        );
+                        ).expect("Failed building arp reply");
 
-                        match reply {
-                            Ok(reply_packet) => {
-                                println!("IP: {:?}, MAC: {:?}", virtual_ip, virtual_mac);
-                                tx_datalink.send_to(&reply_packet, None);
-                            }
-                            Err(_e) => {}
-                        }
+                        tx_datalink.send_to(&reply, None);
                         
                     }
                 }
