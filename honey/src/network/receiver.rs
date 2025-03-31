@@ -35,7 +35,6 @@ pub async fn scan_datalink(
     let arp_req_alert_tracker: Arc<Mutex<HashMap<MacAddr, Instant>>> = Arc::new(Mutex::new(HashMap::new()));
     let arp_res_alert_tracker: Arc<Mutex<HashMap<MacAddr, Instant>>> = Arc::new(Mutex::new(HashMap::new()));
 
-
     let arp_req_tracker = Arc::new(Mutex::new(ArpRequestTracker::new()));
     let arp_res_tracker = Arc::new(Mutex::new(ArpRepliesTracker::new()));
     let tcp_syn_tracker = Arc::new(Mutex::new(TcpSynDetector::new()));
@@ -118,7 +117,7 @@ pub async fn scan_datalink(
                         arp_res_alert_tracker.clone(),
                         Arc::clone(&arp_req_tracker), 
                         Arc::clone(&arp_res_tracker), 
-                        tcp_syn_tracker.clone()
+                        tcp_syn_tracker.clone(),
                     ).await;
 
                 }
@@ -179,7 +178,7 @@ async fn detect_attacks<'a>(
                         &ipv4_packet,
                         ethernet_packet.get_source(),
                         local_mac,
-                        tcp_syn_tracker
+                        tcp_syn_tracker,
                     ).await;    
                 }
                 _ => {

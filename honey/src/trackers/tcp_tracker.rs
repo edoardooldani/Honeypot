@@ -15,6 +15,9 @@ use tracing::warn;
 
 use crate::utilities::network::mac_to_bytes;
 
+pub type TcpSynAlertTracker = Arc<Mutex<HashMap<MacAddr, Instant>>>;
+
+
 #[derive(Debug)]
 pub struct TcpSynDetector {
     attempts: HashMap<Ipv4Addr, Vec<Instant>>,
@@ -36,7 +39,7 @@ impl TcpSynDetector {
         entry.retain(|&time| now.duration_since(time) < Duration::from_secs(10));
 
         // 15 syn in 10 seconds
-        if entry.len() > 15 {
+        if entry.len() > 15 && entry.len() < 18{
             return true;
         }
 
@@ -51,7 +54,7 @@ pub async fn detect_tcp_syn_attack<'a>(
     ipv4_packet: &'a Ipv4Packet<'a>,
     src_mac: MacAddr,
     self_mac: MacAddr,
-    tcp_syn_tracker: Arc<Mutex<TcpSynDetector>>
+    tcp_syn_tracker: Arc<Mutex<TcpSynDetector>>,
 ){
     if let Some(tcp_packet) = TcpPacket::new(ipv4_packet.payload()) {
 
@@ -62,8 +65,9 @@ pub async fn detect_tcp_syn_attack<'a>(
 
             let mut guard = tcp_syn_tracker.lock().await;
             if guard.register_syn(src_ip.clone()) {
+
                 warn!("🔥 Possible TCP Syn attack from Mac: {} and IP: {}!", src_mac, src_ip);
-                println!("TCP packet: {:?}\n\n", tcp_packet);
+
                 let tcp_alert_payload = PayloadType::TcpAlert(TcpAlertPayload { 
                     mac_address: mac_to_bytes(&src_mac), 
                     ip_address: src_ip.to_string(),
@@ -72,7 +76,7 @@ pub async fn detect_tcp_syn_attack<'a>(
                 });
                                                                                             
                 let mac_bytes = mac_to_bytes(&self_mac);
-                //send_tcp_alert(tx, tcp_alert_payload, session_id, DataType::TcpAlert.to_u8(), mac_bytes).await;
+                send_tcp_alert(tx, tcp_alert_payload, session_id, DataType::TcpAlert.to_u8(), mac_bytes).await;
 
             }
         }
