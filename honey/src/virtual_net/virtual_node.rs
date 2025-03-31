@@ -44,8 +44,8 @@ pub async fn handle_broadcast<'a>(
 
 
 
-pub fn handle_virtual_packet(
-    ethernet_packet: &EthernetPacket,
+pub async fn handle_virtual_packet<'a>(
+    ethernet_packet: &EthernetPacket<'a>,
     virtual_mac: &MacAddr,
     virtual_ip: &Ipv4Addr,
     tx: &mut dyn DataLinkSender
@@ -82,7 +82,7 @@ pub fn handle_virtual_packet(
                                 ipv4_packet.get_destination(),
                                 ipv4_packet.get_source(), 
                                 ethernet_packet.get_source(),
-                            );
+                            ).await;
                             
                         }
                     }

@@ -103,7 +103,7 @@ pub async fn scan_datalink(
                             &dest_node.mac_address, 
                             &dest_node.ipv4_address, 
                             &mut *tx_datalink
-                        );            
+                        ).await;            
                     }
 
                     detect_attacks(

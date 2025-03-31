@@ -4,16 +4,16 @@ use pnet::{datalink::DataLinkSender, packet::tcp::{TcpFlags, TcpPacket}, util::M
 
 use crate::{network::sender::send_tcp_syn_ack, virtual_net::application::handle_ssh_connection};
 
-pub fn handle_tcp_packet(
+pub async fn handle_tcp_packet<'a>(
     tx: &mut dyn DataLinkSender,
-    tcp_received_packet: TcpPacket,
+    tcp_received_packet: TcpPacket<'a>,
     virtual_mac: MacAddr,
     virtual_ip: Ipv4Addr,
     source_ip: Ipv4Addr,
     source_mac: MacAddr
 ){
     match tcp_received_packet.get_flags(){
-        f if f & TcpFlags::SYN != 0 => {
+        TcpFlags::SYN => {
             let virtual_port = tcp_received_packet.get_destination();
             let response_flags: u8;
 
@@ -38,31 +38,14 @@ pub fn handle_tcp_packet(
                 );
             
         }
-        f if f & TcpFlags::ACK != 0 => {
+        TcpFlags::ACK => {
             println!("TCP ack: {:?}", tcp_received_packet);
             match tcp_received_packet.get_destination() {
                 22 => {
-                    handle_ssh_connection(
-                        &mut *tx, 
-                        tcp_received_packet,
-                        virtual_mac,
-                        virtual_ip,
-                        source_ip,
-                        source_mac
-                    );
+                    handle_ssh_connection(&mut *tx).await;
                 }
                 _ => {}
             }
-        }
-        f if f & TcpFlags::ACK != 0 && f & TcpFlags::PSH != 0 => {
-            handle_ssh_connection(
-                &mut *tx, 
-                tcp_received_packet,
-                virtual_mac,
-                virtual_ip,
-                source_ip,
-                source_mac
-            );
         }
 
         _ => {}
