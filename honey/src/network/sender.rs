@@ -2,8 +2,8 @@ use pnet::datalink::{self, Channel, DataLinkSender};
 use pnet::packet::arp::{ArpOperations, MutableArpPacket};
 use pnet::packet::ethernet::{MutableEthernetPacket, EtherTypes};
 use pnet::packet::ip::IpNextHeaderProtocols;
-use pnet::packet::ipv4::MutableIpv4Packet;
-use pnet::packet::tcp::{MutableTcpPacket, TcpPacket};
+use pnet::packet::ipv4::{checksum, MutableIpv4Packet};
+use pnet::packet::tcp::{ipv4_checksum, MutableTcpPacket, TcpPacket};
 use pnet::packet::Packet;
 use pnet::util::MacAddr;
 use rand::Rng;
@@ -129,7 +129,15 @@ pub fn send_tcp_syn_ack(
     tcp_packet.set_window(8192);
     tcp_packet.set_data_offset(5);
 
+    let tcp_checksum = ipv4_checksum(
+        &tcp_packet.to_immutable(),
+        &virtual_ip,
+        &sender_ip,
+    );
+    tcp_packet.set_checksum(tcp_checksum);
+
     ipv4_packet.set_payload(tcp_packet.packet());
+    ipv4_packet.set_checksum(checksum(&ipv4_packet.to_immutable()));
 
     ethernet_packet.set_payload(ipv4_packet.packet());
 
