@@ -11,6 +11,7 @@ pub async fn handle_ssh_connection(
     //source_ip: Ipv4Addr,
     //source_port: u16,
 ) {
+    println!("Handling ssh");
     let sshd = TcpStream::connect("127.0.0.1:2022")
         .await
         .expect("❌ Connessione al server SSH fallita");
@@ -18,6 +19,7 @@ pub async fn handle_ssh_connection(
     // Leggi da sshd
     let mut sshd_reader = sshd;
     let mut buffer = [0u8; 1024];
+    println!("Starting reading ssh");
 
     match sshd_reader.read(&mut buffer).await {
         Ok(n) => {

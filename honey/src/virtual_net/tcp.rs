@@ -41,9 +41,9 @@ pub async fn handle_tcp_packet<'a>(
         TcpFlags::ACK => {
             match tcp_received_packet.get_destination() {
                 22 => {
-                    tokio::spawn(async move {
+                    //tokio::spawn(async move {
                         handle_ssh_connection().await;
-                    });    
+                    //});    
                 
                 }
                 _ => {}
