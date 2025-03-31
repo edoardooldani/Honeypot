@@ -9,7 +9,7 @@ pub async fn handle_ssh_connection(
     source_ip: Ipv4Addr,
     source_port: u16
 ){
-    let addr = source_ip.to_string() + &source_port.to_string();
+    let addr = format!("{}:{}", source_ip, source_port);
     println!("Addr: {addr}");
     let local_stream = TcpStream::connect(addr).await.expect("Failed creating local stream proxy");
 
