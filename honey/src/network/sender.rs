@@ -3,9 +3,10 @@ use pnet::packet::arp::{ArpOperations, MutableArpPacket};
 use pnet::packet::ethernet::{MutableEthernetPacket, EtherTypes};
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::MutableIpv4Packet;
-use pnet::packet::tcp::{MutableTcpPacket, TcpFlags};
+use pnet::packet::tcp::{MutableTcpPacket, TcpFlags, TcpPacket};
 use pnet::packet::Packet;
 use pnet::util::MacAddr;
+use rand::Rng;
 use std::collections::HashSet;
 use std::net::Ipv4Addr;
 use std::process::Command;
@@ -96,7 +97,7 @@ pub fn send_tcp_syn_ack(
     sender_mac: MacAddr,
     sender_ip: Ipv4Addr,
     virtual_port: u16,
-    dst_port: u16
+    tcp_received_packet: TcpPacket
 ) {
     let mut ethernet_buffer = [0u8; 66]; // Ethernet (14) + IPv4 (20) + TCP (32)
     let mut ethernet_packet = MutableEthernetPacket::new(&mut ethernet_buffer).unwrap();
@@ -114,12 +115,15 @@ pub fn send_tcp_syn_ack(
     ipv4_packet.set_destination(sender_ip);
     ipv4_packet.set_ttl(64);
 
+    let mut rng = rand::rng();
+    let sequence: u32 = rng.random();
+
     let mut tcp_buffer = [0u8; 32];
     let mut tcp_packet = MutableTcpPacket::new(&mut tcp_buffer).unwrap();
     tcp_packet.set_source(virtual_port); 
-    tcp_packet.set_destination(dst_port);
-    tcp_packet.set_sequence(0);
-    tcp_packet.set_acknowledgement(1); 
+    tcp_packet.set_destination(tcp_received_packet.get_source());
+    tcp_packet.set_sequence(sequence);
+    tcp_packet.set_acknowledgement(tcp_received_packet.get_sequence()+1); 
     tcp_packet.set_flags(TcpFlags::SYN | TcpFlags::ACK);
     tcp_packet.set_window(8192);
     tcp_packet.set_data_offset(5);
