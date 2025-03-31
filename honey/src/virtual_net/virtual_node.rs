@@ -1,6 +1,6 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tracing::error;
-use crate::network::sender::{build_arp_reply, send_tcp_syn_ack};
+use crate::network::sender::{send_arp_reply, send_tcp_syn_ack};
 use std::net::Ipv4Addr;
 
 use super::graph::NetworkGraph;
@@ -25,14 +25,13 @@ pub async fn handle_broadcast<'a>(
                         let virtual_mac = virtual_node.mac_address;
                         let virtual_ip = virtual_node.ipv4_address.clone();
 
-                        let reply = build_arp_reply(
+                        let _ = send_arp_reply(
                             virtual_mac,
                             virtual_ip,
                             arp_packet.get_sender_hw_addr(),
                             arp_packet.get_sender_proto_addr(),
-                        ).expect("Failed building arp reply");
-
-                        tx_datalink.send_to(&reply, None);
+                            tx_datalink
+                        );
                         
                     }
                 }
@@ -58,16 +57,13 @@ pub fn handle_virtual_packet(
             if let Some(arp_packet) = ArpPacket::new(ethernet_packet.payload()) {
                 if arp_packet.get_operation() == ArpOperations::Request{
 
-                    let reply = build_arp_reply(
+                    let _ = send_arp_reply(
                         *virtual_mac, 
                         *virtual_ip, 
                         arp_packet.get_sender_hw_addr(),
-                        arp_packet.get_sender_proto_addr()
-                    )
-                    .expect("Failed building arp reply");
-
-                    println!("Vmac: {:?} Vip: {:?} Dmac: {:?} Dip: {:?}", *virtual_mac, *virtual_ip,arp_packet.get_sender_hw_addr(), arp_packet.get_sender_proto_addr());
-                    tx.send_to(&reply, None);
+                        arp_packet.get_sender_proto_addr(),
+                        tx
+                    );
 
                 }
             }

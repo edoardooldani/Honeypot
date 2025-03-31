@@ -47,14 +47,21 @@ lazy_static! {
     static ref SENT_ARP_REPLIES: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
 }
 
-pub fn build_arp_reply(my_mac: MacAddr, my_ip: Ipv4Addr, target_mac: MacAddr, target_ip: Ipv4Addr) -> Result<Vec<u8>, io::Error>{
+pub fn send_arp_reply(
+    my_mac: MacAddr,
+     my_ip: Ipv4Addr, 
+     target_mac: MacAddr, 
+     target_ip: Ipv4Addr, 
+     tx: &mut dyn DataLinkSender
+) {
     
     let key = format!("{}->{}", my_ip, target_ip);
 
     let mut sent_replies = SENT_ARP_REPLIES.lock().unwrap();
     if sent_replies.contains(&key) {
-        return Err(io::Error::new(io::ErrorKind::Other, "ARP reply already sent"));
+        return;
     }
+
     sent_replies.insert(key);
 
     let mut ethernet_buffer = [0u8; 42];
@@ -77,7 +84,8 @@ pub fn build_arp_reply(my_mac: MacAddr, my_ip: Ipv4Addr, target_mac: MacAddr, ta
 
     ethernet_packet.set_payload(&arp_buffer);
 
-    Ok(ethernet_packet.packet().to_vec())
+    tx.send_to(&ethernet_packet.packet().to_vec(), None);
+
 }
 
 
