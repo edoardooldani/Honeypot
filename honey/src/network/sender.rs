@@ -105,13 +105,15 @@ pub fn send_tcp_syn_ack(
     const IPV4_LEN: usize = 52;
     const TCP_LEN: usize = 32;
 
-    let mut ethernet_buffer = [0u8; ETHERNET_LEN]; // Ethernet (14) + IPv4 (20) + TCP (32)
+    let mut ethernet_buffer = vec![0u8; ETHERNET_LEN + payload.len()];
+
+    //let mut ethernet_buffer = [0u8; ETHERNET_LEN + payload.len()]; // Ethernet (14) + IPv4 (20) + TCP (32)
     let mut ethernet_packet = MutableEthernetPacket::new(&mut ethernet_buffer).unwrap();
     ethernet_packet.set_destination(sender_mac);
     ethernet_packet.set_source(virtual_mac);
     ethernet_packet.set_ethertype(EtherTypes::Ipv4);
 
-    let mut ipv4_buffer = [0u8; IPV4_LEN];
+    let mut ipv4_buffer = vec![0u8; IPV4_LEN + payload.len()];
     let mut ipv4_packet = MutableIpv4Packet::new(&mut ipv4_buffer).unwrap();
     ipv4_packet.set_version(4);
     ipv4_packet.set_header_length(5);
@@ -124,7 +126,7 @@ pub fn send_tcp_syn_ack(
     let mut rng = rand::rng();
     let sequence: u32 = rng.random();
 
-    let mut tcp_buffer = [0u8; TCP_LEN];
+    let mut tcp_buffer = vec![0u8; TCP_LEN + payload.len()];
     let mut tcp_packet = MutableTcpPacket::new(&mut tcp_buffer).unwrap();
     tcp_packet.set_source(virtual_port); 
     tcp_packet.set_destination(tcp_received_packet.get_source());
@@ -135,7 +137,7 @@ pub fn send_tcp_syn_ack(
     tcp_packet.set_data_offset(5);
 
     tcp_packet.set_payload(payload);
-    
+
     let tcp_checksum = ipv4_checksum(
         &tcp_packet.to_immutable(),
         &virtual_ip,
