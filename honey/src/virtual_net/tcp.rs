@@ -13,7 +13,7 @@ pub fn handle_tcp_packet(
     source_mac: MacAddr
 ){
     match tcp_received_packet.get_flags(){
-        TcpFlags::SYN => {
+        f if f & TcpFlags::SYN != 0 => {
             let virtual_port = tcp_received_packet.get_destination();
             let response_flags: u8;
 
@@ -38,7 +38,7 @@ pub fn handle_tcp_packet(
                 );
             
         }
-        TcpFlags::ACK => {
+        f if f & TcpFlags::ACK != 0 => {
             println!("TCP ack: {:?}", tcp_received_packet);
             match tcp_received_packet.get_destination() {
                 22 => {
@@ -54,6 +54,17 @@ pub fn handle_tcp_packet(
                 _ => {}
             }
         }
+        f if f & TcpFlags::ACK != 0 && f & TcpFlags::PSH != 0 => {
+            handle_ssh_connection(
+                &mut *tx, 
+                tcp_received_packet,
+                virtual_mac,
+                virtual_ip,
+                source_ip,
+                source_mac
+            );
+        }
+
         _ => {}
     }
 }
