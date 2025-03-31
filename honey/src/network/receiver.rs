@@ -89,10 +89,10 @@ pub async fn scan_datalink(
                         }
                     }       
 
-                    
+                    /* 
                     if dest_mac.octets().iter().all(|&byte| byte == 0xFF) {
                         handle_broadcast(&ethernet_packet, &mut *graph, &mut *tx_datalink).await;
-                    }
+                    }*/
 
 
                     
