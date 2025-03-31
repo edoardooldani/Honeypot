@@ -89,28 +89,38 @@ pub async fn scan_datalink(
                         }
                     }       
 
+                    /* 
                     if dest_mac.octets().iter().all(|&byte| byte == 0xFF) {
                         handle_broadcast(&ethernet_packet, &mut *graph, &mut *tx_datalink).await;
-                    }
+                    }*/
 
 
                     
                     // Handle virtual receiver
-                    if let Some(dest_node) = graph.nodes.get(&dest_mac) {
-                        let graph_node = &graph.graph[*dest_node];
-
-                        if graph_node.node_type == NodeType::Virtual{
-                            handle_virtual_packet(
-                                &ethernet_packet, 
-                                &graph_node.mac_address, 
-                                &graph_node.ipv4_address.clone(), 
-                                &src_mac, 
-                                &mut *tx_datalink
-                            );
+                    if let Some(dest_node) = graph.find_virtual_node_by_ip(dest_ip) {
+                        handle_virtual_packet(
+                            &ethernet_packet, 
+                            &dest_node.mac_address, 
+                            &dest_node.ipv4_address, 
+                            &src_mac, 
+                            &mut *tx_datalink
+                        );
+            
+                    }else {
+                        if let Some(dest_node) = graph.nodes.get(&dest_mac) {
+                            let graph_node = &graph.graph[*dest_node];
+                            if graph_node.node_type == NodeType::Virtual{
+                                handle_virtual_packet(
+                                    &ethernet_packet, 
+                                    &graph_node.mac_address, 
+                                    &graph_node.ipv4_address.clone(), 
+                                    &src_mac, 
+                                    &mut *tx_datalink
+                                );
+                            }
+                            
                         }
-                        
                     }
-                    
                     
                     detect_attacks(
                         tx.clone(), 

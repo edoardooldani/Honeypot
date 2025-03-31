@@ -24,7 +24,7 @@ pub async fn handle_broadcast<'a>(
                     if let Some(virtual_node) = graph.find_virtual_node_by_ip(requested_ip) {
                         let virtual_mac = virtual_node.mac_address;
                         let virtual_ip = virtual_node.ipv4_address.clone();
-    
+
                         let reply = build_arp_reply(
                             virtual_mac,
                             virtual_ip,
