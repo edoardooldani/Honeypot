@@ -7,7 +7,7 @@ use axum::{
 use chrono::Utc;
 use futures_util::SinkExt;
 use bincode;
-use common::types::{DeviceType, Packet, PayloadType, PriorityLevel};
+use common::types::{DataType, DeviceType, Packet, PayloadType, PriorityLevel};
 use rdkafka::producer::FutureRecord;
 use tracing::{info, warn, error};
 use tokio::time::{self, Duration};
@@ -91,7 +91,7 @@ async fn process_packet(wss_state: &Arc<WssAppState>, device_name: &str, bin: &[
         return Err(format!("Invalid timestamp: {}", packet.header.timestamp));
     }
 
-    if DeviceType::from_u8(packet.header.data_type).is_none() {
+    if DataType::from_u8(packet.header.data_type).is_none() {
         return Err(format!("Invalid data type: {}", packet.header.data_type));
     }
 
