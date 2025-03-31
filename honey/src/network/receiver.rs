@@ -100,7 +100,7 @@ pub async fn scan_datalink(
 
                     
                     // Handle virtual receiver
-                    if let Some(dest_node) = graph.find_node_by_ip_or_mac(dest_mac, dest_ip) {
+                    if let Some(dest_node) = graph.find_virtual_node_by_ip_or_mac(dest_mac, dest_ip) {
                         handle_virtual_packet(
                             &ethernet_packet, 
                             &dest_node.mac_address, 
