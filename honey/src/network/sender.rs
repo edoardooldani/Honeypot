@@ -117,7 +117,7 @@ pub fn send_tcp_syn_ack(
     let mut ipv4_packet = MutableIpv4Packet::new(&mut ipv4_buffer).unwrap();
     ipv4_packet.set_version(4);
     ipv4_packet.set_header_length(5);
-    ipv4_packet.set_total_length(52);
+    ipv4_packet.set_total_length((IPV4_LEN + payload.len()) as u16);
     ipv4_packet.set_next_level_protocol(IpNextHeaderProtocols::Tcp);
     ipv4_packet.set_source(virtual_ip);
     ipv4_packet.set_destination(sender_ip);
