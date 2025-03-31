@@ -44,7 +44,8 @@ pub async fn handle_tcp_packet<'a>(
                     //tokio::spawn(async move {
                     let result = handle_ssh_connection().await.expect("No response found");
                     //});    
-                    tx.send_to(&result, None);
+                    let payload = &result.0[..result.1];
+                    tx.send_to(payload, None);
                 
                 }
                 _ => {}
