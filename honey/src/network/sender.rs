@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use std::net::Ipv4Addr;
 use std::process::Command;
 use std::str::FromStr;
-use std::{io, str};
+use std::str;
 use std::sync::Mutex;
 use lazy_static::lazy_static;
 

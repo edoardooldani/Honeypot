@@ -59,12 +59,15 @@ pub async fn scan_datalink(
             
                     let protocol = ethernet_packet.get_ethertype();
 
-                    let mut src_ip: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
-                    let mut dest_ip: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
+                    let src_ip: Ipv4Addr;
+                    let dest_ip: Ipv4Addr;
 
                     if let Some((sc_ip, dst_ip)) = get_src_dest_ip(&ethernet_packet) {
                         src_ip = sc_ip;
                         dest_ip= dst_ip;
+                    }else{
+                        src_ip = Ipv4Addr::new(0, 0, 0, 0);
+                        dest_ip = Ipv4Addr::new(0, 0, 0, 0);
                     }
 
                     let src_type = classify_mac_address(src_mac);
@@ -97,29 +100,14 @@ pub async fn scan_datalink(
 
                     
                     // Handle virtual receiver
-                    if let Some(dest_node) = graph.find_virtual_node_by_ip(dest_ip) {
+                    if let Some(dest_node) = graph.find_node_by_ip_or_mac(dest_mac, dest_ip) {
                         handle_virtual_packet(
                             &ethernet_packet, 
                             &dest_node.mac_address, 
                             &dest_node.ipv4_address, 
                             &src_mac, 
                             &mut *tx_datalink
-                        );
-            
-                    }else {
-                        if let Some(dest_node) = graph.nodes.get(&dest_mac) {
-                            let graph_node = &graph.graph[*dest_node];
-                            if graph_node.node_type == NodeType::Virtual{
-                                handle_virtual_packet(
-                                    &ethernet_packet, 
-                                    &graph_node.mac_address, 
-                                    &graph_node.ipv4_address.clone(), 
-                                    &src_mac, 
-                                    &mut *tx_datalink
-                                );
-                            }
-                            
-                        }
+                        );            
                     }
 
                     detect_attacks(
