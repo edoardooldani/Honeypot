@@ -54,9 +54,7 @@ pub async fn scan_datalink(
                     }
 
                     let dest_mac = ethernet_packet.get_destination();
-                    
                     let bytes = packet.len() as u64;
-            
                     let protocol = ethernet_packet.get_ethertype();
 
                     let src_ip: Ipv4Addr;

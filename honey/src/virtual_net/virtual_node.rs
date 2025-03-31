@@ -76,11 +76,12 @@ pub fn handle_virtual_packet(
                     IpNextHeaderProtocols::Tcp => {
                         if let Some(tcp_packet) = TcpPacket::new(ipv4_packet.payload()) {
                             if tcp_packet.get_flags() & TcpFlags::SYN != 0 {
-                                println!("Sending tcp ack");
                                 let src_ip = ipv4_packet.get_source();
                                 let src_port = tcp_packet.get_source();
                                 let virtual_port = tcp_packet.get_destination();
                                 if virtual_port == 22 || virtual_port == 80 {
+
+                                    println!("TCP packet: {:?}\n", tcp_packet);
                                     send_tcp_syn_ack(&mut *tx, *virtual_mac, *virtual_ip, *sender_mac, src_ip, virtual_port, src_port);
                                 }
                             }
