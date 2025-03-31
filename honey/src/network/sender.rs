@@ -98,17 +98,17 @@ pub fn send_tcp_syn_ack(
     virtual_port: u16,
     dst_port: u16
 ) {
-    let mut ethernet_buffer = [0u8; 80]; // Ethernet (14) + IPv4 (20) + TCP (32)
+    let mut ethernet_buffer = [0u8; 66]; // Ethernet (14) + IPv4 (20) + TCP (32)
     let mut ethernet_packet = MutableEthernetPacket::new(&mut ethernet_buffer).unwrap();
     ethernet_packet.set_destination(sender_mac);
     ethernet_packet.set_source(virtual_mac);
     ethernet_packet.set_ethertype(EtherTypes::Ipv4);
 
-    let mut ipv4_buffer = [0u8; 60];
+    let mut ipv4_buffer = [0u8; 52];
     let mut ipv4_packet = MutableIpv4Packet::new(&mut ipv4_buffer).unwrap();
     ipv4_packet.set_version(4);
     ipv4_packet.set_header_length(5);
-    ipv4_packet.set_total_length(40);
+    ipv4_packet.set_total_length(52);
     ipv4_packet.set_next_level_protocol(IpNextHeaderProtocols::Tcp);
     ipv4_packet.set_source(virtual_ip);
     ipv4_packet.set_destination(sender_ip);
@@ -126,7 +126,6 @@ pub fn send_tcp_syn_ack(
 
     ipv4_packet.set_payload(tcp_packet.packet());
 
-    println!("Ipv4 lenght: {:?}", ipv4_packet.get_total_length());
     ethernet_packet.set_payload(ipv4_packet.packet());
     println!("REPLY packet: {:?}\n", tcp_packet);
 
