@@ -22,7 +22,7 @@ pub fn handle_tcp_packet(
             }else {
                 response_flags = TcpFlags::RST;
             }
-            
+
             send_tcp_syn_ack(
                 &mut *tx, 
                 virtual_mac, 
@@ -34,6 +34,9 @@ pub fn handle_tcp_packet(
                 response_flags
                 );
             
+        }
+        TcpFlags::ACK => {
+            println!("TCP ack: {:?}", tcp_received_packet);
         }
         _ => {}
     }
