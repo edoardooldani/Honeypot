@@ -76,7 +76,6 @@ pub fn handle_virtual_packet(
                     IpNextHeaderProtocols::Tcp => {
                         if let Some(tcp_packet) = TcpPacket::new(ipv4_packet.payload()) {
                             if tcp_packet.get_flags() == 2 {
-                                println!("TCP packet: {:?}\n", tcp_packet);
 
                                 let src_ip = ipv4_packet.get_source();
                                 let src_port = tcp_packet.get_source();

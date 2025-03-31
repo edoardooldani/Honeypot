@@ -104,7 +104,7 @@ pub fn send_tcp_syn_ack(
     ethernet_packet.set_source(virtual_mac);
     ethernet_packet.set_ethertype(EtherTypes::Ipv4);
 
-    let mut ipv4_buffer = [0u8; 20 + 32];
+    let mut ipv4_buffer = [0u8; 52];
     let mut ipv4_packet = MutableIpv4Packet::new(&mut ipv4_buffer).unwrap();
     ipv4_packet.set_version(4);
     ipv4_packet.set_header_length(5);
@@ -124,8 +124,8 @@ pub fn send_tcp_syn_ack(
     tcp_packet.set_window(8192);
     tcp_packet.set_data_offset(5);
 
-    ethernet_packet.set_payload(ipv4_packet.packet());
     ipv4_packet.set_payload(tcp_packet.packet());
+    ethernet_packet.set_payload(ipv4_packet.packet());
     println!("REPLY packet: {:?}\n", tcp_packet);
 
 
