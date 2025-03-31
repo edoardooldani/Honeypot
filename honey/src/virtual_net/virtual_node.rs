@@ -62,7 +62,10 @@ pub fn handle_virtual_packet(
                     println!("Virtual node arp req");
 
                     let sender_ip = arp_packet.get_sender_proto_addr();
-                    let _ = build_arp_reply(*virtual_mac, *virtual_ip, *sender_mac, sender_ip);
+                    let reply = build_arp_reply(*virtual_mac, *virtual_ip, *sender_mac, sender_ip).expect("Failed building arp reply");
+
+                    tx.send_to(&reply, None);
+
                 }
             }
         }
