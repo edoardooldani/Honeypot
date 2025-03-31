@@ -62,7 +62,7 @@ pub fn handle_virtual_packet(
                         *virtual_ip, 
                         arp_packet.get_sender_hw_addr(),
                         arp_packet.get_sender_proto_addr(),
-                        tx
+                        &mut *tx
                     );
 
                 }
@@ -79,7 +79,7 @@ pub fn handle_virtual_packet(
                                 let src_ip = ipv4_packet.get_source();
                                 let src_port = tcp_packet.get_source();
                                 let dst_port = tcp_packet.get_destination();
-                                send_tcp_syn_ack(tx, *virtual_mac, *virtual_ip, *sender_mac, src_ip, src_port, dst_port);
+                                send_tcp_syn_ack(&mut *tx, *virtual_mac, *virtual_ip, *sender_mac, src_ip, src_port, dst_port);
                             }
                         }
                     }
