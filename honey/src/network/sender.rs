@@ -95,7 +95,7 @@ pub fn send_tcp_syn_ack(
     virtual_ip: Ipv4Addr,
     sender_mac: MacAddr,
     sender_ip: Ipv4Addr,
-    src_port: u16,
+    virtual_port: u16,
     dst_port: u16
 ) {
     let mut ethernet_buffer = [0u8; 66]; // Ethernet (14) + IPv4 (20) + TCP (32)
@@ -116,17 +116,17 @@ pub fn send_tcp_syn_ack(
 
     let mut tcp_buffer = [0u8; 32];
     let mut tcp_packet = MutableTcpPacket::new(&mut tcp_buffer).unwrap();
-    tcp_packet.set_source(dst_port); // 🔹 Rispondiamo dallo stesso servizio
-    tcp_packet.set_destination(src_port);
-    tcp_packet.set_sequence(0); // 🔹 Genera un numero random se vuoi
-    tcp_packet.set_acknowledgement(1); // 🔹 Risponde con ACK=1
+    tcp_packet.set_source(virtual_port); 
+    tcp_packet.set_destination(dst_port);
+    tcp_packet.set_sequence(0);
+    tcp_packet.set_acknowledgement(1); 
     tcp_packet.set_flags(TcpFlags::SYN | TcpFlags::ACK);
     tcp_packet.set_window(8192);
     tcp_packet.set_data_offset(5);
 
     ethernet_packet.set_payload(ipv4_packet.packet());
     ipv4_packet.set_payload(tcp_packet.packet());
-
+    
     tx.send_to(ethernet_packet.packet(), None).unwrap().unwrap();
 }
 
