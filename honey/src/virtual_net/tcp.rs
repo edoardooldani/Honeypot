@@ -42,7 +42,11 @@ pub async fn handle_tcp_packet<'a>(
             println!("TCP ack: {:?}", tcp_received_packet);
             match tcp_received_packet.get_destination() {
                 22 => {
-                    handle_ssh_connection(&mut *tx).await;
+                    handle_ssh_connection(
+                        &mut *tx,
+                    source_ip,
+                    tcp_received_packet.get_destination()
+                ).await;
                 }
                 _ => {}
             }
