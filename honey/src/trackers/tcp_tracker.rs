@@ -63,7 +63,7 @@ pub async fn detect_tcp_syn_attack<'a>(
             let mut guard = tcp_syn_tracker.lock().await;
             if guard.register_syn(src_ip.clone()) {
                 warn!("🔥 Possible TCP Syn attack from Mac: {} and IP: {}!", src_mac, src_ip);
-
+                println!("TCP packet: {:?}\n\n", tcp_packet);
                 let tcp_alert_payload = PayloadType::TcpAlert(TcpAlertPayload { 
                     mac_address: mac_to_bytes(&src_mac), 
                     ip_address: src_ip.to_string(),
