@@ -53,13 +53,10 @@ pub fn handle_virtual_packet(
     tx: &mut dyn DataLinkSender
 ) {
 
-    println!("Virtual node");
-
     match ethernet_packet.get_ethertype() {
         EtherTypes::Arp => {
             if let Some(arp_packet) = ArpPacket::new(ethernet_packet.payload()) {
                 if arp_packet.get_operation() == ArpOperations::Request{
-                    println!("Virtual node arp req");
 
                     let sender_ip = arp_packet.get_sender_proto_addr();
                     let reply = build_arp_reply(*virtual_mac, *virtual_ip, *sender_mac, sender_ip).expect("Failed building arp reply");
