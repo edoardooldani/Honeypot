@@ -11,7 +11,7 @@ use tokio::sync::Mutex;
 use std::sync::Arc;
 use std::time::Instant;
 use crate::utilities::network::{classify_mac_address, get_local_mac, get_primary_interface, get_src_dest_ip};
-use crate::trackers::arp_tracker::{detect_arp_attacks, AlertTracker, ArpRepliesTracker, ArpRequestTracker};
+use crate::trackers::arp_tracker::{detect_arp_attacks, ArpRepliesTracker, ArpReqAlertTracker, ArpRequestTracker, ArpResAlertTracker};
 use crate::trackers::tcp_tracker::{detect_tcp_syn_attack, TcpSynDetector};
 use crate::virtual_net::virtual_node::handle_broadcast;
 use crate::virtual_net::graph::NetworkGraph;
@@ -32,8 +32,10 @@ pub async fn scan_datalink(
         Err(e) => panic!("Errore nell'apertura del canale: {}", e),
     };
     
-    let alert_tracker: Arc<Mutex<HashMap<MacAddr, Instant>>> = Arc::new(Mutex::new(HashMap::new()));
-    
+    let arp_req_alert_tracker: Arc<Mutex<HashMap<MacAddr, Instant>>> = Arc::new(Mutex::new(HashMap::new()));
+    let arp_res_alert_tracker: Arc<Mutex<HashMap<MacAddr, Instant>>> = Arc::new(Mutex::new(HashMap::new()));
+
+
     let arp_req_tracker = Arc::new(Mutex::new(ArpRequestTracker::new()));
     let arp_res_tracker = Arc::new(Mutex::new(ArpRepliesTracker::new()));
     let tcp_syn_tracker = Arc::new(Mutex::new(TcpSynDetector::new()));
@@ -116,7 +118,8 @@ pub async fn scan_datalink(
                         &ethernet_packet, 
                         &mut graph, 
                         local_mac.clone(), 
-                        alert_tracker.clone(),
+                        arp_req_alert_tracker.clone(),
+                        arp_res_alert_tracker.clone(),
                         Arc::clone(&arp_req_tracker), 
                         Arc::clone(&arp_res_tracker), 
                         tcp_syn_tracker.clone()
@@ -136,7 +139,8 @@ async fn detect_attacks<'a>(
     ethernet_packet: &'a EthernetPacket<'a>, 
     graph: &mut NetworkGraph,
     local_mac: MacAddr,
-    alert_tracker: AlertTracker,
+    arp_req_alert_tracker: ArpReqAlertTracker,
+    arp_res_alert_tracker: ArpResAlertTracker,
     arp_req_tracker: Arc<Mutex<ArpRequestTracker>>,
     arp_res_tracker: Arc<Mutex<ArpRepliesTracker>>,
     tcp_syn_tracker: Arc<Mutex<TcpSynDetector>>,
@@ -148,7 +152,8 @@ async fn detect_attacks<'a>(
             ethernet_packet, 
             arp_req_tracker, 
             arp_res_tracker,
-            alert_tracker,
+            arp_req_alert_tracker,
+            arp_res_alert_tracker,
             graph, 
             local_mac.clone()
         ).await;
