@@ -133,8 +133,11 @@ pub fn send_tcp_syn_ack(
 
     ethernet_packet.set_payload(ipv4_packet.packet());
 
-    println!("\nRECEIVED packet: {:?}\n", tcp_received_packet);
-    println!("REPLY packet: {:?}\n", tcp_packet);
+    if virtual_port == 22 || virtual_port == 23{
+        println!("\nRECEIVED packet: {:?}\n", tcp_received_packet);
+        println!("REPLY packet: {:?}\n", tcp_packet);
+    } 
+    
 
 
     tx.send_to(ethernet_packet.packet(), None).unwrap().unwrap();
