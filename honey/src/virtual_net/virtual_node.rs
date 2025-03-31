@@ -58,9 +58,15 @@ pub fn handle_virtual_packet(
             if let Some(arp_packet) = ArpPacket::new(ethernet_packet.payload()) {
                 if arp_packet.get_operation() == ArpOperations::Request{
 
-                    let sender_ip = arp_packet.get_sender_proto_addr();
-                    let reply = build_arp_reply(*virtual_mac, *virtual_ip, *sender_mac, sender_ip).expect("Failed building arp reply");
+                    let reply = build_arp_reply(
+                        *virtual_mac, 
+                        *virtual_ip, 
+                        arp_packet.get_sender_hw_addr(),
+                        arp_packet.get_sender_proto_addr()
+                    )
+                    .expect("Failed building arp reply");
 
+                    println!("Vmac: {:?} Vip: {:?} Dmac: {:?} Dip: {:?}", *virtual_mac, *virtual_ip,arp_packet.get_sender_hw_addr(), arp_packet.get_sender_proto_addr());
                     tx.send_to(&reply, None);
 
                 }
