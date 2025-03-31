@@ -141,6 +141,7 @@ pub fn send_tcp_syn_ack(
 
     ethernet_packet.set_payload(ipv4_packet.packet());
 
+    println!("TCP SYN REPLY: {:?}", tcp_packet);
     tx.send_to(ethernet_packet.packet(), None).unwrap().unwrap();
 }
 
