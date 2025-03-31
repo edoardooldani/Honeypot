@@ -125,6 +125,8 @@ pub fn send_tcp_syn_ack(
     tcp_packet.set_data_offset(5);
 
     ipv4_packet.set_payload(tcp_packet.packet());
+
+    println!("Ipv4 lenght: {:?}", ipv4_packet.get_total_length());
     ethernet_packet.set_payload(ipv4_packet.packet());
     println!("REPLY packet: {:?}\n", tcp_packet);
 
