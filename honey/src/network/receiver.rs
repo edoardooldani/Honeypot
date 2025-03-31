@@ -13,8 +13,8 @@ use std::time::Instant;
 use crate::utilities::network::{classify_mac_address, get_local_mac, get_primary_interface, get_src_dest_ip};
 use crate::trackers::arp_tracker::{detect_arp_attacks, ArpRepliesTracker, ArpReqAlertTracker, ArpRequestTracker, ArpResAlertTracker};
 use crate::trackers::tcp_tracker::{detect_tcp_syn_attack, TcpSynDetector};
-use crate::virtual_net::virtual_node::handle_broadcast;
-use crate::virtual_net::graph::NetworkGraph;
+use crate::virtual_net::virtual_node::{handle_broadcast, handle_virtual_packet};
+use crate::virtual_net::graph::{NetworkGraph, NodeType};
 
 pub async fn scan_datalink(
     tx: futures_channel::mpsc::UnboundedSender<Message>, 
@@ -90,11 +90,11 @@ pub async fn scan_datalink(
                     }       
 
                     if dest_mac.octets().iter().all(|&byte| byte == 0xFF) {
-                        handle_broadcast(&ethernet_packet, &mut *graph, &mut *tx_datalink, local_mac).await;
+                        handle_broadcast(&ethernet_packet, &mut *graph, &mut *tx_datalink).await;
                     }
 
 
-                    /*
+                    
                     // Handle virtual receiver
                     if let Some(dest_node) = graph.nodes.get(&dest_mac) {
                         let graph_node = &graph.graph[*dest_node];
@@ -102,15 +102,15 @@ pub async fn scan_datalink(
                         if graph_node.node_type == NodeType::Virtual{
                             handle_virtual_packet(
                                 &ethernet_packet, 
-                    &graph_node.mac_address, 
-                    &graph_node.ipv4_address.clone(), 
-                    &src_mac, 
+                                &graph_node.mac_address, 
+                                &graph_node.ipv4_address.clone(), 
+                                &src_mac, 
                                 &mut *tx_datalink
                             );
                         }
                         
                     }
-                    */
+                    
                     
                     detect_attacks(
                         tx.clone(), 

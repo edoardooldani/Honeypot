@@ -47,7 +47,7 @@ lazy_static! {
     static ref SENT_ARP_REPLIES: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
 }
 
-pub fn build_arp_reply(my_mac: pnet::util::MacAddr, my_ip: Ipv4Addr, target_mac: pnet::util::MacAddr, target_ip: Ipv4Addr) -> Result<Vec<u8>, io::Error>{
+pub fn build_arp_reply(my_mac: MacAddr, my_ip: Ipv4Addr, target_mac: MacAddr, target_ip: Ipv4Addr) -> Result<Vec<u8>, io::Error>{
     
     let key = format!("{}->{}", my_ip, target_ip);
 

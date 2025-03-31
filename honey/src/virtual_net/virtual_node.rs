@@ -1,7 +1,7 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tracing::error;
 use crate::network::sender::{build_arp_reply, send_tcp_syn_ack};
-use std::{net::Ipv4Addr, str::FromStr};
+use std::net::Ipv4Addr;
 
 use super::graph::NetworkGraph;
 
@@ -11,7 +11,6 @@ pub async fn handle_broadcast<'a>(
     ethernet_packet: &EthernetPacket<'a>,
     graph: &mut NetworkGraph,
     tx_datalink: &mut dyn DataLinkSender,
-    local_mac: MacAddr
 ) {
 
     if ethernet_packet.get_ethertype() == EtherTypes::Arp {
@@ -48,25 +47,22 @@ pub async fn handle_broadcast<'a>(
 
 pub fn handle_virtual_packet(
     ethernet_packet: &EthernetPacket,
-    virtual_mac: &str,
-    virtual_ip: &str,
-    sender_mac: &str,
+    virtual_mac: &MacAddr,
+    virtual_ip: &Ipv4Addr,
+    sender_mac: &MacAddr,
     tx: &mut dyn DataLinkSender
 ) {
 
     println!("Virtual node");
-    let virtual_mac = MacAddr::from_str(virtual_mac).expect("MAC non valido");
-    let virtual_ip = Ipv4Addr::from_str(virtual_ip).expect("IP non valido");
-    let sender_mac = MacAddr::from_str(sender_mac).expect("MAC non valido");
 
     match ethernet_packet.get_ethertype() {
         EtherTypes::Arp => {
             if let Some(arp_packet) = ArpPacket::new(ethernet_packet.payload()) {
                 if arp_packet.get_operation() == ArpOperations::Request
-                    && arp_packet.get_target_proto_addr() == virtual_ip
+                    && arp_packet.get_target_proto_addr() == *virtual_ip
                 {
                     let sender_ip = arp_packet.get_sender_proto_addr();
-                    let _ = build_arp_reply(virtual_mac, virtual_ip, sender_mac, sender_ip);
+                    let _ = build_arp_reply(*virtual_mac, *virtual_ip, *sender_mac, sender_ip);
                 }
             }
         }
@@ -81,7 +77,7 @@ pub fn handle_virtual_packet(
                                 let src_ip = ipv4_packet.get_source();
                                 let src_port = tcp_packet.get_source();
                                 let dst_port = tcp_packet.get_destination();
-                                send_tcp_syn_ack(tx, virtual_mac, virtual_ip, sender_mac, src_ip, src_port, dst_port);
+                                send_tcp_syn_ack(tx, *virtual_mac, *virtual_ip, *sender_mac, src_ip, src_port, dst_port);
                             }
                         }
                     }
