@@ -13,10 +13,12 @@ pub fn handle_ssh_connection(
     source_ip: Ipv4Addr,
     source_mac: MacAddr
 ){
-    if !tcp_received_packet.payload().starts_with(b"SSH-") {
+    println!("TCP PAYLOAD: {:?}", tcp_received_packet.payload());
+    
+    /*if !tcp_received_packet.payload().starts_with(b"SSH-") {
         error!("🚩 Connection SSH in port: {}!", tcp_received_packet.get_destination());
         return;
-    }
+    }*/
     let response_flags = TcpFlags::ACK | TcpFlags::PSH;
     let banner = b"SSH-2.0-OpenSSH_8.6\r\n";
     send_tcp_syn_ack(
