@@ -142,10 +142,20 @@ pub async fn send_tcp_stream(
     );
     tcp_packet.set_checksum(tcp_checksum);
 
-    ipv4_packet.set_payload(tcp_packet.packet());
+    let tcp_packet_bytes = tcp_packet.packet();
+    let mut ipv4_payload = Vec::with_capacity(tcp_packet_bytes.len() + payload.len());
+    ipv4_payload.extend_from_slice(tcp_packet_bytes);
+    ipv4_payload.extend_from_slice(payload);
+
+    ipv4_packet.set_payload(&ipv4_payload);
+    ipv4_packet.set_total_length((IPV4_LEN + ipv4_payload.len()) as u16);
     ipv4_packet.set_checksum(checksum(&ipv4_packet.to_immutable()));
 
-    ethernet_packet.set_payload(ipv4_packet.packet());
+    let ipv4_bytes = ipv4_packet.packet();
+    let mut ethernet_payload = Vec::with_capacity(ipv4_bytes.len());
+    ethernet_payload.extend_from_slice(ipv4_bytes);
+
+    ethernet_packet.set_payload(&ethernet_payload);
 
     println!("Reply I send: {:?}", ethernet_packet.packet());
     let mut tx_sender = tx.lock().await;
