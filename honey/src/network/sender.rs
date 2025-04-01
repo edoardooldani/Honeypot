@@ -18,7 +18,7 @@ use lazy_static::lazy_static;
 
 const ETHERNET_LEN: usize = 66;
 const IPV4_LEN: usize = 52;
-const TCP_LEN: usize = 32;
+const TCP_LEN: usize = 20;
 
 
 pub fn send_arp_request(tx: &mut dyn datalink::DataLinkSender, my_mac: pnet::util::MacAddr, my_ip: Ipv4Addr, target_ip: Ipv4Addr) {
