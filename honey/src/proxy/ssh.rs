@@ -1,9 +1,17 @@
-use std::{net::Ipv4Addr, sync::Arc};
+use std::{collections::HashMap, net::Ipv4Addr, sync::Arc};
 
 use pnet::{datalink::DataLinkSender, packet::{tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream, sync:: Mutex};
 use tracing::info;
 use crate::network::sender::send_tcp_stream;
+use lazy_static::lazy_static;
+
+type SshSessionMap = HashMap<(Ipv4Addr, Ipv4Addr), TcpStream>;
+
+lazy_static! {
+    pub static ref SSH_SESSIONS: Arc<Mutex<HashMap<(Ipv4Addr, Ipv4Addr), Arc<Mutex<TcpStream>>>>> =
+        Arc::new(Mutex::new(HashMap::new()));
+}
 
 
 pub async fn handle_ssh_connection(
@@ -16,16 +24,15 @@ pub async fn handle_ssh_connection(
     tcp_received_packet: TcpPacket<'_>,
 ) {
 
-    let mut sshd = TcpStream::connect("127.0.0.1:2222")
-        .await
-        .expect("❌ Connessione al server SSH fallita");
-
     let src_port = tcp_received_packet.get_source();
     let seq = tcp_received_packet.get_sequence();
     let payload_from_client = tcp_received_packet.payload();
 
     let tx_clone = Arc::clone(&tx);
 
+    let sshd_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
+    let mut sshd = sshd_mutex.lock().await;
+    
     if !payload_from_client.is_empty() {
         if let Err(e) = sshd.write_all(payload_from_client).await {
             eprintln!("❌ Errore nell’invio dati a sshd: {}", e);
@@ -35,12 +42,11 @@ pub async fn handle_ssh_connection(
     
     println!("\nBuffer received from client: {:?}", payload_from_client);
 
-    let (mut read_half, _) = tokio::io::split(sshd);
     let mut buf = [0u8; 1500];
 
     loop {
 
-        match read_half.read(&mut buf).await {
+        match sshd.read(&mut buf).await {
             Ok(n) if n > 0 => {
                 let payload = buf[..n].to_vec();
 
@@ -62,4 +68,24 @@ pub async fn handle_ssh_connection(
             _ => break,
         }
     }
+}
+
+
+
+async fn get_or_create_ssh_session(virtual_ip: Ipv4Addr, destination_ip: Ipv4Addr) -> Arc<Mutex<TcpStream>>{
+    let mut sessions = SSH_SESSIONS.lock().await;
+    let key = (virtual_ip, destination_ip);
+
+    let sshd: Arc<Mutex<TcpStream>> = match sessions.get(&key) {
+        Some(stream) => Arc::clone(stream),
+        None => {
+            let stream = TcpStream::connect("127.0.0.1:2222")
+                .await
+                .expect("❌ Connessione al server SSH fallita");
+            let arc_stream = Arc::new(Mutex::new(stream));
+            sessions.insert(key, arc_stream.clone());
+            arc_stream
+        }
+    };
+    sshd
 }
