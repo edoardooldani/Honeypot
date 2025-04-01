@@ -84,7 +84,6 @@ pub async fn send_arp_reply(
     arp_packet.set_target_proto_addr(target_ip);
 
     ethernet_packet.set_payload(&arp_buffer);
-    println!("Preparing reply: {:?}", ethernet_packet);
 
     let mut tx_sender = tx.lock().await;
     let _ = tx_sender.send_to(&ethernet_packet.packet().to_vec(), None).expect("Failed sending ARP reply");
