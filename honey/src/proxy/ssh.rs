@@ -33,9 +33,11 @@ pub async fn handle_ssh_connection(
         }
     }
     
+    println!("\nBuffer received from client: {:?}", payload_from_client);
+
     let (mut read_half, _) = tokio::io::split(sshd);
     let mut buf = [0u8; 1500];
-    
+
     loop {
 
         match read_half.read(&mut buf).await {
