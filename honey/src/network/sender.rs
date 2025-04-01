@@ -3,7 +3,7 @@ use pnet::packet::arp::{ArpOperations, MutableArpPacket};
 use pnet::packet::ethernet::{MutableEthernetPacket, EtherTypes};
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::{checksum, MutableIpv4Packet};
-use pnet::packet::tcp::{ipv4_checksum, MutableTcpPacket, TcpPacket};
+use pnet::packet::tcp::{ipv4_checksum, MutableTcpPacket};
 use pnet::packet::Packet;
 use pnet::util::MacAddr;
 use tokio::sync::Mutex;
@@ -104,7 +104,6 @@ pub async fn send_tcp_stream(
     response_flag: u8,
     payload: &[u8]
 ) {
-    println!("Payload: {:?}, Payload len: {:?}", payload, payload.len());
 
     let mut ethernet_buffer = vec![0u8; ETHERNET_LEN + payload.len()];
 
@@ -149,12 +148,7 @@ pub async fn send_tcp_stream(
     ipv4_packet.set_checksum(checksum(&ipv4_packet.to_immutable()));
 
     ethernet_packet.set_payload(ipv4_packet.packet());
-
-    println!("ethernet len: {:?}", ethernet_packet.packet().len());
-    println!("ip len: {:?}", ipv4_packet.packet().len());
-    println!("tcp len: {:?}", tcp_packet.packet().len());
-
-
+    
     println!("Reply I send: {:?}", ethernet_packet.packet());
     let mut tx_sender = tx.lock().await;
     let _ = tx_sender.send_to(ethernet_packet.packet(), None).expect("Failed sending TCP stream");

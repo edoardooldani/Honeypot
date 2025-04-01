@@ -6,8 +6,6 @@ use tracing::info;
 use crate::network::sender::send_tcp_stream;
 use lazy_static::lazy_static;
 
-type SshSessionMap = HashMap<(Ipv4Addr, Ipv4Addr), TcpStream>;
-
 lazy_static! {
     pub static ref SSH_SESSIONS: Arc<Mutex<HashMap<(Ipv4Addr, Ipv4Addr), Arc<Mutex<TcpStream>>>>> =
         Arc::new(Mutex::new(HashMap::new()));
@@ -39,7 +37,7 @@ pub async fn handle_ssh_connection(
             return;
         }
     }
-    
+    println!("\n\nPacket received from client: {:?}", tcp_received_packet.packet());
     let mut buf = [0u8; 1500];
 
     loop {
@@ -49,7 +47,7 @@ pub async fn handle_ssh_connection(
                 let payload = buf[..n].to_vec();
 
                 let response_flags = TcpFlags::ACK;
-                println!("Buffer received from sshd: {:?}", payload);
+
                 send_tcp_stream(
                     tx_clone.clone(),
                     virtual_mac,
