@@ -25,6 +25,7 @@ pub async fn handle_tcp_packet<'a>(
             }
 
             let empty_payload: &[u8] = &[];
+            let next_seq: u32 = rand::random::<u32>();
 
             send_tcp_stream(
                 tx.clone(), 
@@ -35,6 +36,7 @@ pub async fn handle_tcp_packet<'a>(
                 virtual_port, 
                 tcp_received_packet.get_source(),
                 tcp_received_packet.get_sequence(),
+                next_seq,
                 response_flags,
                 empty_payload
                 ).await;
@@ -43,7 +45,7 @@ pub async fn handle_tcp_packet<'a>(
         flags if flags & TcpFlags::ACK != 0 => {
             match tcp_received_packet.get_destination() {
                 22 => {
-                    //let payload = tcp_received_packet.payload();
+
                     handle_ssh_connection(
                         tx.clone(),
                         virtual_mac, 

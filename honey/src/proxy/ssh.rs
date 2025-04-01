@@ -25,6 +25,8 @@ pub async fn handle_ssh_connection(
     let src_port = tcp_received_packet.get_source();
     let seq = tcp_received_packet.get_sequence();
     let payload_from_client = tcp_received_packet.payload();
+    let next_seq: u32 = tcp_received_packet.get_acknowledgement();
+
 
     let tx_clone = Arc::clone(&tx);
 
@@ -57,9 +59,12 @@ pub async fn handle_ssh_connection(
                     22,
                     src_port,
                     seq,
+                    next_seq,
                     response_flags,
                     &payload,
                 ).await;
+                
+                break;
             }
             _ => break,
         }
