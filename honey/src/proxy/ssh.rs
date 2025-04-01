@@ -32,7 +32,7 @@ pub async fn handle_ssh_connection(
 
     let sshd_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
     let mut sshd = sshd_mutex.lock().await;
-    
+
     if !payload_from_client.is_empty() {
         if let Err(e) = sshd.write_all(payload_from_client).await {
             eprintln!("❌ Errore nell’invio dati a sshd: {}", e);
@@ -40,8 +40,6 @@ pub async fn handle_ssh_connection(
         }
     }
     
-    println!("\nBuffer received from client: {:?}", payload_from_client);
-
     let mut buf = [0u8; 1500];
 
     loop {

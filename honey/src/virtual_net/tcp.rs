@@ -43,8 +43,7 @@ pub async fn handle_tcp_packet<'a>(
         flags if flags & TcpFlags::ACK != 0 => {
             match tcp_received_packet.get_destination() {
                 22 => {
-                    let payload = tcp_received_packet.payload();
-                    println!("Payload received: {:?}", payload);
+                    //let payload = tcp_received_packet.payload();
                     handle_ssh_connection(
                         tx.clone(),
                         virtual_mac, 
