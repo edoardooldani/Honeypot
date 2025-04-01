@@ -35,16 +35,23 @@ pub async fn handle_ssh_connection(
     if !payload_from_client.starts_with(b"SSH-") {
         return;
     }
-    
+
     let sshd_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
     let mut sshd = sshd_mutex.lock().await;
 
-    if !payload_from_client.is_empty() {
+    if let Err(e) = sshd.write_all(payload_from_client).await {
+        error!("❌ Errore nell’invio dati a sshd: {}", e);
+        let mut sessions = SSH_SESSIONS.lock().await;
+        sessions.remove(&(virtual_ip, destination_ip));
+        let sshd_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
+        let mut sshd = sshd_mutex.lock().await;
         if let Err(e) = sshd.write_all(payload_from_client).await {
-            error!("❌ Errore nell’invio dati a sshd: {}", e);
+            error!("❌ Retry fallito: {}", e);
             return;
         }
+        return;
     }
+    
     info!("\n\nPacket received from client: {:?}", tcp_received_packet.packet());
     let mut buf = [0u8; 1500];
 
