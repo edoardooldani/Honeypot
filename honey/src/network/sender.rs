@@ -156,7 +156,7 @@ pub async fn send_tcp_stream(
     ethernet_payload.extend_from_slice(ipv4_bytes);
 
     ethernet_packet.set_payload(&ethernet_payload);
-
+    println!("Payload (str): {:?}", String::from_utf8_lossy(payload));
     println!("Reply I send: {:?}", ethernet_packet.packet());
     let mut tx_sender = tx.lock().await;
     let _ = tx_sender.send_to(ethernet_packet.packet(), None).expect("Failed sending TCP stream");
