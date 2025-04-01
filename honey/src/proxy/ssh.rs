@@ -26,9 +26,16 @@ pub async fn handle_ssh_connection(
     let payload_from_client = tcp_received_packet.payload();
     let next_seq: u32 = tcp_received_packet.get_acknowledgement();
 
+    if payload_from_client.is_empty(){
+        return;
+    }
 
     let tx_clone = Arc::clone(&tx);
 
+    if !payload_from_client.starts_with(b"SSH-") {
+        return;
+    }
+    
     let sshd_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
     let mut sshd = sshd_mutex.lock().await;
 
