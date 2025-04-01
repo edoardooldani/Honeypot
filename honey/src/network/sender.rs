@@ -153,6 +153,9 @@ pub async fn send_tcp_stream(
     println!("[DEBUG] TCP header + payload len: {}", tcp_header_len+payload.len());
     println!("[DEBUG] TCP len set: {}", TCP_LEN + payload.len());
 
+    println!("[DEBUG] Payload raw bytes: {:?}", payload);
+    println!("[DEBUG] Payload trimmed: {:?}", payload.iter().filter(|&&b| b != 0).count());
+
     println!("Reply I send: {:?}", ethernet_packet.packet());
     let mut tx_sender = tx.lock().await;
     let _ = tx_sender.send_to(ethernet_packet.packet(), None).expect("Failed sending TCP stream");
