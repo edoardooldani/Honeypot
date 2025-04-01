@@ -3,7 +3,7 @@ use pnet::packet::arp::{ArpOperations, MutableArpPacket};
 use pnet::packet::ethernet::{MutableEthernetPacket, EtherTypes};
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::{checksum, MutableIpv4Packet};
-use pnet::packet::tcp::{ipv4_checksum, MutableTcpPacket, TcpPacket};
+use pnet::packet::tcp::{ipv4_checksum, MutableTcpPacket};
 use pnet::packet::Packet;
 use pnet::util::MacAddr;
 use tokio::sync::Mutex;
@@ -124,7 +124,7 @@ pub async fn send_tcp_stream(
     ipv4_packet.set_destination(destination_ip);
     ipv4_packet.set_ttl(64);
 
-    let mut tcp_buffer = vec![0u8; TCP_LEN];
+    let mut tcp_buffer = vec![0u8; TCP_LEN + payload.len()];
     let mut tcp_packet = MutableTcpPacket::new(&mut tcp_buffer).unwrap();
     tcp_packet.set_source(virtual_port); 
     tcp_packet.set_destination(source_port);
@@ -134,23 +134,24 @@ pub async fn send_tcp_stream(
     tcp_packet.set_window(8192);
     tcp_packet.set_data_offset((TCP_LEN / 4) as u8);
 
-    let mut full_tcp = tcp_packet.packet().to_vec();
-    full_tcp.extend_from_slice(payload);
+    tcp_packet.set_payload(payload);
 
-    let tcp_checksum: u16 = ipv4_checksum(
-        &TcpPacket::new(&full_tcp).unwrap(),
+    let tcp_checksum = ipv4_checksum(
+        &tcp_packet.to_immutable(),
         &virtual_ip,
         &destination_ip,
     );
-    
-    MutableTcpPacket::new(&mut full_tcp).unwrap().set_checksum(tcp_checksum);
-    ipv4_packet.set_payload(&full_tcp);
+    tcp_packet.set_checksum(tcp_checksum);
 
     let tcp_header_len = tcp_packet.get_data_offset() as usize * 4;
     ipv4_packet.set_payload(&tcp_packet.packet()[..tcp_header_len + payload.len()]);
     ipv4_packet.set_checksum(checksum(&ipv4_packet.to_immutable()));
 
     ethernet_packet.set_payload(ipv4_packet.packet());
+    println!("[DEBUG] TCP header len: {}", tcp_header_len);
+    println!("[DEBUG] Payload len: {}", payload.len());
+    println!("[DEBUG] TCP header + payload len: {}", tcp_header_len+payload.len());
+    println!("[DEBUG] TCP len set: {}", TCP_LEN + payload.len());
 
     println!("Reply I send: {:?}", ethernet_packet.packet());
     let mut tx_sender = tx.lock().await;
