@@ -1,11 +1,13 @@
-use std::net::{Ipv4Addr, TcpStream};
+use std::{net::{Ipv4Addr, TcpStream}, sync::Arc};
 
 use pnet::{datalink::DataLinkSender, packet::tcp::{TcpFlags, TcpPacket}, util::MacAddr};
+use rand::RngCore;
+use tokio::sync::Mutex;
 
-use crate::{network::sender::send_tcp_syn_ack, virtual_net::application::handle_ssh_connection};
+use crate::{network::sender::send_tcp_stream, virtual_net::application::handle_ssh_connection};
 
 pub async fn handle_tcp_packet<'a>(
-    tx: &mut dyn DataLinkSender,
+    tx: Arc<Mutex<Box<dyn DataLinkSender + Send>>>,
     tcp_received_packet: TcpPacket<'a>,
     virtual_mac: MacAddr,
     virtual_ip: Ipv4Addr,
@@ -24,15 +26,19 @@ pub async fn handle_tcp_packet<'a>(
             }
 
             let empty_payload: &[u8] = &[];
+            let mut rng = rand::rng();
+            let seq: u32 = rng.next_u32();
 
-            send_tcp_syn_ack(
-                &mut *tx, 
+            send_tcp_stream(
+                tx.clone(), 
                 virtual_mac, 
                 virtual_ip, 
                 source_mac, 
                 source_ip, 
                 virtual_port, 
-                tcp_received_packet,
+                tcp_received_packet.get_source(),
+                tcp_received_packet.get_sequence(),
+                seq,
                 response_flags,
                 empty_payload
                 );
@@ -41,11 +47,17 @@ pub async fn handle_tcp_packet<'a>(
         TcpFlags::ACK => {
             match tcp_received_packet.get_destination() {
                 22 => {
-                    //tokio::spawn(async move {
-                    let result = handle_ssh_connection().await.expect("No response found");
-                    //});    
-                    let payload = &result.0[..result.1];
-                    tx.send_to(payload, None);
+                    
+                    handle_ssh_connection(
+                        tx.clone(),
+                        virtual_mac, 
+                        virtual_ip, 
+                        source_mac, 
+                        source_ip, 
+                        tcp_received_packet.get_source(), 
+                        tcp_received_packet,
+                    ).await;
+                    
                 
                 }
                 _ => {}

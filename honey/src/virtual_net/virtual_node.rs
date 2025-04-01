@@ -1,7 +1,8 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, ip::IpNextHeaderProtocols, tcp::TcpPacket, Packet}, util::MacAddr};
+use tokio::sync::Mutex;
 use tracing::error;
 use crate::network::sender::send_arp_reply;
-use std::net::Ipv4Addr;
+use std::{net::Ipv4Addr, sync::Arc};
 
 use super::{graph::NetworkGraph, tcp::handle_tcp_packet};
 
@@ -10,7 +11,7 @@ use super::{graph::NetworkGraph, tcp::handle_tcp_packet};
 pub async fn handle_broadcast<'a>(
     ethernet_packet: &EthernetPacket<'a>,
     graph: &mut NetworkGraph,
-    tx_datalink: &mut dyn DataLinkSender,
+    tx: Arc<Mutex<Box<dyn DataLinkSender + Send>>>,
 ) {
 
     if ethernet_packet.get_ethertype() == EtherTypes::Arp {
@@ -30,7 +31,7 @@ pub async fn handle_broadcast<'a>(
                             virtual_ip,
                             arp_packet.get_sender_hw_addr(),
                             arp_packet.get_sender_proto_addr(),
-                            tx_datalink
+                            tx.clone()
                         );
                         
                     }
@@ -48,7 +49,7 @@ pub async fn handle_virtual_packet<'a>(
     ethernet_packet: &EthernetPacket<'a>,
     virtual_mac: &MacAddr,
     virtual_ip: &Ipv4Addr,
-    tx: &mut dyn DataLinkSender
+    tx: Arc<Mutex<Box<dyn DataLinkSender + Send>>>
 ) {
 
     match ethernet_packet.get_ethertype() {
@@ -61,7 +62,7 @@ pub async fn handle_virtual_packet<'a>(
                         *virtual_ip, 
                         arp_packet.get_sender_hw_addr(),
                         arp_packet.get_sender_proto_addr(),
-                        &mut *tx
+                        tx.clone()
                     );
 
                 }
@@ -76,7 +77,7 @@ pub async fn handle_virtual_packet<'a>(
                         if let Some(tcp_packet) = TcpPacket::new(ipv4_packet.payload()) {
 
                             handle_tcp_packet(
-                                &mut *tx, 
+                                tx.clone(), 
                                 tcp_packet, 
                                 ethernet_packet.get_destination(), 
                                 ipv4_packet.get_destination(),

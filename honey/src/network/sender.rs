@@ -7,12 +7,13 @@ use pnet::packet::tcp::{ipv4_checksum, MutableTcpPacket, TcpPacket};
 use pnet::packet::Packet;
 use pnet::util::MacAddr;
 use rand::Rng;
+use tokio::sync::Mutex;
 use std::collections::HashSet;
 use std::net::Ipv4Addr;
 use std::process::Command;
 use std::str::FromStr;
 use std::str;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex as StdMutex};
 use lazy_static::lazy_static;
 
 
@@ -45,15 +46,15 @@ pub fn send_arp_request(tx: &mut dyn datalink::DataLinkSender, my_mac: pnet::uti
 }
 
 lazy_static! {
-    static ref SENT_ARP_REPLIES: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
+    static ref SENT_ARP_REPLIES: StdMutex<HashSet<String>> = StdMutex::new(HashSet::new());
 }
 
-pub fn send_arp_reply(
+pub async fn send_arp_reply(
     my_mac: MacAddr,
      my_ip: Ipv4Addr, 
      target_mac: MacAddr, 
      target_ip: Ipv4Addr, 
-     tx: &mut dyn DataLinkSender
+     tx: Arc<Mutex<Box<dyn DataLinkSender + Send>>>
 ) {
     
     let key = format!("{}->{}", my_ip, target_ip);
@@ -85,19 +86,22 @@ pub fn send_arp_reply(
 
     ethernet_packet.set_payload(&arp_buffer);
 
-    tx.send_to(&ethernet_packet.packet().to_vec(), None);
+    let mut tx_sender = tx.lock().await;
+    tx_sender.send_to(&ethernet_packet.packet().to_vec(), None);
 
 }
 
 
-pub fn send_tcp_syn_ack(
-    tx: &mut dyn DataLinkSender,
+pub async fn send_tcp_stream(
+    tx: Arc<Mutex<Box<dyn DataLinkSender + Send>>>,
     virtual_mac: MacAddr,
     virtual_ip: Ipv4Addr,
-    sender_mac: MacAddr,
-    sender_ip: Ipv4Addr,
+    destination_mac: MacAddr,
+    destination_ip: Ipv4Addr,
     virtual_port: u16,
-    tcp_received_packet: TcpPacket,
+    source_port: u16,
+    seq: u32,
+    next_seq: u32,
     response_flag: u8,
     payload: &[u8]
 ) {
@@ -109,7 +113,7 @@ pub fn send_tcp_syn_ack(
 
     //let mut ethernet_buffer = [0u8; ETHERNET_LEN + payload.len()]; // Ethernet (14) + IPv4 (20) + TCP (32)
     let mut ethernet_packet = MutableEthernetPacket::new(&mut ethernet_buffer).unwrap();
-    ethernet_packet.set_destination(sender_mac);
+    ethernet_packet.set_destination(destination_mac);
     ethernet_packet.set_source(virtual_mac);
     ethernet_packet.set_ethertype(EtherTypes::Ipv4);
 
@@ -120,18 +124,16 @@ pub fn send_tcp_syn_ack(
     ipv4_packet.set_total_length((IPV4_LEN + payload.len()) as u16);
     ipv4_packet.set_next_level_protocol(IpNextHeaderProtocols::Tcp);
     ipv4_packet.set_source(virtual_ip);
-    ipv4_packet.set_destination(sender_ip);
+    ipv4_packet.set_destination(destination_ip);
     ipv4_packet.set_ttl(64);
 
-    let mut rng = rand::rng();
-    let sequence: u32 = rng.random();
 
     let mut tcp_buffer = vec![0u8; TCP_LEN + payload.len()];
     let mut tcp_packet = MutableTcpPacket::new(&mut tcp_buffer).unwrap();
     tcp_packet.set_source(virtual_port); 
-    tcp_packet.set_destination(tcp_received_packet.get_source());
-    tcp_packet.set_sequence(sequence);
-    tcp_packet.set_acknowledgement(tcp_received_packet.get_sequence()+1); 
+    tcp_packet.set_destination(source_port);
+    tcp_packet.set_sequence(next_seq);
+    tcp_packet.set_acknowledgement(seq+1); 
     tcp_packet.set_flags(response_flag);
     tcp_packet.set_window(8192);
     tcp_packet.set_data_offset(5);
@@ -141,7 +143,7 @@ pub fn send_tcp_syn_ack(
     let tcp_checksum = ipv4_checksum(
         &tcp_packet.to_immutable(),
         &virtual_ip,
-        &sender_ip,
+        &destination_ip,
     );
     tcp_packet.set_checksum(tcp_checksum);
 
@@ -150,7 +152,8 @@ pub fn send_tcp_syn_ack(
 
     ethernet_packet.set_payload(ipv4_packet.packet());
 
-    tx.send_to(ethernet_packet.packet(), None).unwrap().unwrap();
+    let mut tx_sender = tx.lock().await;
+    tx_sender.send_to(ethernet_packet.packet(), None).unwrap().unwrap();
 }
 
 

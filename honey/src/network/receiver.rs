@@ -1,4 +1,4 @@
-use pnet::datalink::{self, Channel, Config};
+use pnet::datalink::{self, Channel, Config, DataLinkSender};
 use pnet::packet::ethernet::{EtherTypes, EthernetPacket};
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::Ipv4Packet;
@@ -26,8 +26,11 @@ pub async fn scan_datalink(
     let mut config = Config::default();
     config.promiscuous = true;
     
-    let (mut tx_datalink, mut rx) = match datalink::channel(&interface, config) {
-        Ok(Channel::Ethernet(tx_datalink, rx)) => (tx_datalink, rx),
+    let (tx_datalink, mut rx) = match datalink::channel(&interface, config) {
+        Ok(Channel::Ethernet(tx, rx)) => (
+            Arc::new(tokio::sync::Mutex::new(tx as Box<dyn DataLinkSender + Send>)),
+            rx
+        ),
         Ok(_) => panic!("Tipo di canale non supportato"),
         Err(e) => panic!("Errore nell'apertura del canale: {}", e),
     };
@@ -102,7 +105,7 @@ pub async fn scan_datalink(
                             &ethernet_packet, 
                             &dest_node.mac_address, 
                             &dest_node.ipv4_address, 
-                            &mut *tx_datalink
+                            tx_datalink.clone()
                         ).await;            
                     }
 
