@@ -1,4 +1,4 @@
-use pnet::datalink::{self, Channel, DataLinkSender};
+use pnet::datalink::{self, DataLinkSender};
 use pnet::packet::arp::{ArpOperations, MutableArpPacket};
 use pnet::packet::ethernet::{MutableEthernetPacket, EtherTypes};
 use pnet::packet::ip::IpNextHeaderProtocols;
@@ -14,10 +14,6 @@ use std::str::FromStr;
 use std::str;
 use std::sync::Arc;
 use lazy_static::lazy_static;
-
-
-use crate::utilities::network::get_primary_interface;
-
 
 
 pub fn send_arp_request(tx: &mut dyn datalink::DataLinkSender, my_mac: pnet::util::MacAddr, my_ip: Ipv4Addr, target_ip: Ipv4Addr) {
@@ -150,6 +146,8 @@ pub async fn send_tcp_stream(
     ipv4_packet.set_checksum(checksum(&ipv4_packet.to_immutable()));
 
     ethernet_packet.set_payload(ipv4_packet.packet());
+
+    println!("Buffer I send: {:?}", ethernet_packet.packet());
 
     let mut tx_sender = tx.lock().await;
     let _ = tx_sender.send_to(ethernet_packet.packet(), None).expect("Failed sending TCP stream");
