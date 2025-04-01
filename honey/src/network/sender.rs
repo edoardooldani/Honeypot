@@ -17,7 +17,7 @@ use lazy_static::lazy_static;
 
 
 const ETHERNET_LEN: usize = 66;
-const IPV4_LEN: usize = 52;
+const IPV4_LEN: usize = 40;
 const TCP_LEN: usize = 20;
 
 
