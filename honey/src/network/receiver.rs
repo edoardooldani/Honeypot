@@ -101,12 +101,26 @@ pub async fn scan_datalink(
                     
                     // Handle virtual receiver
                     if let Some(dest_node) = graph.find_virtual_node_by_ip_or_mac(dest_mac, dest_ip) {
-                        handle_virtual_packet(
-                            &ethernet_packet, 
-                            &dest_node.mac_address, 
-                            &dest_node.ipv4_address, 
-                            tx_datalink.clone()
-                        ).await;            
+                        let tx_clone = tx_datalink.clone();
+                        let ethertype = ethernet_packet.get_ethertype();
+                        let payload = ethernet_packet.payload().to_vec();
+                        let source = ethernet_packet.get_source();
+                        let destination = ethernet_packet.get_destination();
+                        let virtual_mac = dest_node.mac_address.clone();
+                        let virtual_ip = dest_node.ipv4_address.clone();
+
+                        tokio::spawn(async move {
+                            handle_virtual_packet(
+                                ethertype,
+                                payload,
+                                &source,
+                                &destination, 
+                                &virtual_mac, 
+                                &virtual_ip, 
+                                tx_clone
+                            ).await;  
+                        });
+                                  
                     }
 
                     detect_attacks(

@@ -12,7 +12,7 @@ use std::net::Ipv4Addr;
 use std::process::Command;
 use std::str::FromStr;
 use std::str;
-use std::sync::{Arc, Mutex as StdMutex};
+use std::sync::Arc;
 use lazy_static::lazy_static;
 
 
@@ -45,7 +45,7 @@ pub fn send_arp_request(tx: &mut dyn datalink::DataLinkSender, my_mac: pnet::uti
 }
 
 lazy_static! {
-    static ref SENT_ARP_REPLIES: StdMutex<HashSet<String>> = StdMutex::new(HashSet::new());
+    static ref SENT_ARP_REPLIES: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
 }
 
 pub async fn send_arp_reply(
@@ -58,7 +58,7 @@ pub async fn send_arp_reply(
     
     let key = format!("{}->{}", my_ip, target_ip);
 
-    let mut sent_replies = SENT_ARP_REPLIES.lock().unwrap();
+    let mut sent_replies = SENT_ARP_REPLIES.lock().await;
     if sent_replies.contains(&key) {
         return;
     }

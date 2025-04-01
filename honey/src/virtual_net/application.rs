@@ -29,32 +29,30 @@ pub async fn handle_ssh_connection(
 
     let tx_clone = Arc::clone(&tx);
 
-    tokio::spawn(async move {
-        let (mut read_half, _) = tokio::io::split(sshd);
-        let mut buf = [0u8; 1500];
+    let (mut read_half, _) = tokio::io::split(sshd);
+    let mut buf = [0u8; 1500];
 
-        loop {
-            match read_half.read(&mut buf).await {
-                Ok(n) if n > 0 => {
-                    let payload = buf[..n].to_vec();
+    loop {
+        match read_half.read(&mut buf).await {
+            Ok(n) if n > 0 => {
+                let payload = buf[..n].to_vec();
 
-                    let response_flags = TcpFlags::ACK;
+                let response_flags = TcpFlags::ACK;
 
-                    send_tcp_stream(
-                        tx_clone.clone(),
-                        virtual_mac,
-                        virtual_ip,
-                        destination_mac,
-                        destination_ip,
-                        22,
-                        src_port,
-                        seq,
-                        response_flags,
-                        &payload,
-                    ).await;
-                }
-                _ => break,
+                send_tcp_stream(
+                    tx_clone.clone(),
+                    virtual_mac,
+                    virtual_ip,
+                    destination_mac,
+                    destination_ip,
+                    22,
+                    src_port,
+                    seq,
+                    response_flags,
+                    &payload,
+                ).await;
             }
+            _ => break,
         }
-    });
+    }
 }
