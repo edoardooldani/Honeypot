@@ -3,10 +3,9 @@ use pnet::packet::arp::{ArpOperations, MutableArpPacket};
 use pnet::packet::ethernet::{MutableEthernetPacket, EtherTypes};
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::{checksum, MutableIpv4Packet};
-use pnet::packet::tcp::{ipv4_checksum, MutableTcpPacket, TcpPacket};
+use pnet::packet::tcp::{ipv4_checksum, MutableTcpPacket};
 use pnet::packet::Packet;
 use pnet::util::MacAddr;
-use rand::Rng;
 use tokio::sync::Mutex;
 use std::collections::HashSet;
 use std::net::Ipv4Addr;
@@ -85,9 +84,10 @@ pub async fn send_arp_reply(
     arp_packet.set_target_proto_addr(target_ip);
 
     ethernet_packet.set_payload(&arp_buffer);
+    println!("Preparing reply: {:?}", ethernet_packet);
 
     let mut tx_sender = tx.lock().await;
-    tx_sender.send_to(&ethernet_packet.packet().to_vec(), None);
+    let _ = tx_sender.send_to(&ethernet_packet.packet().to_vec(), None).expect("Failed sending ARP reply");
 
 }
 
@@ -101,7 +101,6 @@ pub async fn send_tcp_stream(
     virtual_port: u16,
     source_port: u16,
     seq: u32,
-    next_seq: u32,
     response_flag: u8,
     payload: &[u8]
 ) {
@@ -127,6 +126,7 @@ pub async fn send_tcp_stream(
     ipv4_packet.set_destination(destination_ip);
     ipv4_packet.set_ttl(64);
 
+    let next_seq: u32 = rand::random::<u32>();
 
     let mut tcp_buffer = vec![0u8; TCP_LEN + payload.len()];
     let mut tcp_packet = MutableTcpPacket::new(&mut tcp_buffer).unwrap();

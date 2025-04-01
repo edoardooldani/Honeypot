@@ -1,7 +1,6 @@
-use std::{net::{Ipv4Addr, TcpStream}, sync::Arc};
+use std::{net::Ipv4Addr, sync::Arc};
 
 use pnet::{datalink::DataLinkSender, packet::tcp::{TcpFlags, TcpPacket}, util::MacAddr};
-use rand::RngCore;
 use tokio::sync::Mutex;
 
 use crate::{network::sender::send_tcp_stream, virtual_net::application::handle_ssh_connection};
@@ -26,8 +25,6 @@ pub async fn handle_tcp_packet<'a>(
             }
 
             let empty_payload: &[u8] = &[];
-            let mut rng = rand::rng();
-            let seq: u32 = rng.next_u32();
 
             send_tcp_stream(
                 tx.clone(), 
@@ -38,10 +35,9 @@ pub async fn handle_tcp_packet<'a>(
                 virtual_port, 
                 tcp_received_packet.get_source(),
                 tcp_received_packet.get_sequence(),
-                seq,
                 response_flags,
                 empty_payload
-                );
+                ).await;
             
         }
         TcpFlags::ACK => {
