@@ -3,7 +3,7 @@ use pnet::packet::arp::{ArpOperations, MutableArpPacket};
 use pnet::packet::ethernet::{MutableEthernetPacket, EtherTypes};
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::{checksum, MutableIpv4Packet};
-use pnet::packet::tcp::{ipv4_checksum, MutableTcpPacket, TcpPacket};
+use pnet::packet::tcp::{ipv4_checksum, MutableTcpPacket};
 use pnet::packet::Packet;
 use pnet::util::MacAddr;
 use tokio::sync::Mutex;
@@ -14,6 +14,7 @@ use std::str::FromStr;
 use std::str;
 use std::sync::Arc;
 use lazy_static::lazy_static;
+
 
 const ETHERNET_LEN: usize = 66;
 const IPV4_LEN: usize = 52;
@@ -98,65 +99,59 @@ pub async fn send_tcp_stream(
     destination_mac: MacAddr,
     destination_ip: Ipv4Addr,
     virtual_port: u16,
-    destination_port: u16,
+    source_port: u16,
     seq: u32,
     response_flag: u8,
     payload: &[u8]
 ) {
+    println!("Payload: {:?}, Payload len: {:?}", payload, payload.len());
+    let mut ethernet_buffer = vec![0u8; ETHERNET_LEN + payload.len()];
 
-    let next_seq: u32 = rand::random::<u32>();
-
-        // 1. Costruisci il TCP header
-    let mut tcp_buffer = vec![0u8; TCP_LEN];
-    let mut tcp_packet = MutableTcpPacket::new(&mut tcp_buffer).unwrap();
-    tcp_packet.set_source(virtual_port);
-    tcp_packet.set_destination(destination_port);
-    tcp_packet.set_sequence(next_seq);
-    tcp_packet.set_acknowledgement(seq+1);
-    tcp_packet.set_flags(response_flag);
-    tcp_packet.set_window(8192);
-    tcp_packet.set_data_offset(5);
-
-    // 2. Crea il buffer finale: header + payload
-    let mut full_tcp_payload = Vec::with_capacity(TCP_LEN + payload.len());
-    full_tcp_payload.extend_from_slice(tcp_packet.packet());
-    full_tcp_payload.extend_from_slice(payload);
-
-    // 3. Calcola checksum con header + payload
-    let tcp_checksum = ipv4_checksum(
-        &TcpPacket::new(&full_tcp_payload).unwrap(),
-        &virtual_ip,
-        &destination_ip,
-    );
-    let mut tcp_packet = MutableTcpPacket::new(&mut full_tcp_payload[..]).unwrap();
-    tcp_packet.set_checksum(tcp_checksum);
-
-    // 4. Costruisci IPv4 packet
-    let mut ipv4_buffer = vec![0u8; IPV4_LEN + full_tcp_payload.len()];
-    let mut ipv4_packet = MutableIpv4Packet::new(&mut ipv4_buffer).unwrap();
-    ipv4_packet.set_version(4);
-    ipv4_packet.set_header_length(5);
-    ipv4_packet.set_total_length((IPV4_LEN + full_tcp_payload.len()) as u16);
-    ipv4_packet.set_next_level_protocol(IpNextHeaderProtocols::Tcp);
-    ipv4_packet.set_source(virtual_ip);
-    ipv4_packet.set_destination(destination_ip);
-    ipv4_packet.set_ttl(64);
-    ipv4_packet.set_payload(&full_tcp_payload);
-    ipv4_packet.set_checksum(checksum(&ipv4_packet.to_immutable()));
-
-    // 5. Ethernet
-    let mut ethernet_buffer = vec![0u8; ETHERNET_LEN + ipv4_packet.packet().len()];
+    //let mut ethernet_buffer = [0u8; ETHERNET_LEN + payload.len()]; // Ethernet (14) + IPv4 (20) + TCP (32)
     let mut ethernet_packet = MutableEthernetPacket::new(&mut ethernet_buffer).unwrap();
     ethernet_packet.set_destination(destination_mac);
     ethernet_packet.set_source(virtual_mac);
     ethernet_packet.set_ethertype(EtherTypes::Ipv4);
+
+    let mut ipv4_buffer = vec![0u8; IPV4_LEN + payload.len()];
+    let mut ipv4_packet = MutableIpv4Packet::new(&mut ipv4_buffer).unwrap();
+    ipv4_packet.set_version(4);
+    ipv4_packet.set_header_length(5);
+    ipv4_packet.set_total_length((IPV4_LEN + payload.len()) as u16);
+    ipv4_packet.set_next_level_protocol(IpNextHeaderProtocols::Tcp);
+    ipv4_packet.set_source(virtual_ip);
+    ipv4_packet.set_destination(destination_ip);
+    ipv4_packet.set_ttl(64);
+
+    let next_seq: u32 = rand::random::<u32>();
+
+    let mut tcp_buffer = vec![0u8; TCP_LEN + payload.len()];
+    let mut tcp_packet = MutableTcpPacket::new(&mut tcp_buffer).unwrap();
+    tcp_packet.set_source(virtual_port); 
+    tcp_packet.set_destination(source_port);
+    tcp_packet.set_sequence(next_seq);
+    tcp_packet.set_acknowledgement(seq+1); 
+    tcp_packet.set_flags(response_flag);
+    tcp_packet.set_window(8192);
+    tcp_packet.set_data_offset(5);
+
+    tcp_packet.set_payload(payload);
+
+    let tcp_checksum = ipv4_checksum(
+        &tcp_packet.to_immutable(),
+        &virtual_ip,
+        &destination_ip,
+    );
+    tcp_packet.set_checksum(tcp_checksum);
+
+    ipv4_packet.set_payload(tcp_packet.packet());
+    ipv4_packet.set_checksum(checksum(&ipv4_packet.to_immutable()));
+
     ethernet_packet.set_payload(ipv4_packet.packet());
 
-    println!("Payload (str): {:?}", String::from_utf8_lossy(full_tcp_payload.as_slice()));
     println!("Reply I send: {:?}", ethernet_packet.packet());
-    // 6. Send
     let mut tx_sender = tx.lock().await;
-    tx_sender.send_to(ethernet_packet.packet(), None).unwrap().unwrap();
+    let _ = tx_sender.send_to(ethernet_packet.packet(), None).expect("Failed sending TCP stream");
 }
 
 
