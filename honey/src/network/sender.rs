@@ -126,14 +126,18 @@ pub async fn send_tcp_stream(
     let next_seq: u32 = rand::random::<u32>();
 
     let mut tcp_buffer = vec![0u8; TCP_LEN];
+
+    {
     let mut tcp_packet = MutableTcpPacket::new(&mut tcp_buffer).unwrap();
-    tcp_packet.set_source(virtual_port); 
+    tcp_packet.set_source(virtual_port);
     tcp_packet.set_destination(source_port);
     tcp_packet.set_sequence(next_seq);
-    tcp_packet.set_acknowledgement(seq+1); 
+    tcp_packet.set_acknowledgement(seq + 1);
     tcp_packet.set_flags(response_flag);
     tcp_packet.set_window(8192);
     tcp_packet.set_data_offset(5);
+    tcp_packet.set_checksum(0); // temporaneo
+    }
 
     //tcp_packet.set_payload(payload);
     let mut full_tcp = tcp_buffer.clone();
@@ -144,6 +148,8 @@ pub async fn send_tcp_stream(
         &virtual_ip,
         &destination_ip,
     );
+
+    let mut tcp_packet = MutableTcpPacket::new(&mut full_tcp).unwrap();
     tcp_packet.set_checksum(tcp_checksum);
 
     ipv4_packet.set_payload(tcp_packet.packet());
