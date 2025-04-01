@@ -14,7 +14,7 @@ pub async fn handle_tcp_packet<'a>(
     source_mac: MacAddr
 ){
     match tcp_received_packet.get_flags(){
-        TcpFlags::SYN => {
+        flags if flags & TcpFlags::SYN != 0 => {
             let virtual_port = tcp_received_packet.get_destination();
             let response_flags: u8;
 
@@ -40,7 +40,7 @@ pub async fn handle_tcp_packet<'a>(
                 ).await;
             
         }
-        TcpFlags::ACK => {
+        flags if flags & TcpFlags::ACK != 0 => {
             match tcp_received_packet.get_destination() {
                 22 => {
                     let payload = tcp_received_packet.payload();
@@ -60,7 +60,6 @@ pub async fn handle_tcp_packet<'a>(
                 _ => {}
             }
         }
-
         _ => {}
     }
 }
