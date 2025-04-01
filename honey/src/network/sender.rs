@@ -105,6 +105,7 @@ pub async fn send_tcp_stream(
     payload: &[u8]
 ) {
     println!("Payload: {:?}, Payload len: {:?}", payload, payload.len());
+
     let mut ethernet_buffer = vec![0u8; ETHERNET_LEN + payload.len()];
 
     //let mut ethernet_buffer = [0u8; ETHERNET_LEN + payload.len()]; // Ethernet (14) + IPv4 (20) + TCP (32)
@@ -125,37 +126,34 @@ pub async fn send_tcp_stream(
 
     let next_seq: u32 = rand::random::<u32>();
 
-    let mut tcp_buffer = vec![0u8; TCP_LEN];
-
-    {
+    let mut tcp_buffer = vec![0u8; TCP_LEN + payload.len()];
     let mut tcp_packet = MutableTcpPacket::new(&mut tcp_buffer).unwrap();
-    tcp_packet.set_source(virtual_port);
+    tcp_packet.set_source(virtual_port); 
     tcp_packet.set_destination(source_port);
     tcp_packet.set_sequence(next_seq);
-    tcp_packet.set_acknowledgement(seq + 1);
+    tcp_packet.set_acknowledgement(seq+1); 
     tcp_packet.set_flags(response_flag);
     tcp_packet.set_window(8192);
     tcp_packet.set_data_offset(5);
-    tcp_packet.set_checksum(0); // temporaneo
-    }
 
-    //tcp_packet.set_payload(payload);
-    let mut full_tcp = tcp_buffer.clone();
-    full_tcp.extend_from_slice(payload);
+    tcp_packet.set_payload(payload);
 
     let tcp_checksum = ipv4_checksum(
-        &TcpPacket::new(&full_tcp).unwrap(),
+        &tcp_packet.to_immutable(),
         &virtual_ip,
         &destination_ip,
     );
-
-    let mut tcp_packet = MutableTcpPacket::new(&mut full_tcp).unwrap();
     tcp_packet.set_checksum(tcp_checksum);
 
     ipv4_packet.set_payload(tcp_packet.packet());
     ipv4_packet.set_checksum(checksum(&ipv4_packet.to_immutable()));
 
     ethernet_packet.set_payload(ipv4_packet.packet());
+
+    println!("ethernet len: {:?}", ethernet_packet.packet().len());
+    println!("ip len: {:?}", ipv4_packet.packet().len());
+    println!("tcp len: {:?}", tcp_packet.packet().len());
+
 
     println!("Reply I send: {:?}", ethernet_packet.packet());
     let mut tx_sender = tx.lock().await;
