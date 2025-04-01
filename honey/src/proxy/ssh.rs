@@ -41,10 +41,11 @@ pub async fn handle_ssh_connection(
     info!("\n\nPacket received from client: {:?}", tcp_received_packet.packet());
     let mut buf = [0u8; 1500];
 
-    loop {
+    //loop {
 
         match sshd.read(&mut buf).await {
             Ok(n) if n > 0 => {
+                println!("Buff received from sshd: {:?}", buf);
                 let payload = buf[..n].to_vec();
                 next_ack += n as u32;
                 let response_flags = TcpFlags::ACK;
@@ -67,7 +68,7 @@ pub async fn handle_ssh_connection(
             }
             _ => break,
         }
-    }
+    //}
 }
 
 
