@@ -1,6 +1,6 @@
 use std::{net::Ipv4Addr, sync::Arc};
 
-use pnet::{datalink::DataLinkSender, packet::{tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
+use pnet::{datalink::DataLinkSender, packet::tcp::{TcpFlags, TcpPacket}, util::MacAddr};
 use tokio::sync::Mutex;
 
 use crate::{network::sender::send_tcp_stream, proxy::ssh::handle_ssh_connection};
@@ -35,8 +35,8 @@ pub async fn handle_tcp_packet<'a>(
                 source_ip, 
                 virtual_port, 
                 tcp_received_packet.get_source(),
-                tcp_received_packet.get_sequence(),
                 next_seq,
+                tcp_received_packet.get_sequence()+1,
                 response_flags,
                 empty_payload
                 ).await;
@@ -52,7 +52,6 @@ pub async fn handle_tcp_packet<'a>(
                         virtual_ip, 
                         source_mac, 
                         source_ip, 
-                        tcp_received_packet.get_source(), 
                         tcp_received_packet,
                     ).await;
                     

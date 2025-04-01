@@ -2,7 +2,7 @@ use std::{collections::HashMap, net::Ipv4Addr, sync::Arc};
 
 use pnet::{datalink::DataLinkSender, packet::{tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream, sync:: Mutex};
-use tracing::info;
+use tracing::{info, error};
 use crate::network::sender::send_tcp_stream;
 use lazy_static::lazy_static;
 
@@ -18,12 +18,11 @@ pub async fn handle_ssh_connection(
     virtual_ip: Ipv4Addr,
     destination_mac: MacAddr,
     destination_ip: Ipv4Addr,
-    source_port: u16,
     tcp_received_packet: TcpPacket<'_>,
 ) {
 
     let src_port = tcp_received_packet.get_source();
-    let seq = tcp_received_packet.get_sequence();
+    let mut next_ack = tcp_received_packet.get_sequence();
     let payload_from_client = tcp_received_packet.payload();
     let next_seq: u32 = tcp_received_packet.get_acknowledgement();
 
@@ -35,11 +34,11 @@ pub async fn handle_ssh_connection(
 
     if !payload_from_client.is_empty() {
         if let Err(e) = sshd.write_all(payload_from_client).await {
-            eprintln!("❌ Errore nell’invio dati a sshd: {}", e);
+            error!("❌ Errore nell’invio dati a sshd: {}", e);
             return;
         }
     }
-    println!("\n\nPacket received from client: {:?}", tcp_received_packet.packet());
+    info!("\n\nPacket received from client: {:?}", tcp_received_packet.packet());
     let mut buf = [0u8; 1500];
 
     loop {
@@ -47,7 +46,7 @@ pub async fn handle_ssh_connection(
         match sshd.read(&mut buf).await {
             Ok(n) if n > 0 => {
                 let payload = buf[..n].to_vec();
-
+                next_ack += n as u32;
                 let response_flags = TcpFlags::ACK;
 
                 send_tcp_stream(
@@ -58,12 +57,12 @@ pub async fn handle_ssh_connection(
                     destination_ip,
                     22,
                     src_port,
-                    seq,
                     next_seq,
+                    next_ack,
                     response_flags,
                     &payload,
                 ).await;
-                
+
                 break;
             }
             _ => break,

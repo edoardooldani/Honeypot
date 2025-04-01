@@ -100,8 +100,8 @@ pub async fn send_tcp_stream(
     destination_ip: Ipv4Addr,
     virtual_port: u16,
     source_port: u16,
-    seq: u32,
-    ack: u32,
+    seq_to: u32,
+    ack_to: u32,
     response_flag: u8,
     payload: &[u8]
 ) {
@@ -128,8 +128,8 @@ pub async fn send_tcp_stream(
     let mut tcp_packet = MutableTcpPacket::new(&mut tcp_buffer).unwrap();
     tcp_packet.set_source(virtual_port); 
     tcp_packet.set_destination(source_port);
-    tcp_packet.set_sequence(ack);
-    tcp_packet.set_acknowledgement(seq+1); 
+    tcp_packet.set_sequence(seq_to);
+    tcp_packet.set_acknowledgement(ack_to); 
     tcp_packet.set_flags(response_flag);
     tcp_packet.set_window(8192);
     tcp_packet.set_data_offset(5);
