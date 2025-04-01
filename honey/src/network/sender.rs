@@ -152,45 +152,7 @@ pub async fn send_tcp_stream(
     ethernet_packet.set_payload(ipv4_packet.packet());
 
     let mut tx_sender = tx.lock().await;
-    tx_sender.send_to(ethernet_packet.packet(), None).unwrap().unwrap();
-}
-
-
-
-pub async fn send_ipv4_packet(ipv4_packet: Vec<u8>, src_mac: MacAddr, dst_mac: MacAddr) -> Result<(), String> {
-    let interface = get_primary_interface().expect("Primary interface not found");
-
-    let channel = datalink::channel(&interface, Default::default())
-    .map_err(|e| format!("Error creating network channel: {}", e))?;
-
-    let (mut tx, _rx) = match channel {
-        Channel::Ethernet(tx, _rx) => (tx, _rx), // If Ethernet channel
-        _ => return Err("Invalid channel type".to_string()), // Handle other types if necessary
-    };
-
-    let mut packet_buffer = vec![0u8; 42 + ipv4_packet.len()]; // Header Ethernet (42 bytes) + IPv4 payload
-    let mut ether_packet = MutableEthernetPacket::new(&mut packet_buffer).unwrap();
-
-    ether_packet.set_destination(dst_mac);
-    ether_packet.set_source(src_mac);
-    ether_packet.set_ethertype(pnet::packet::ethernet::EtherTypes::Ipv4);
-
-    ether_packet.set_payload(&ipv4_packet);
-
-    println!("Sending Ethernet frame: {:?}", ether_packet.packet());
-
-    match tx.send_to(ether_packet.packet(), None) {
-        Some(Ok(_)) => {
-            println!("Packet sent successfully");
-        },
-        Some(Err(e)) => {
-            eprintln!("Failed to send packet: {}", e);
-        },
-        None => {
-            eprintln!("Error: Channel is None");
-        }
-    }
-    Ok(())
+    let _ = tx_sender.send_to(ethernet_packet.packet(), None).expect("Failed sending TCP stream");
 }
 
 

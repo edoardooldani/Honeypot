@@ -16,7 +16,6 @@ pub async fn handle_ssh_connection(
     source_port: u16,
     tcp_received_packet: TcpPacket<'_>,
 ) {
-    println!("Handling ssh");
 
     let sshd = TcpStream::connect("127.0.0.1:2222")
         .await
@@ -38,7 +37,7 @@ pub async fn handle_ssh_connection(
                 let payload = buf[..n].to_vec();
 
                 let response_flags = TcpFlags::ACK;
-
+                println!("Buffer received: {:?}", payload);
                 send_tcp_stream(
                     tx_clone.clone(),
                     virtual_mac,
