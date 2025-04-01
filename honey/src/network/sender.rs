@@ -143,7 +143,8 @@ pub async fn send_tcp_stream(
     );
     tcp_packet.set_checksum(tcp_checksum);
 
-    ipv4_packet.set_payload(&tcp_packet.packet()[..TCP_LEN + payload.len()]);
+    let tcp_header_len = tcp_packet.get_data_offset() as usize * 4;
+    ipv4_packet.set_payload(&tcp_packet.packet()[..tcp_header_len + payload.len()]);
     ipv4_packet.set_checksum(checksum(&ipv4_packet.to_immutable()));
 
     ethernet_packet.set_payload(ipv4_packet.packet());
