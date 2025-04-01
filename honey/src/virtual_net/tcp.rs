@@ -1,6 +1,6 @@
 use std::{net::Ipv4Addr, sync::Arc};
 
-use pnet::{datalink::DataLinkSender, packet::tcp::{TcpFlags, TcpPacket}, util::MacAddr};
+use pnet::{datalink::DataLinkSender, packet::{tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tokio::sync::Mutex;
 
 use crate::{network::sender::send_tcp_stream, proxy::ssh::handle_ssh_connection};
@@ -43,7 +43,8 @@ pub async fn handle_tcp_packet<'a>(
         TcpFlags::ACK => {
             match tcp_received_packet.get_destination() {
                 22 => {
-                    
+                    let payload = tcp_received_packet.payload();
+                    println!("Payload received: {:?}", payload);
                     handle_ssh_connection(
                         tx.clone(),
                         virtual_mac, 

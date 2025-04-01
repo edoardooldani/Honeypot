@@ -45,7 +45,7 @@ pub async fn handle_ssh_connection(
                 let payload = buf[..n].to_vec();
 
                 let response_flags = TcpFlags::ACK;
-                //println!("Buffer received from sshd: {:?}", payload);
+                println!("Buffer received from sshd: {:?}", payload);
                 send_tcp_stream(
                     tx_clone.clone(),
                     virtual_mac,
