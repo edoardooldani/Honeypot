@@ -3,7 +3,7 @@ use pnet::packet::arp::{ArpOperations, MutableArpPacket};
 use pnet::packet::ethernet::{MutableEthernetPacket, EtherTypes};
 use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::{checksum, MutableIpv4Packet};
-use pnet::packet::tcp::{ipv4_checksum, MutableTcpPacket};
+use pnet::packet::tcp::{ipv4_checksum, MutableTcpPacket, TcpPacket};
 use pnet::packet::Packet;
 use pnet::util::MacAddr;
 use tokio::sync::Mutex;
@@ -124,7 +124,7 @@ pub async fn send_tcp_stream(
     ipv4_packet.set_destination(destination_ip);
     ipv4_packet.set_ttl(64);
 
-    let mut tcp_buffer = vec![0u8; TCP_LEN + payload.len()];
+    let mut tcp_buffer = vec![0u8; TCP_LEN];
     let mut tcp_packet = MutableTcpPacket::new(&mut tcp_buffer).unwrap();
     tcp_packet.set_source(virtual_port); 
     tcp_packet.set_destination(source_port);
@@ -132,16 +132,19 @@ pub async fn send_tcp_stream(
     tcp_packet.set_acknowledgement(ack_to); 
     tcp_packet.set_flags(response_flag);
     tcp_packet.set_window(8192);
-    tcp_packet.set_data_offset(5);
+    tcp_packet.set_data_offset((TCP_LEN / 4) as u8);
 
-    tcp_packet.set_payload(payload);
+    let mut full_tcp = tcp_packet.packet().to_vec();
+    full_tcp.extend_from_slice(payload);
 
-    let tcp_checksum = ipv4_checksum(
-        &tcp_packet.to_immutable(),
+    let tcp_checksum: u16 = ipv4_checksum(
+        &TcpPacket::new(&full_tcp).unwrap(),
         &virtual_ip,
         &destination_ip,
     );
-    tcp_packet.set_checksum(tcp_checksum);
+    
+    MutableTcpPacket::new(&mut full_tcp).unwrap().set_checksum(tcp_checksum);
+    ipv4_packet.set_payload(&full_tcp);
 
     let tcp_header_len = tcp_packet.get_data_offset() as usize * 4;
     ipv4_packet.set_payload(&tcp_packet.packet()[..tcp_header_len + payload.len()]);
