@@ -1,4 +1,4 @@
-use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherType, EtherTypes::{self, Arp}, EthernetPacket}, ip::IpNextHeaderProtocols, tcp::TcpPacket, Packet}, util::MacAddr};
+use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherType, EtherTypes::{self, Arp}, EthernetPacket}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tokio::sync::Mutex;
 use tracing::error;
 use crate::{network::sender::send_arp_reply, proxy::ssh::handle_ssh_connection};
@@ -78,7 +78,7 @@ pub async fn handle_virtual_packet<'a>(
                     IpNextHeaderProtocols::Tcp => {
 
                         if let Some(tcp_packet) = TcpPacket::new(ipv4_packet.payload()) {
-                            if tcp_packet.get_destination() == 22 {
+                            if tcp_packet.get_destination() == 22 && tcp_packet.get_flags() != TcpFlags::SYN {
                                 handle_ssh_connection(
                                     tx.clone(), 
                                     *virtual_mac, 
