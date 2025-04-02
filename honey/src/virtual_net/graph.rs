@@ -99,27 +99,6 @@ impl NetworkGraph {
         let node_index = self.graph.add_node(node.clone());
         self.nodes.insert(assigned_mac.clone(), node_index);
         
-        let status = Command::new("sudo")
-            .arg("iptables")
-            .arg("-A")
-            .arg("INPUT")
-            .arg("-p")
-            .arg("tcp")
-            .arg("-d")
-            .arg(assigned_ip.to_string())
-            .arg("--dport")
-            .arg("22")
-            .arg("-j")
-            .arg("DROP")
-            .status()
-            .expect("failed to execute iptables command");
-
-        if status.success() {
-            println!("✅ Regola iptables aggiunta con successo.");
-        } else {
-            eprintln!("❌ Errore nell'aggiunta della regola iptables. Codice: {}", status);
-        }
-        
         node_index
     }
 

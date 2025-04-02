@@ -21,6 +21,8 @@ pub async fn handle_ssh_connection(
     tcp_received_packet: TcpPacket<'_>,
 ) {
 
+    println!("Handling ssh...");
+
     let src_port = tcp_received_packet.get_source();
     let mut next_ack = tcp_received_packet.get_sequence();
     let payload_from_client = tcp_received_packet.payload();
@@ -39,16 +41,10 @@ pub async fn handle_ssh_connection(
     let sshd_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
     let mut sshd = sshd_mutex.lock().await;
 
-    if let Err(e) = sshd.write_all(payload_from_client).await {
+    if let Err(e) = sshd.write_all(tcp_received_packet.packet()).await {
         error!("❌ Errore nell’invio dati a sshd: {}", e);
         let mut sessions = SSH_SESSIONS.lock().await;
         sessions.remove(&(virtual_ip, destination_ip));
-        let sshd_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
-        let mut sshd = sshd_mutex.lock().await;
-        if let Err(e) = sshd.write_all(payload_from_client).await {
-            error!("❌ Retry fallito: {}", e);
-            return;
-        }
         return;
     }
     
