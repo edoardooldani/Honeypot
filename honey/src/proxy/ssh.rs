@@ -113,9 +113,9 @@ async fn get_or_create_ssh_session(virtual_ip: Ipv4Addr, destination_ip: Ipv4Add
 
 
 fn generate_signing_key() -> SigningKey {
-    let mut secret_key_bytes = [0u8; SECRET_KEY_LENGTH];
+    let mut secret_key_bytes = [0u8; KEYPAIR_LENGTH];
     let mut rng = OsRng;
-    let _ = rng.try_fill_bytes(&mut secret_key_bytes);
+    let _ = rng.try_fill_bytes(&mut secret_key_bytes).expect("Failed filling bytes of key");
 
     SigningKey::from_keypair_bytes(&secret_key_bytes).expect("Failed generating keypair")
 }
