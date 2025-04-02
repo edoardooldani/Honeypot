@@ -1,7 +1,7 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherType, EtherTypes::{self, Arp}, EthernetPacket}, ip::IpNextHeaderProtocols, tcp::TcpPacket, Packet}, util::MacAddr};
 use tokio::sync::Mutex;
 use tracing::error;
-use crate::network::sender::send_arp_reply;
+use crate::{network::sender::send_arp_reply, proxy::ssh::handle_ssh_connection};
 use std::{net::Ipv4Addr, sync::Arc};
 
 use super::{graph::NetworkGraph, tcp::handle_tcp_packet};
@@ -49,7 +49,6 @@ pub async fn handle_virtual_packet<'a>(
     ethertype: EtherType,
     payload: Vec<u8>,
     source: &MacAddr,
-    destination: &MacAddr,
     virtual_mac: &MacAddr,
     virtual_ip: &Ipv4Addr,
     tx: Arc<Mutex<Box<dyn DataLinkSender + Send>>>
@@ -77,17 +76,27 @@ pub async fn handle_virtual_packet<'a>(
                 let next_protocol = ipv4_packet.get_next_level_protocol();
                 match next_protocol {
                     IpNextHeaderProtocols::Tcp => {
-                        if let Some(tcp_packet) = TcpPacket::new(ipv4_packet.payload()) {
 
-                            handle_tcp_packet(
-                                tx.clone(), 
-                                tcp_packet, 
-                                *destination, 
-                                ipv4_packet.get_destination(),
-                                ipv4_packet.get_source(), 
-                                *source,
-                            ).await;
-                            
+                        if let Some(tcp_packet) = TcpPacket::new(ipv4_packet.payload()) {
+                            if tcp_packet.get_destination() == 22 {
+                                handle_ssh_connection(
+                                    tx.clone(), 
+                                    *virtual_mac, 
+                                    *virtual_ip, 
+                                    *source, 
+                                    ipv4_packet.get_source(), 
+                                    tcp_packet
+                                ).await;
+                            }else {
+                                handle_tcp_packet(
+                                    tx.clone(), 
+                                    tcp_packet, 
+                                    *virtual_mac, 
+                                    ipv4_packet.get_destination(),
+                                    ipv4_packet.get_source(), 
+                                    *source,
+                                ).await;
+                            }   
                         }
                     }
                     _ => {

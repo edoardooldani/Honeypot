@@ -105,7 +105,6 @@ pub async fn scan_datalink(
                         let ethertype = ethernet_packet.get_ethertype();
                         let payload = ethernet_packet.payload().to_vec();
                         let source = ethernet_packet.get_source();
-                        let destination = ethernet_packet.get_destination();
                         let virtual_mac = dest_node.mac_address.clone();
                         let virtual_ip = dest_node.ipv4_address.clone();
 
@@ -114,7 +113,6 @@ pub async fn scan_datalink(
                                 ethertype,
                                 payload,
                                 &source,
-                                &destination, 
                                 &virtual_mac, 
                                 &virtual_ip, 
                                 tx_clone
