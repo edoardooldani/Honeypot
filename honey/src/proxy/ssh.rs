@@ -23,10 +23,10 @@ pub async fn handle_ssh_connection(
     println!("Flag: {:?}", tcp_received_packet.get_flags() );
 
     if tcp_received_packet.payload().is_empty(){
-
         return;
     }
 
+    info!("\n\nPacket received from client: {:?}", tcp_received_packet.packet());
 
     let src_port = tcp_received_packet.get_source();
     let payload_from_client = tcp_received_packet.payload();
@@ -45,7 +45,6 @@ pub async fn handle_ssh_connection(
         return;
     }
     
-    info!("\n\nPacket received from client: {:?}", tcp_received_packet.packet());
     let mut buf = [0u8; 1500];
 
     loop {
