@@ -47,34 +47,40 @@ pub async fn handle_ssh_connection(
     let mut buf = [0u8; 2048];
 
     //loop {
-        match timeout(Duration::from_millis(200), sshd.read(&mut buf)).await {
-            Ok(Ok(n)) if n > 0 => {
-                let full_payload = &buf[..n];
-                let response_flags = TcpFlags::ACK | TcpFlags::PSH;
-        
-                let max_payload_size = 1460;
-        
-                for chunk in full_payload.chunks(max_payload_size) {
-                    send_tcp_stream(
-                        tx_clone.clone(),
-                        virtual_mac,
-                        virtual_ip,
-                        destination_mac,
-                        destination_ip,
-                        22,
-                        src_port,
-                        next_seq,
-                        next_ack,
-                        response_flags,
-                        chunk,
-                    ).await;
-        
-                    next_ack += chunk.len() as u32;
-                    next_seq += chunk.len() as u32;
-                }
+    match timeout(Duration::from_millis(200), sshd.read(&mut buf)).await {
+        Ok(Ok(n)) if n > 0 => {
+
+            let msg_type = buf[5];
+            if msg_type == 31 {
+                change_fingerprint(&mut buf, virtual_ip);
             }
-            _ => {}
+
+            let full_payload = &buf[..n];
+            let response_flags = TcpFlags::ACK | TcpFlags::PSH;
+    
+            let max_payload_size = 1460;
+    
+            for chunk in full_payload.chunks(max_payload_size) {
+                send_tcp_stream(
+                    tx_clone.clone(),
+                    virtual_mac,
+                    virtual_ip,
+                    destination_mac,
+                    destination_ip,
+                    22,
+                    src_port,
+                    next_seq,
+                    next_ack,
+                    response_flags,
+                    chunk,
+                ).await;
+    
+                next_ack += chunk.len() as u32;
+                next_seq += chunk.len() as u32;
+            }
         }
+        _ => {}
+    }
     //}
 }
 
@@ -96,4 +102,20 @@ async fn get_or_create_ssh_session(virtual_ip: Ipv4Addr, destination_ip: Ipv4Add
         }
     };
     sshd
+}
+
+
+fn change_fingerprint(buf: &mut [u8], virtual_ip: Ipv4Addr){
+    let k_s_len = u32::from_be_bytes([buf[6], buf[7], buf[8], buf[9]]) as usize;
+    let k_s_start = 10;
+    let k_s_end = k_s_start + k_s_len;
+    let k_s = &mut buf[k_s_start..k_s_end];
+
+    println!("📌 Found K_S (host key) of length {} bytes", k_s_len);
+
+    let mask = virtual_ip.octets()[3];
+    for b in k_s.iter_mut() {
+        *b ^= mask;
+    }
+
 }
