@@ -155,6 +155,8 @@ pub async fn send_tcp_stream(
         None => &[],
     };
 
+    println!("Flags I send: {:?}", tcp_packet.get_flags());
+
     println!("Reply I send: {:?}", ethernet_pack);
     let mut tx_sender = tx.lock().await;
     let _ = tx_sender.send_to(ethernet_pack, None).expect("Failed sending TCP stream");

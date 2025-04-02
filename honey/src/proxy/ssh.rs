@@ -20,14 +20,13 @@ pub async fn handle_ssh_connection(
     destination_ip: Ipv4Addr,
     tcp_received_packet: TcpPacket<'_>,
 ) {
+    println!("Flag: {:?}, payload: {:?}", tcp_received_packet.get_flags(), tcp_received_packet.payload() );
 
     if tcp_received_packet.payload().is_empty(){
-        println!("Empty payload...");
 
         return;
     }
 
-    println!("Handling ssh...");
 
     let src_port = tcp_received_packet.get_source();
     let mut next_ack = tcp_received_packet.get_sequence();
@@ -55,7 +54,7 @@ pub async fn handle_ssh_connection(
             Ok(n) if n > 0 => {
                 let payload = buf[..n].to_vec();
                 next_ack += n as u32;
-                let response_flags = TcpFlags::ACK;
+                let response_flags = TcpFlags::ACK | TcpFlags::PSH;
 
                 send_tcp_stream(
                     tx_clone.clone(),
