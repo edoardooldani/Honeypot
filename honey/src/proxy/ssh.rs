@@ -48,7 +48,7 @@ pub async fn handle_ssh_connection(
     info!("\n\nPacket received from client: {:?}", tcp_received_packet.packet());
     let mut buf = [0u8; 1500];
 
-    //loop {
+    loop {
 
         match sshd.read(&mut buf).await {
             Ok(n) if n > 0 => {
@@ -70,12 +70,12 @@ pub async fn handle_ssh_connection(
                     &payload,
                 ).await;
 
-                //break;
+                break;
             }
-            _ => {}//break,
+            _ => {break},
 
         }
-    //}
+    }
 }
 
 
