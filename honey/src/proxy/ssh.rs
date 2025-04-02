@@ -105,7 +105,9 @@ async fn get_or_create_ssh_session(virtual_ip: Ipv4Addr, destination_ip: Ipv4Add
 }
 
 
-fn change_fingerprint(buf: &mut [u8], virtual_ip: Ipv4Addr){
+fn change_fingerprint(buf: &mut [u8], virtual_ip: Ipv4Addr) {
+    let mask = virtual_ip.octets()[3];
+
     let k_s_len = u32::from_be_bytes([buf[6], buf[7], buf[8], buf[9]]) as usize;
     let k_s_start = 10;
     let k_s_end = k_s_start + k_s_len;
@@ -113,9 +115,19 @@ fn change_fingerprint(buf: &mut [u8], virtual_ip: Ipv4Addr){
 
     println!("📌 Found K_S (host key) of length {} bytes", k_s_len);
 
-    let mask = virtual_ip.octets()[3];
-    for b in k_s.iter_mut() {
+    let key_type_len = u32::from_be_bytes([k_s[0], k_s[1], k_s[2], k_s[3]]) as usize;
+    let key_type_end = 4 + key_type_len;
+    let key_bytes_len = u32::from_be_bytes([
+        k_s[key_type_end],
+        k_s[key_type_end + 1],
+        k_s[key_type_end + 2],
+        k_s[key_type_end + 3],
+    ]) as usize;
+    let key_bytes_start = key_type_end + 4;
+    let key_bytes_end = key_bytes_start + key_bytes_len;
+
+    let key_bytes = &mut k_s[key_bytes_start..key_bytes_end];
+    for b in key_bytes.iter_mut() {
         *b ^= mask;
     }
-
 }
