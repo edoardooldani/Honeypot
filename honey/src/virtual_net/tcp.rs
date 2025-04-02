@@ -42,7 +42,7 @@ pub async fn handle_tcp_packet<'a>(
                 ).await;
             
         }
-        flags if flags & TcpFlags::ACK != 0 => {
+        flags if flags & TcpFlags::ACK != 0 || TcpFlags::PSH != 0 => {
             match tcp_received_packet.get_destination() {
                 22 => {
 
