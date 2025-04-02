@@ -5,7 +5,7 @@ use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream, sync:: Mutex, tim
 use tracing::{info, error};
 use crate::network::sender::send_tcp_stream;
 use lazy_static::lazy_static;
-use ed25519_dalek::{SigningKey, VerifyingKey, Signature, Signer, KEYPAIR_LENGTH};
+use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey, KEYPAIR_LENGTH, SECRET_KEY_LENGTH};
 
 
 
@@ -113,7 +113,7 @@ async fn get_or_create_ssh_session(virtual_ip: Ipv4Addr, destination_ip: Ipv4Add
 
 
 fn generate_signing_key() -> SigningKey {
-    let mut secret_key_bytes = [0u8; KEYPAIR_LENGTH];
+    let mut secret_key_bytes = [0u8; SECRET_KEY_LENGTH];
     let mut rng = OsRng;
     let _ = rng.try_fill_bytes(&mut secret_key_bytes);
 
