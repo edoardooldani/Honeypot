@@ -44,34 +44,38 @@ pub async fn handle_ssh_connection(
         return;
     }
     
-    let mut buf = [0u8; 1500];
+    let mut buf = [0u8; 2048];
 
-    loop {
+    //loop {
         match timeout(Duration::from_millis(200), sshd.read(&mut buf)).await {
             Ok(Ok(n)) if n > 0 => {
-                let payload = buf[..n].to_vec();
+                let full_payload = &buf[..n];
                 let response_flags = TcpFlags::ACK | TcpFlags::PSH;
-                
-                send_tcp_stream(
-                    tx_clone.clone(),
-                    virtual_mac,
-                    virtual_ip,
-                    destination_mac,
-                    destination_ip,
-                    22,
-                    src_port,
-                    next_seq,
-                    next_ack,
-                    response_flags,
-                    &payload,
-                ).await;
-    
-                next_ack += payload.len() as u32;
-                next_seq += payload.len() as u32;
+        
+                let max_payload_size = 1460;
+        
+                for chunk in full_payload.chunks(max_payload_size) {
+                    send_tcp_stream(
+                        tx_clone.clone(),
+                        virtual_mac,
+                        virtual_ip,
+                        destination_mac,
+                        destination_ip,
+                        22,
+                        src_port,
+                        next_seq,
+                        next_ack,
+                        response_flags,
+                        chunk,
+                    ).await;
+        
+                    next_ack += chunk.len() as u32;
+                    next_seq += chunk.len() as u32;
+                }
             }
-            _ => break,
+            _ => {}
         }
-    }
+    //}
 }
 
 
