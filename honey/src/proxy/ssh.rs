@@ -21,6 +21,12 @@ pub async fn handle_ssh_connection(
     tcp_received_packet: TcpPacket<'_>,
 ) {
 
+    if tcp_received_packet.payload().is_empty(){
+        println!("Empty payload...");
+
+        return;
+    }
+
     println!("Handling ssh...");
 
     let src_port = tcp_received_packet.get_source();
