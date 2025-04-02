@@ -108,7 +108,6 @@ pub async fn send_tcp_stream(
 
     let mut ethernet_buffer = vec![0u8; ETHERNET_LEN + payload.len()];
 
-    //let mut ethernet_buffer = [0u8; ETHERNET_LEN + payload.len()]; // Ethernet (14) + IPv4 (20) + TCP (32)
     let mut ethernet_packet = MutableEthernetPacket::new(&mut ethernet_buffer).unwrap();
     ethernet_packet.set_destination(destination_mac);
     ethernet_packet.set_source(virtual_mac);
@@ -156,7 +155,6 @@ pub async fn send_tcp_stream(
     };
 
     println!("Flags I send: {:?}", tcp_packet.get_flags());
-
     println!("Reply I send: {:?}", ethernet_pack);
     let mut tx_sender = tx.lock().await;
     let _ = tx_sender.send_to(ethernet_pack, None).expect("Failed sending TCP stream");

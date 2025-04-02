@@ -20,7 +20,7 @@ pub async fn handle_ssh_connection(
     destination_ip: Ipv4Addr,
     tcp_received_packet: TcpPacket<'_>,
 ) {
-    println!("Flag: {:?}, payload: {:?}", tcp_received_packet.get_flags(), tcp_received_packet.payload() );
+    println!("Flag: {:?}", tcp_received_packet.get_flags() );
 
     if tcp_received_packet.payload().is_empty(){
 
