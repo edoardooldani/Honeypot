@@ -1,7 +1,7 @@
-use std::{collections::HashMap, net::Ipv4Addr, sync::Arc};
+use std::{collections::HashMap, net::Ipv4Addr, sync::Arc, time::Duration};
 
 use pnet::{datalink::DataLinkSender, packet::{tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
-use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream, sync:: Mutex};
+use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream, sync:: Mutex, time::timeout};
 use tracing::{info, error};
 use crate::network::sender::send_tcp_stream;
 use lazy_static::lazy_static;
@@ -29,8 +29,8 @@ pub async fn handle_ssh_connection(
 
 
     let src_port = tcp_received_packet.get_source();
-    let mut next_ack = tcp_received_packet.get_sequence();
     let payload_from_client = tcp_received_packet.payload();
+    let mut next_ack = tcp_received_packet.get_sequence() + payload_from_client.len() as u32;
     let next_seq: u32 = tcp_received_packet.get_acknowledgement();
 
     let tx_clone = Arc::clone(&tx);
@@ -49,13 +49,11 @@ pub async fn handle_ssh_connection(
     let mut buf = [0u8; 1500];
 
     loop {
-
-        match sshd.read(&mut buf).await {
-            Ok(n) if n > 0 => {
+        match timeout(Duration::from_millis(200), sshd.read(&mut buf)).await {
+            Ok(Ok(n)) if n > 0 => {
                 let payload = buf[..n].to_vec();
-                next_ack += payload_from_client.len() as u32;
+    
                 let response_flags = TcpFlags::ACK | TcpFlags::PSH;
-
                 send_tcp_stream(
                     tx_clone.clone(),
                     virtual_mac,
@@ -69,11 +67,11 @@ pub async fn handle_ssh_connection(
                     response_flags,
                     &payload,
                 ).await;
-
-                break;
+    
+                next_ack += payload.len() as u32;
+    
             }
-            _ => {break},
-
+            _ => break,
         }
     }
 }
