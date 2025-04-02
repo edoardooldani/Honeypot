@@ -30,8 +30,8 @@ pub async fn handle_ssh_connection(
 
     let src_port = tcp_received_packet.get_source();
     let payload_from_client = tcp_received_packet.payload();
-    let mut next_ack = tcp_received_packet.get_sequence() + payload_from_client.len() as u32;
-    let next_seq: u32 = tcp_received_packet.get_acknowledgement();
+    let mut next_ack: u32 = tcp_received_packet.get_sequence() + payload_from_client.len() as u32;
+    let mut next_seq: u32 = tcp_received_packet.get_acknowledgement();
 
     let tx_clone = Arc::clone(&tx);
 
@@ -69,7 +69,7 @@ pub async fn handle_ssh_connection(
                 ).await;
     
                 next_ack += payload.len() as u32;
-    
+                next_seq += payload.len() as u32;
             }
             _ => break,
         }
