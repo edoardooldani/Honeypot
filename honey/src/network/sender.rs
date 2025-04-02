@@ -148,16 +148,21 @@ pub async fn send_tcp_stream(
 
     ethernet_packet.set_payload(ipv4_packet.packet());
 
+    /* 
     let ethernet_pack = ethernet_packet.packet();
     let ethernet_pack = match ethernet_pack.iter().rposition(|&b| b != 0) {
         Some(pos) => &ethernet_pack[..=pos],
         None => &[],
-    };
+    };*/
 
-    println!("Flags I send: {:?}", tcp_packet.get_flags());
-    println!("Reply I send: {:?}", ethernet_pack);
+    println!("[DEBUG] TCP header len: {}", tcp_header_len);
+    println!("[DEBUG] Payload len: {}", payload.len());
+    println!("[DEBUG] TCP header + payload len: {}", tcp_header_len+payload.len());
+    println!("[DEBUG] TCP len set: {}", TCP_LEN + payload.len());
+
+    println!("Reply I send: {:?}", ethernet_packet.packet());
     let mut tx_sender = tx.lock().await;
-    let _ = tx_sender.send_to(ethernet_pack, None).expect("Failed sending TCP stream");
+    let _ = tx_sender.send_to(ethernet_packet.packet(), None).expect("Failed sending TCP stream");
 }
 
 

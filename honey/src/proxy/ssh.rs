@@ -20,13 +20,12 @@ pub async fn handle_ssh_connection(
     destination_ip: Ipv4Addr,
     tcp_received_packet: TcpPacket<'_>,
 ) {
-    println!("Flag: {:?}", tcp_received_packet.get_flags() );
 
     if tcp_received_packet.payload().is_empty(){
         return;
     }
 
-    info!("\n\nPacket received from client: {:?}", tcp_received_packet.packet());
+    info!("\n\nFlag received: {:?}\nPacket received from client: {:?}", tcp_received_packet.get_flags(), tcp_received_packet.packet());
 
     let src_port = tcp_received_packet.get_source();
     let payload_from_client = tcp_received_packet.payload();
@@ -51,8 +50,8 @@ pub async fn handle_ssh_connection(
         match timeout(Duration::from_millis(200), sshd.read(&mut buf)).await {
             Ok(Ok(n)) if n > 0 => {
                 let payload = buf[..n].to_vec();
-                println!("Payload to send len: {:?}", payload.len());
                 let response_flags = TcpFlags::ACK | TcpFlags::PSH;
+                
                 send_tcp_stream(
                     tx_clone.clone(),
                     virtual_mac,
