@@ -100,8 +100,11 @@ async fn get_or_create_ssh_session(virtual_ip: Ipv4Addr, destination_ip: Ipv4Add
             let stream = TcpStream::connect("127.0.0.1:2222")
                 .await
                 .expect("❌ Connessione al server SSH fallita");
+
             let signing_key = generate_signing_key();
-            let arc_stream = Arc::new(Mutex::new((stream, signing_key)));
+            let keypair = SigningKey::from_keypair_bytes(&signing_key.to_keypair_bytes()).expect("Failed generating keypair");
+
+            let arc_stream = Arc::new(Mutex::new((stream, keypair)));
 
             sessions.insert(key, arc_stream.clone());
             
@@ -113,11 +116,12 @@ async fn get_or_create_ssh_session(virtual_ip: Ipv4Addr, destination_ip: Ipv4Add
 
 
 fn generate_signing_key() -> SigningKey {
-    let mut secret_key_bytes = [0u8; KEYPAIR_LENGTH];
-    let mut rng = OsRng;
-    let _ = rng.try_fill_bytes(&mut secret_key_bytes).expect("Failed filling bytes of key");
+    let mut secret_bytes = [0u8; 32];
+    OsRng.try_fill_bytes(&mut secret_bytes).expect("Failed filling secret key");
 
-    SigningKey::from_keypair_bytes(&secret_key_bytes).expect("Failed generating keypair")
+    println!("Secret key: {:?}", secret_bytes);
+
+    SigningKey::from_bytes(&secret_bytes)
 }
 
 
