@@ -148,10 +148,16 @@ pub async fn send_tcp_stream(
     ipv4_packet.set_checksum(checksum(&ipv4_packet.to_immutable()));
 
     ethernet_packet.set_payload(ipv4_packet.packet());
-    
-    println!("Reply I send: {:?}", ethernet_packet.packet());
+
+    let ethernet_pack = ethernet_packet.packet();
+    let ethernet_pack = match ethernet_pack.iter().rposition(|&b| b != 0) {
+        Some(pos) => &ethernet_pack[..=pos],
+        None => &[],
+    };
+
+    println!("Reply I send: {:?}", ethernet_pack);
     let mut tx_sender = tx.lock().await;
-    let _ = tx_sender.send_to(ethernet_packet.packet(), None).expect("Failed sending TCP stream");
+    let _ = tx_sender.send_to(ethernet_pack, None).expect("Failed sending TCP stream");
 }
 
 
