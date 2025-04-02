@@ -52,7 +52,7 @@ pub async fn handle_ssh_connection(
         match timeout(Duration::from_millis(200), sshd.read(&mut buf)).await {
             Ok(Ok(n)) if n > 0 => {
                 let payload = buf[..n].to_vec();
-    
+                println!("Payload to send len: {:?}", payload.len());
                 let response_flags = TcpFlags::ACK | TcpFlags::PSH;
                 send_tcp_stream(
                     tx_clone.clone(),
