@@ -1,6 +1,6 @@
 use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
-use std::{collections::HashMap, net::Ipv4Addr, process::Command, str::FromStr};
+use std::{collections::HashMap, net::Ipv4Addr, str::FromStr};
 use rand::Rng;
 
 use crate::utilities::network::find_ip_by_mac;
