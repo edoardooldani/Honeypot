@@ -8,9 +8,26 @@ use lazy_static::lazy_static;
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey, KEYPAIR_LENGTH, SECRET_KEY_LENGTH};
 
 
+#[derive(Debug, Default)]
+struct SSHSessionContext {
+    v_c: Option<Vec<u8>>,        // Version string client
+    v_s: Option<Vec<u8>>,        // Version string server
+    i_c: Option<Vec<u8>>,        // KEXINIT client payload
+    i_s: Option<Vec<u8>>,        // KEXINIT server payload
+    k_s: Option<Vec<u8>>,        // Server host key
+    q_c: Option<Vec<u8>>,        // Ephemeral client key
+    q_s: Option<Vec<u8>>,        // Ephemeral server key
+    k:   Option<Vec<u8>>,        // Shared secret
+}
+
+pub struct SSHSession {
+    stream: TcpStream,
+    signing_key: SigningKey,
+    context: SSHSessionContext,
+}
 
 lazy_static! {
-    pub static ref SSH_SESSIONS: Arc<Mutex<HashMap<(Ipv4Addr, Ipv4Addr),Arc<Mutex<(TcpStream, SigningKey)>>
+    pub static ref SSH_SESSIONS: Arc<Mutex<HashMap<(Ipv4Addr, Ipv4Addr),Arc<Mutex<SSHSession>>
         >>> = Arc::new(Mutex::new(HashMap::new()));
 }
 
@@ -37,9 +54,10 @@ pub async fn handle_ssh_connection(
 
     let tx_clone = Arc::clone(&tx);
 
-    let sshd_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
-    let mut sshd_locked = sshd_mutex.lock().await;
-    let (ref mut sshd, ref signing_key) = *sshd_locked;
+    let ssh_session_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
+    let mut ssh_session_locked = ssh_session_mutex.lock().await;
+    
+    let SSHSession { stream: sshd, signing_key, .. } = &mut *ssh_session_locked;
 
     if let Err(e) = sshd.write_all(payload_from_client).await {
         error!("❌ Errore nell’invio dati a sshd: {}", e);
@@ -90,28 +108,34 @@ pub async fn handle_ssh_connection(
 
 
 
-async fn get_or_create_ssh_session(virtual_ip: Ipv4Addr, destination_ip: Ipv4Addr) -> Arc<Mutex<(TcpStream, SigningKey)>>{
+async fn get_or_create_ssh_session(
+    virtual_ip: Ipv4Addr,
+    destination_ip: Ipv4Addr,
+) -> Arc<Mutex<SSHSession>> {
     let mut sessions = SSH_SESSIONS.lock().await;
     let key = (virtual_ip, destination_ip);
 
-    let sshd: Arc<Mutex<(TcpStream, SigningKey)>> = match sessions.get(&key) {
-        Some(stream) => Arc::clone(stream),
+    match sessions.get(&key) {
+        Some(session) => Arc::clone(session),
         None => {
             let stream = TcpStream::connect("127.0.0.1:2222")
                 .await
                 .expect("❌ Connessione al server SSH fallita");
 
             let signing_key = generate_signing_key();
-            let keypair = SigningKey::from_keypair_bytes(&signing_key.to_keypair_bytes()).expect("Failed generating keypair");
 
-            let arc_stream = Arc::new(Mutex::new((stream, keypair)));
+            let session = SSHSession {
+                stream,
+                signing_key,
+                context: SSHSessionContext::default(),
+            };
 
-            sessions.insert(key, arc_stream.clone());
-            
-            arc_stream
+            let arc_session = Arc::new(Mutex::new(session));
+            sessions.insert(key, arc_session.clone());
+
+            arc_session
         }
-    };
-    sshd
+    }
 }
 
 
