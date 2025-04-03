@@ -47,8 +47,8 @@ pub async fn handle_ssh_connection(
 
     let src_port = tcp_received_packet.get_source();
     let payload_from_client = tcp_received_packet.payload();
-    let mut next_ack: u32 = tcp_received_packet.get_sequence() + payload_from_client.len() as u32;
-    let mut next_seq: u32 = tcp_received_packet.get_acknowledgement();
+    let next_ack: u32 = tcp_received_packet.get_sequence() + payload_from_client.len() as u32;
+    let next_seq: u32 = tcp_received_packet.get_acknowledgement();
 
     let tx_clone = Arc::clone(&tx);
 
@@ -61,6 +61,22 @@ pub async fn handle_ssh_connection(
         error!("❌ Errore nell’invio dati a sshd: {}", e);
         let mut sessions = SSH_SESSIONS.lock().await;
         sessions.remove(&(virtual_ip, destination_ip));
+
+        let fin_flags = TcpFlags::ACK | TcpFlags::FIN;
+
+        send_tcp_stream(
+            tx.clone(),
+            virtual_mac,
+            virtual_ip,
+            destination_mac,
+            destination_ip,
+            22,
+            src_port,
+            tcp_received_packet.get_acknowledgement(),
+            tcp_received_packet.get_sequence() + payload_from_client.len() as u32,
+            fin_flags,
+            &[], // Nessun payload
+        ).await;
         return;
     }
 
