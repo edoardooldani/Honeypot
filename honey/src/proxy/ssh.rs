@@ -9,7 +9,6 @@ use ed25519_dalek::{Signer, SigningKey};
 use x25519_dalek::{StaticSecret, PublicKey as X25519PublicKey};
 use sha2::{Sha256, Digest};
 
-
 #[derive(Debug, Default)]
 struct SSHSessionContext {
     v_c: Option<Vec<u8>>,        // Version string client
@@ -29,10 +28,8 @@ pub struct SSHSession {
 }
 
 lazy_static! {
-    pub static ref SSH_SESSIONS: Arc<Mutex<HashMap<(Ipv4Addr, Ipv4Addr),Arc<Mutex<SSHSession>>
-        >>> = Arc::new(Mutex::new(HashMap::new()));
+    pub static ref SSH_SESSIONS: Arc<Mutex<HashMap<(Ipv4Addr, Ipv4Addr), Arc<Mutex<SSHSession>>>>> = Arc::new(Mutex::new(HashMap::new()));
 }
-
 
 pub async fn handle_ssh_connection(
     tx: Arc<Mutex<Box<dyn DataLinkSender + Send>>>,
@@ -42,8 +39,7 @@ pub async fn handle_ssh_connection(
     destination_ip: Ipv4Addr,
     tcp_received_packet: TcpPacket<'_>,
 ) {
-
-    if tcp_received_packet.payload().is_empty(){
+    if tcp_received_packet.payload().is_empty() {
         return;
     }
 
@@ -58,7 +54,7 @@ pub async fn handle_ssh_connection(
 
     let ssh_session_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
     let mut ssh_session_locked = ssh_session_mutex.lock().await;
-    
+
     let SSHSession { stream: sshd, signing_key, context } = &mut *ssh_session_locked;
 
     if let Err(e) = sshd.write_all(payload_from_client).await {
@@ -67,19 +63,18 @@ pub async fn handle_ssh_connection(
         sessions.remove(&(virtual_ip, destination_ip));
         return;
     }
-    
+
     check_client_context(payload_from_client, context);
 
-    let mut buf = [0u8; 2048];
+    let mut buf = [0u8; 4096];
 
-    //loop {
-    match timeout(Duration::from_millis(200), sshd.read(&mut buf)).await {
-        Ok(Ok(n)) if n > 0 => {
+    if let Ok(Ok(n)) = timeout(Duration::from_millis(200), sshd.read(&mut buf)).await {
+        if n > 0 {
+            let mut response = buf[..n].to_vec();
+            if let Some(modified) = process_server_payload(&mut response, context, signing_key) {
+                response = modified;
+            }
 
-            check_server_context(&mut buf[..n], context, signing_key);
-            let full_payload = &buf[..n];
-            let response_flags = TcpFlags::ACK | TcpFlags::PSH;
-        
             send_tcp_stream(
                 tx_clone.clone(),
                 virtual_mac,
@@ -90,35 +85,24 @@ pub async fn handle_ssh_connection(
                 src_port,
                 next_seq,
                 next_ack,
-                response_flags,
-                full_payload,
+                TcpFlags::ACK | TcpFlags::PSH,
+                &response,
             ).await;
 
-            next_ack += full_payload.len() as u32;
-            next_seq += full_payload.len() as u32;
-        
+            //next_ack += response.len() as u32;
+            //next_seq += response.len() as u32;
         }
-        _ => {}
     }
-    //}
 }
 
-
-
-async fn get_or_create_ssh_session(
-    virtual_ip: Ipv4Addr,
-    destination_ip: Ipv4Addr,
-) -> Arc<Mutex<SSHSession>> {
+async fn get_or_create_ssh_session(virtual_ip: Ipv4Addr, destination_ip: Ipv4Addr) -> Arc<Mutex<SSHSession>> {
     let mut sessions = SSH_SESSIONS.lock().await;
     let key = (virtual_ip, destination_ip);
 
     match sessions.get(&key) {
         Some(session) => Arc::clone(session),
         None => {
-            let stream = TcpStream::connect("127.0.0.1:2222")
-                .await
-                .expect("❌ Connessione al server SSH fallita");
-
+            let stream = TcpStream::connect("127.0.0.1:2222").await.expect("❌ Connessione al server SSH fallita");
             let signing_key = generate_signing_key();
 
             let session = SSHSession {
@@ -129,126 +113,96 @@ async fn get_or_create_ssh_session(
 
             let arc_session = Arc::new(Mutex::new(session));
             sessions.insert(key, arc_session.clone());
-
             arc_session
         }
     }
 }
 
-
-fn check_client_context(received_packet: &[u8], context: &mut SSHSessionContext){
+fn check_client_context(received_packet: &[u8], context: &mut SSHSessionContext) {
     if context.v_c.is_none() && received_packet.starts_with(b"SSH-") {
         if let Some(pos) = received_packet.iter().position(|&b| b == b'\n') {
             let line = &received_packet[..=pos];
             context.v_c = Some(line.to_vec());
-
             println!("🔍 Salvato V_C: {:?}", String::from_utf8_lossy(line));
             return;
         }
     }
 
+    if received_packet.len() < 6 { return; }
     let msg_type = received_packet[5];
     match msg_type {
-        20 => {
-            if context.i_c.is_none() {
-                context.i_c = Some(received_packet[5..received_packet.len()].to_vec());
-                println!("🔍 Salvato i_C");
-            }
-        }
-        30 => {
-            if context.q_c.is_none(){
-                context.q_c = Some(received_packet[6..received_packet.len()].to_vec());
-                println!("🔍 Salvato q_C");
-            }
-        }
+        20 => if context.i_c.is_none() {
+            context.i_c = Some(received_packet[5..].to_vec());
+            println!("🔍 Salvato i_C");
+        },
+        30 => if context.q_c.is_none() {
+            context.q_c = Some(received_packet[6..].to_vec());
+            println!("🔍 Salvato q_C");
+        },
         _ => {}
     }
 }
 
-fn check_server_context(payload: &mut [u8], context: &mut SSHSessionContext, signing_key: &SigningKey) {
-
+fn process_server_payload(payload: &mut Vec<u8>, context: &mut SSHSessionContext, signing_key: &SigningKey) -> Option<Vec<u8>> {
     if context.v_s.is_none() && payload.starts_with(b"SSH-") {
         if let Some(pos) = payload.iter().position(|&b| b == b'\n') {
-            let line = &payload[..=pos];
-            context.v_s = Some(line.to_vec());
-            println!("🛰️ Salvato V_S: {:?}", String::from_utf8_lossy(line));
-            return;
+            context.v_s = Some(payload[..=pos].to_vec());
+            println!("🛰️ Salvato V_S: {:?}", String::from_utf8_lossy(&payload[..=pos]));
+            return None;
         }
     }
 
-    if payload.len() < 6 {
-        return;
-    }
-
+    if payload.len() < 6 { return None; }
     let msg_type = payload[5];
 
     match msg_type {
-        20 => {
-            if context.i_s.is_none() {
-                context.i_s = Some(payload[5..].to_vec());
-                println!("📡 Salvato I_S (KEXINIT server)");
-            }
-        }
+        20 => if context.i_s.is_none() {
+            context.i_s = Some(payload[5..].to_vec());
+            println!("📡 Salvato I_S (KEXINIT server)");
+        },
         31 => {
             let mut idx = 6;
-            if context.k_s.is_none() {
-                if idx + 4 > payload.len() { return; }
-                let k_s_len = u32::from_be_bytes(payload[idx..idx+4].try_into().unwrap()) as usize;
-                idx += 4;
+            let k_s_len = u32::from_be_bytes(payload[idx..idx+4].try_into().unwrap()) as usize;
+            idx += 4;
+            let k_s = payload[idx..idx + k_s_len].to_vec();
+            context.k_s = Some(k_s);
+            idx += k_s_len;
 
-                if idx + k_s_len > payload.len() { return; }
-                let k_s = payload[idx..idx + k_s_len].to_vec();
-                context.k_s = Some(k_s);
-                println!("🔑 Salvato K_S");
-                idx += k_s_len;
-            }
-
-            // Q_S
-            if context.q_s.is_none() {
-                let q_s_len = u32::from_be_bytes(payload[idx..idx+4].try_into().unwrap()) as usize;
-                idx += 4;
-                let q_s = payload[idx..idx + q_s_len].to_vec();
-                context.q_s = Some(q_s);
-                println!("🧪 Salvato Q_S");
-                idx += q_s_len;
-            }
+            let q_s_len = u32::from_be_bytes(payload[idx..idx+4].try_into().unwrap()) as usize;
+            idx += 4;
+            let q_s = payload[idx..idx + q_s_len].to_vec();
+            context.q_s = Some(q_s.clone());
+            idx += q_s_len;
 
             if context.k.is_none() {
                 if let Some(q_c_bytes) = &context.q_c {
                     if let Some(shared) = derive_shared_secret(q_c_bytes, signing_key) {
                         context.k = Some(shared);
                         println!("🤝 Derivato shared secret K");
-                    } else {
-                        println!("⚠️ Derivazione shared secret fallita");
                     }
                 }
             }
 
-            change_fingerprint_and_sign(payload, signing_key, context, idx);
-
+            return Some(build_packet_31(context, signing_key));
         }
         _ => {}
     }
-}
 
+    None
+}
 
 fn derive_shared_secret(q_c_bytes: &[u8], signing_key: &SigningKey) -> Option<Vec<u8>> {
     if q_c_bytes.len() != 32 {
         return None;
     }
-
     let secret_bytes = signing_key.to_bytes();
     let scalar = StaticSecret::from(secret_bytes);
     let client_pub = X25519PublicKey::from(*<&[u8; 32]>::try_from(q_c_bytes).ok()?);
-
-    let shared_secret = scalar.diffie_hellman(&client_pub);
-
-    Some(shared_secret.as_bytes().to_vec())
+    Some(scalar.diffie_hellman(&client_pub).as_bytes().to_vec())
 }
 
 fn calculate_session_hash(context: &SSHSessionContext) -> Option<Vec<u8>> {
     let mut hasher = Sha256::new();
-
     macro_rules! append_field {
         ($field:expr) => {
             if let Some(ref value) = $field {
@@ -259,7 +213,6 @@ fn calculate_session_hash(context: &SSHSessionContext) -> Option<Vec<u8>> {
             }
         };
     }
-
     append_field!(context.v_c);
     append_field!(context.v_s);
     append_field!(context.i_c);
@@ -268,58 +221,46 @@ fn calculate_session_hash(context: &SSHSessionContext) -> Option<Vec<u8>> {
     append_field!(context.q_c);
     append_field!(context.q_s);
     append_field!(context.k);
-
     Some(hasher.finalize().to_vec())
 }
 
+fn build_packet_31(context: &SSHSessionContext, signing_key: &SigningKey) -> Vec<u8> {
+    let pubkey_bytes = signing_key.verifying_key().to_bytes();
+    let key_type = b"ssh-ed25519";
+    let mut k_s: Vec<u8> = vec![];
+    k_s.extend(&(key_type.len() as u32).to_be_bytes());
+    k_s.extend(key_type);
+    k_s.extend(&(pubkey_bytes.len() as u32).to_be_bytes());
+    k_s.extend(&pubkey_bytes);
+
+    let signature = signing_key.sign(&calculate_session_hash(context).expect("Hash session fallita"));
+    let mut signature_field: Vec<u8> = vec![];
+    signature_field.extend(&(key_type.len() as u32).to_be_bytes());
+    signature_field.extend(key_type);
+    signature_field.extend(&(signature.to_bytes().len() as u32).to_be_bytes());
+    signature_field.extend(&signature.to_bytes());
+
+    let mut payload = vec![31];
+    payload.extend(&(k_s.len() as u32).to_be_bytes());
+    payload.extend(k_s);
+    let q_s = context.q_s.as_ref().unwrap();
+    payload.extend(&(q_s.len() as u32).to_be_bytes());
+    payload.extend(q_s);
+    payload.extend(&(signature_field.len() as u32).to_be_bytes());
+    payload.extend(signature_field);
+
+    let padding_len = 8 - ((payload.len() + 5) % 8);
+    let mut final_packet = vec![];
+    final_packet.extend(&((payload.len() + padding_len + 1) as u32).to_be_bytes());
+    final_packet.push(padding_len as u8);
+    final_packet.extend(payload);
+    final_packet.extend(vec![0u8; padding_len]);
+    final_packet
+}
 
 fn generate_signing_key() -> SigningKey {
     let mut secret_bytes = [0u8; 32];
     OsRng.try_fill_bytes(&mut secret_bytes).expect("Failed filling secret key");
-
     println!("Secret key: {:?}", secret_bytes);
-
     SigningKey::from_bytes(&secret_bytes)
-}
-
-
-fn change_fingerprint_and_sign(buf: &mut [u8], signing_key: &SigningKey, context: &mut SSHSessionContext, sig_start: usize) {
-    let pubkey_bytes = signing_key.verifying_key().to_bytes();
-    let pubkey_len = pubkey_bytes.len() as u32;
-    let key_type = b"ssh-ed25519";
-    let key_type_len = key_type.len() as u32;
-
-    let mut new_k_s = Vec::new();
-    new_k_s.extend_from_slice(&key_type_len.to_be_bytes());
-    new_k_s.extend_from_slice(key_type);
-    new_k_s.extend_from_slice(&pubkey_len.to_be_bytes());
-    new_k_s.extend_from_slice(&pubkey_bytes);
-
-    context.k_s = Some(new_k_s.clone());
-
-    let k_s_len = new_k_s.len() as u32;
-    buf[6..10].copy_from_slice(&k_s_len.to_be_bytes());
-    buf[10..10 + new_k_s.len()].copy_from_slice(&new_k_s);
-
-    let h = calculate_session_hash(context).expect("Failed calculating hash");
-    let signature = signing_key.sign(&h);
-
-    // 🧩 Costruisci la signature SSH format
-    let mut signature_field = Vec::new();
-    signature_field.extend_from_slice(&(key_type.len() as u32).to_be_bytes());
-    signature_field.extend_from_slice(key_type);
-    signature_field.extend_from_slice(&(signature.to_bytes().len() as u32).to_be_bytes());
-    signature_field.extend_from_slice(&signature.to_bytes());
-
-    // 📌 Trova fine Q_S e sostituisci la vecchia firma con la tua
-    let sig_end = sig_start + signature_field.len();
-    if sig_end <= buf.len() {
-        buf[sig_start..sig_end].copy_from_slice(&signature_field);
-    } else {
-        println!("⚠️ Signature overflow: signature non entra nel buffer");
-        return;
-    }
-    buf[sig_start..sig_end].copy_from_slice(&signature_field);
-
-    println!("🔐 Sostituita fingerprint e firma nel pacchetto tipo 31.");
 }
