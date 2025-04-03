@@ -7,6 +7,8 @@ use crate::network::sender::send_tcp_stream;
 use lazy_static::lazy_static;
 use ed25519_dalek::{Signer, SigningKey};
 use x25519_dalek::{StaticSecret, PublicKey as X25519PublicKey};
+use sha2::{Sha256, Digest};
+
 
 #[derive(Debug, Default)]
 struct SSHSessionContext {
@@ -191,8 +193,7 @@ fn check_server_context(payload: &mut [u8], context: &mut SSHSessionContext, sig
             }
         }
         31 => {
-
-            change_fingerprint_and_sign(payload, signing_key);
+            change_fingerprint_and_sign(payload, signing_key, context);
 
             let mut idx = 6;
             if context.k_s.is_none() {
@@ -249,6 +250,31 @@ fn derive_shared_secret(q_c_bytes: &[u8], signing_key: &SigningKey) -> Option<Ve
     Some(shared_secret.as_bytes().to_vec())
 }
 
+fn calculate_session_hash(context: &SSHSessionContext) -> Option<Vec<u8>> {
+    let mut hasher = Sha256::new();
+
+    macro_rules! append_field {
+        ($field:expr) => {
+            if let Some(ref value) = $field {
+                hasher.update((value.len() as u32).to_be_bytes());
+                hasher.update(value);
+            } else {
+                return None;
+            }
+        };
+    }
+
+    append_field!(context.v_c);
+    append_field!(context.v_s);
+    append_field!(context.i_c);
+    append_field!(context.i_s);
+    append_field!(context.k_s);
+    append_field!(context.q_c);
+    append_field!(context.q_s);
+    append_field!(context.k);
+
+    Some(hasher.finalize().to_vec())
+}
 
 
 fn generate_signing_key() -> SigningKey {
@@ -261,7 +287,7 @@ fn generate_signing_key() -> SigningKey {
 }
 
 
-fn change_fingerprint_and_sign(buf: &mut [u8], signing_key: &SigningKey) {
+fn change_fingerprint_and_sign(buf: &mut [u8], signing_key: &SigningKey, context: &SSHSessionContext) {
     let pubkey_bytes = signing_key.verifying_key().to_bytes();
     let pubkey_len = pubkey_bytes.len() as u32;
     let key_type = b"ssh-ed25519";
@@ -277,9 +303,8 @@ fn change_fingerprint_and_sign(buf: &mut [u8], signing_key: &SigningKey) {
     buf[6..10].copy_from_slice(&k_s_len.to_be_bytes());
     buf[10..10 + new_k_s.len()].copy_from_slice(&new_k_s);
 
-    // 🔏 Costruisci un H fittizio solo per test (da sostituire con hash reale)
-    let dummy_h = b"fake session hash";
-    let signature = signing_key.sign(dummy_h);
+    let h = calculate_session_hash(context).expect("Failed calculating hash");
+    let signature = signing_key.sign(&h);
 
     // 🧩 Costruisci la signature SSH format
     let mut signature_field = Vec::new();
