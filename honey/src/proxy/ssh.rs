@@ -79,27 +79,24 @@ pub async fn handle_ssh_connection(
             check_server_context(&mut buf[..n], context, signing_key);
             let full_payload = &buf[..n];
             let response_flags = TcpFlags::ACK | TcpFlags::PSH;
-    
-            let max_payload_size = 1460;
-    
-            for chunk in full_payload.chunks(max_payload_size) {
-                send_tcp_stream(
-                    tx_clone.clone(),
-                    virtual_mac,
-                    virtual_ip,
-                    destination_mac,
-                    destination_ip,
-                    22,
-                    src_port,
-                    next_seq,
-                    next_ack,
-                    response_flags,
-                    chunk,
-                ).await;
-    
-                next_ack += chunk.len() as u32;
-                next_seq += chunk.len() as u32;
-            }
+        
+            send_tcp_stream(
+                tx_clone.clone(),
+                virtual_mac,
+                virtual_ip,
+                destination_mac,
+                destination_ip,
+                22,
+                src_port,
+                next_seq,
+                next_ack,
+                response_flags,
+                chunk,
+            ).await;
+
+            next_ack += chunk.len() as u32;
+            next_seq += chunk.len() as u32;
+        
         }
         _ => {}
     }
