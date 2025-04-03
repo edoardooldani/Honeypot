@@ -66,7 +66,7 @@ pub async fn handle_ssh_connection(
         return;
     }
     
-    check_client_context(tcp_received_packet.packet(), context);
+    check_client_context(payload_from_client, context);
 
     let mut buf = [0u8; 2048];
 
