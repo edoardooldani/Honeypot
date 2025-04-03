@@ -1,12 +1,12 @@
 use std::{collections::HashMap, net::Ipv4Addr, sync::Arc, time::Duration};
 use pnet::{datalink::DataLinkSender, packet::{tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use rand::{rngs::OsRng, TryRngCore};
-use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream, sync:: Mutex, time::timeout};
+use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream, sync::Mutex, time::timeout};
 use tracing::{info, error};
 use crate::network::sender::send_tcp_stream;
 use lazy_static::lazy_static;
-use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey, KEYPAIR_LENGTH, SECRET_KEY_LENGTH};
-
+use ed25519_dalek::{Signer, SigningKey};
+use x25519_dalek::{StaticSecret, PublicKey as X25519PublicKey};
 
 #[derive(Debug, Default)]
 struct SSHSessionContext {
@@ -57,7 +57,7 @@ pub async fn handle_ssh_connection(
     let ssh_session_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
     let mut ssh_session_locked = ssh_session_mutex.lock().await;
     
-    let SSHSession { stream: sshd, signing_key, .. } = &mut *ssh_session_locked;
+    let SSHSession { stream: sshd, signing_key, context } = &mut *ssh_session_locked;
 
     if let Err(e) = sshd.write_all(payload_from_client).await {
         error!("❌ Errore nell’invio dati a sshd: {}", e);
@@ -66,17 +66,15 @@ pub async fn handle_ssh_connection(
         return;
     }
     
+    check_client_context(tcp_received_packet.packet(), context);
+
     let mut buf = [0u8; 2048];
 
     //loop {
     match timeout(Duration::from_millis(200), sshd.read(&mut buf)).await {
         Ok(Ok(n)) if n > 0 => {
 
-            let msg_type = buf[5];
-            if msg_type == 31 {
-                change_fingerprint_and_sign(&mut buf, signing_key);
-            }
-
+            check_server_context(&mut buf[..n], context, signing_key);
             let full_payload = &buf[..n];
             let response_flags = TcpFlags::ACK | TcpFlags::PSH;
     
@@ -137,6 +135,120 @@ async fn get_or_create_ssh_session(
         }
     }
 }
+
+
+fn check_client_context(received_packet: &[u8], context: &mut SSHSessionContext){
+    if context.v_c.is_none() && received_packet.starts_with(b"SSH-") {
+        if let Some(pos) = received_packet.iter().position(|&b| b == b'\n') {
+            let line = &received_packet[..=pos];
+            context.v_c = Some(line.to_vec());
+
+            println!("🔍 Salvato V_C: {:?}", String::from_utf8_lossy(line));
+            return;
+        }
+    }
+
+    let msg_type = received_packet[5];
+    match msg_type {
+        20 => {
+            if context.i_c.is_none() {
+                context.i_c = Some(received_packet[5..received_packet.len()].to_vec());
+                println!("🔍 Salvato i_C");
+            }
+        }
+        30 => {
+            if context.q_c.is_none(){
+                context.q_c = Some(received_packet[6..received_packet.len()].to_vec());
+                println!("🔍 Salvato q_C");
+            }
+        }
+        _ => {}
+    }
+}
+
+fn check_server_context(payload: &mut [u8], context: &mut SSHSessionContext, signing_key: &SigningKey) {
+
+    if context.v_s.is_none() && payload.starts_with(b"SSH-") {
+        if let Some(pos) = payload.iter().position(|&b| b == b'\n') {
+            let line = &payload[..=pos];
+            context.v_s = Some(line.to_vec());
+            println!("🛰️ Salvato V_S: {:?}", String::from_utf8_lossy(line));
+            return;
+        }
+    }
+
+    if payload.len() < 6 {
+        return;
+    }
+
+    let msg_type = payload[5];
+
+    match msg_type {
+        20 => {
+            if context.i_s.is_none() {
+                context.i_s = Some(payload[5..].to_vec());
+                println!("📡 Salvato I_S (KEXINIT server)");
+            }
+        }
+        31 => {
+
+            change_fingerprint_and_sign(payload, signing_key);
+
+            let mut idx = 6;
+            if context.k_s.is_none() {
+                if idx + 4 > payload.len() { return; }
+                let k_s_len = u32::from_be_bytes(payload[idx..idx+4].try_into().unwrap()) as usize;
+                idx += 4;
+
+                if idx + k_s_len > payload.len() { return; }
+                let k_s = payload[idx..idx + k_s_len].to_vec();
+                context.k_s = Some(k_s);
+                println!("🔑 Salvato K_S");
+                idx += k_s_len;
+            }
+
+            // Q_S
+            if context.q_s.is_none() {
+                if idx + 4 > payload.len() { return; }
+                let q_s_len = u32::from_be_bytes(payload[idx..idx+4].try_into().unwrap()) as usize;
+                idx += 4;
+
+                if idx + q_s_len > payload.len() { return; }
+                let q_s = payload[idx..idx + q_s_len].to_vec();
+                context.q_s = Some(q_s);
+                println!("🧪 Salvato Q_S");
+            }
+
+            if context.k.is_none() {
+                if let Some(q_c_bytes) = &context.q_c {
+                    if let Some(shared) = derive_shared_secret(q_c_bytes, signing_key) {
+                        context.k = Some(shared);
+                        println!("🤝 Derivato shared secret K");
+                    } else {
+                        println!("⚠️ Derivazione shared secret fallita");
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+
+fn derive_shared_secret(q_c_bytes: &[u8], signing_key: &SigningKey) -> Option<Vec<u8>> {
+    if q_c_bytes.len() != 32 {
+        return None;
+    }
+
+    let secret_bytes = signing_key.to_bytes();
+    let scalar = StaticSecret::from(secret_bytes);
+    let client_pub = X25519PublicKey::from(*<&[u8; 32]>::try_from(q_c_bytes).ok()?);
+
+    let shared_secret = scalar.diffie_hellman(&client_pub);
+
+    Some(shared_secret.as_bytes().to_vec())
+}
+
 
 
 fn generate_signing_key() -> SigningKey {
