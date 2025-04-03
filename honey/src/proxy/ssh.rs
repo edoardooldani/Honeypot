@@ -91,11 +91,11 @@ pub async fn handle_ssh_connection(
                 next_seq,
                 next_ack,
                 response_flags,
-                chunk,
+                full_payload,
             ).await;
 
-            next_ack += chunk.len() as u32;
-            next_seq += chunk.len() as u32;
+            next_ack += full_payload.len() as u32;
+            next_seq += full_payload.len() as u32;
         
         }
         _ => {}
