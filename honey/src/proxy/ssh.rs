@@ -283,7 +283,7 @@ fn generate_signing_key() -> SigningKey {
 }
 
 
-fn change_fingerprint_and_sign(buf: &mut [u8], signing_key: &SigningKey, context: &SSHSessionContext, sig_start: usize) {
+fn change_fingerprint_and_sign(buf: &mut [u8], signing_key: &SigningKey, context: &mut SSHSessionContext, sig_start: usize) {
     let pubkey_bytes = signing_key.verifying_key().to_bytes();
     let pubkey_len = pubkey_bytes.len() as u32;
     let key_type = b"ssh-ed25519";
@@ -294,6 +294,8 @@ fn change_fingerprint_and_sign(buf: &mut [u8], signing_key: &SigningKey, context
     new_k_s.extend_from_slice(key_type);
     new_k_s.extend_from_slice(&pubkey_len.to_be_bytes());
     new_k_s.extend_from_slice(&pubkey_bytes);
+
+    context.k_s = Some(new_k_s.clone());
 
     let k_s_len = new_k_s.len() as u32;
     buf[6..10].copy_from_slice(&k_s_len.to_be_bytes());
@@ -311,6 +313,12 @@ fn change_fingerprint_and_sign(buf: &mut [u8], signing_key: &SigningKey, context
 
     // 📌 Trova fine Q_S e sostituisci la vecchia firma con la tua
     let sig_end = sig_start + signature_field.len();
+    if sig_end <= buf.len() {
+        buf[sig_start..sig_end].copy_from_slice(&signature_field);
+    } else {
+        println!("⚠️ Signature overflow: signature non entra nel buffer");
+        return;
+    }
     buf[sig_start..sig_end].copy_from_slice(&signature_field);
 
     println!("🔐 Sostituita fingerprint e firma nel pacchetto tipo 31.");
