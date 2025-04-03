@@ -190,8 +190,6 @@ fn check_server_context(payload: &mut [u8], context: &mut SSHSessionContext, sig
             }
         }
         31 => {
-            change_fingerprint_and_sign(payload, signing_key, context);
-
             let mut idx = 6;
             if context.k_s.is_none() {
                 if idx + 4 > payload.len() { return; }
@@ -207,14 +205,12 @@ fn check_server_context(payload: &mut [u8], context: &mut SSHSessionContext, sig
 
             // Q_S
             if context.q_s.is_none() {
-                if idx + 4 > payload.len() { return; }
                 let q_s_len = u32::from_be_bytes(payload[idx..idx+4].try_into().unwrap()) as usize;
                 idx += 4;
-
-                if idx + q_s_len > payload.len() { return; }
                 let q_s = payload[idx..idx + q_s_len].to_vec();
                 context.q_s = Some(q_s);
                 println!("🧪 Salvato Q_S");
+                idx += q_s_len;
             }
 
             if context.k.is_none() {
@@ -227,6 +223,9 @@ fn check_server_context(payload: &mut [u8], context: &mut SSHSessionContext, sig
                     }
                 }
             }
+
+            change_fingerprint_and_sign(payload, signing_key, context, idx);
+
         }
         _ => {}
     }
@@ -284,7 +283,7 @@ fn generate_signing_key() -> SigningKey {
 }
 
 
-fn change_fingerprint_and_sign(buf: &mut [u8], signing_key: &SigningKey, context: &SSHSessionContext) {
+fn change_fingerprint_and_sign(buf: &mut [u8], signing_key: &SigningKey, context: &SSHSessionContext, sig_start: usize) {
     let pubkey_bytes = signing_key.verifying_key().to_bytes();
     let pubkey_len = pubkey_bytes.len() as u32;
     let key_type = b"ssh-ed25519";
@@ -311,7 +310,6 @@ fn change_fingerprint_and_sign(buf: &mut [u8], signing_key: &SigningKey, context
     signature_field.extend_from_slice(&signature.to_bytes());
 
     // 📌 Trova fine Q_S e sostituisci la vecchia firma con la tua
-    let sig_start = 10 + new_k_s.len() + 36; // ⚠️ questo 36 ≈ Q_S (deve essere calcolato dinamico!)
     let sig_end = sig_start + signature_field.len();
     buf[sig_start..sig_end].copy_from_slice(&signature_field);
 
