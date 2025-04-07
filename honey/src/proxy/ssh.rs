@@ -43,7 +43,7 @@ pub async fn handle_ssh_connection(
         return;
     }
 
-    info!("\n\nFlag received: {:?}\nPacket received from client: {:?}", tcp_received_packet.get_flags(), tcp_received_packet.packet());
+    info!("\nPacket received from client: {:?}", tcp_received_packet.packet());
 
     let src_port = tcp_received_packet.get_source();
     let payload_from_client = tcp_received_packet.payload();
@@ -56,6 +56,25 @@ pub async fn handle_ssh_connection(
     let mut ssh_session_locked = ssh_session_mutex.lock().await;
 
     let SSHSession { stream: sshd, signing_key, context } = &mut *ssh_session_locked;
+
+    check_client_context(payload_from_client, context);
+    if payload_from_client.starts_with(b"SSH-") && !context.v_s.is_none(){
+        send_tcp_stream(
+            tx_clone.clone(),
+            virtual_mac,
+            virtual_ip,
+            destination_mac,
+            destination_ip,
+            22,
+            src_port,
+            next_seq,
+            next_ack,
+            TcpFlags::ACK | TcpFlags::PSH,
+            &context.v_s.as_ref().expect("Server banner is empty"),
+        ).await;
+        
+        return;
+    }
 
     if let Err(e) = sshd.write_all(payload_from_client).await {
         error!("❌ Errore nell’invio dati a sshd: {}", e);
@@ -79,8 +98,6 @@ pub async fn handle_ssh_connection(
         ).await;
         return;
     }
-
-    check_client_context(payload_from_client, context);
 
     let mut buf = [0u8; 4096];
 
