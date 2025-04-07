@@ -13,7 +13,7 @@ use std::time::Instant;
 use crate::utilities::network::{classify_mac_address, get_local_mac, get_primary_interface, get_src_dest_ip};
 use crate::trackers::arp_tracker::{detect_arp_attacks, ArpRepliesTracker, ArpReqAlertTracker, ArpRequestTracker, ArpResAlertTracker};
 use crate::trackers::tcp_tracker::{detect_tcp_syn_attack, TcpSynDetector};
-use crate::honeypot::virtual_node::handle_virtual_packet;
+use crate::honeypot::handler::handle_virtual_packet;
 use crate::network::graph::NetworkGraph;
 
 pub async fn scan_datalink(
