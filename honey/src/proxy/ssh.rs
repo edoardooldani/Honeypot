@@ -87,7 +87,12 @@ pub async fn handle_ssh_connection(
     if let Ok(Ok(n)) = timeout(Duration::from_millis(200), sshd.read(&mut buf)).await {
         if n > 0 {
             let mut response = buf[..n].to_vec();
-            let full_packet = if let Some(modified) = process_server_payload(&mut response, context, signing_key) {
+            let full_packet = if response.starts_with(b"SSH-") {
+                response
+            } else if response.starts_with(b"Invalid") || response.starts_with(b"Too many") || response.starts_with(b"Protocol mismatch") {
+                println!("🚨 Messaggio testuale ricevuto da sshd: {:?}", String::from_utf8_lossy(&response));
+                response
+            } else if let Some(modified) = process_server_payload(&mut response, context, signing_key) {
                 modified
             } else {
                 println!("✉️ SSH packet: {:?}", &buf[..12]);
