@@ -102,10 +102,11 @@ pub async fn handle_ssh_connection(
     // Handle sshd response
     let mut buf = [0u8; 4096];
     let mut recv_buffer: Vec<u8> = vec![];
-
+    let mut counter = 0;
     loop {
         match timeout(Duration::from_millis(50), sshd.read(&mut buf)).await {
             Ok(Ok(n)) if n > 0 => {
+                counter += 1;
                 recv_buffer.extend_from_slice(&buf[..n]);
 
                 while let Some(packet) = extract_complete_ssh_packet(&mut recv_buffer) {
@@ -117,7 +118,7 @@ pub async fn handle_ssh_connection(
                     } else {
                         build_ssh_packet(&packet)
                     };
-
+                    println!("Sending response to packet: {counter}");
                     send_tcp_stream(
                         tx.clone(),
                         virtual_mac,
