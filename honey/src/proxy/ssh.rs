@@ -286,8 +286,13 @@ fn generate_signing_key() -> SigningKey {
 
 fn build_ssh_packet(payload: &[u8]) -> Vec<u8> {
     let block_size = 8;
-    let padding_len = block_size - ((payload.len() + 5) % block_size);
+    let mut padding_len = block_size - ((payload.len() + 5) % block_size);
+    if padding_len < 4 {
+        padding_len += block_size;
+    }
+
     let total_len = (payload.len() + padding_len + 1) as u32;
+
 
     let mut buf = Vec::new();
     buf.extend_from_slice(&total_len.to_be_bytes());
