@@ -87,9 +87,11 @@ pub async fn handle_ssh_connection(
     if let Ok(Ok(n)) = timeout(Duration::from_millis(200), sshd.read(&mut buf)).await {
         if n > 0 {
             let mut response = buf[..n].to_vec();
-            if let Some(modified) = process_server_payload(&mut response, context, signing_key) {
-                response = modified;
-            }
+            let full_packet = if let Some(modified) = process_server_payload(&mut response, context, signing_key) {
+                modified
+            } else {
+                build_ssh_packet(&response)
+            };
 
             send_tcp_stream(
                 tx_clone.clone(),
@@ -102,7 +104,7 @@ pub async fn handle_ssh_connection(
                 next_seq,
                 next_ack,
                 TcpFlags::ACK | TcpFlags::PSH,
-                &response,
+                &full_packet,
             ).await;
 
             //next_ack += response.len() as u32;
@@ -249,7 +251,7 @@ fn build_packet_31(context: &SSHSessionContext, signing_key: &SigningKey) -> Vec
     k_s.extend(&(pubkey_bytes.len() as u32).to_be_bytes());
     k_s.extend(&pubkey_bytes);
 
-    let signature = signing_key.sign(&calculate_session_hash(context).expect("Hash session fallita"));
+    let signature = signing_key.sign(&calculate_session_hash(context).expect("Hash session calculation failed"));
     let mut signature_field: Vec<u8> = vec![];
     signature_field.extend(&(key_type.len() as u32).to_be_bytes());
     signature_field.extend(key_type);
@@ -279,4 +281,21 @@ fn generate_signing_key() -> SigningKey {
     OsRng.try_fill_bytes(&mut secret_bytes).expect("Failed filling secret key");
     println!("Secret key: {:?}", secret_bytes);
     SigningKey::from_bytes(&secret_bytes)
+}
+
+
+fn build_ssh_packet(payload: &[u8]) -> Vec<u8> {
+    let block_size = 8;
+    let padding_len = block_size - ((payload.len() + 5) % block_size);
+    let total_len = (payload.len() + padding_len + 1) as u32;
+
+    let mut buf = Vec::new();
+    buf.extend_from_slice(&total_len.to_be_bytes());
+    buf.push(padding_len as u8);
+    buf.extend_from_slice(payload);
+
+    let padding: Vec<u8> = (0..padding_len).map(|_| rand::random::<u8>()).collect();
+    buf.extend_from_slice(&padding);
+
+    buf
 }
