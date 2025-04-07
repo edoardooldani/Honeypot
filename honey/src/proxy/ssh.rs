@@ -47,22 +47,20 @@ pub async fn handle_ssh_connection(
 
     info!("\nPacket received from client: {:?}", tcp_received_packet.packet());
 
+    let ssh_session_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
+    let mut ssh_session_locked = ssh_session_mutex.lock().await;
+    let SSHSession { stream: sshd, signing_key, context } = &mut *ssh_session_locked;
+
+
     let src_port = tcp_received_packet.get_source();
     let payload_from_client = tcp_received_packet.payload();
     let next_ack: u32 = tcp_received_packet.get_sequence() + payload_from_client.len() as u32;
     let next_seq: u32 = tcp_received_packet.get_acknowledgement();
 
-    let tx_clone = Arc::clone(&tx);
-
-    let ssh_session_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
-    let mut ssh_session_locked = ssh_session_mutex.lock().await;
-
-    let SSHSession { stream: sshd, signing_key, context } = &mut *ssh_session_locked;
-
-    check_client_context(payload_from_client, context);
+    // Handle banner 
     if payload_from_client.starts_with(b"SSH-"){
         send_tcp_stream(
-            tx_clone.clone(),
+            tx.clone(),
             virtual_mac,
             virtual_ip,
             destination_mac,
@@ -73,18 +71,18 @@ pub async fn handle_ssh_connection(
             next_ack,
             TcpFlags::ACK | TcpFlags::PSH,
             HARDCODED_SERVER_BANNER,
-        ).await;
-        
-        return;
+        ).await
     }
 
+    check_client_context(payload_from_client, context);
+
+    // Write on sshd
     if let Err(e) = sshd.write_all(payload_from_client).await {
         error!("❌ Errore nell’invio dati a sshd: {}", e);
         let mut sessions = SSH_SESSIONS.lock().await;
         sessions.remove(&(virtual_ip, destination_ip));
 
         let fin_flags = TcpFlags::ACK | TcpFlags::FIN;
-
         send_tcp_stream(
             tx.clone(),
             virtual_mac,
@@ -96,47 +94,67 @@ pub async fn handle_ssh_connection(
             tcp_received_packet.get_acknowledgement(),
             tcp_received_packet.get_sequence() + payload_from_client.len() as u32,
             fin_flags,
-            &[], // Nessun payload
+            &[],
         ).await;
         return;
     }
 
+    // Handle sshd response
     let mut buf = [0u8; 4096];
+    let mut recv_buffer: Vec<u8> = vec![];
 
-    if let Ok(Ok(n)) = timeout(Duration::from_millis(200), sshd.read(&mut buf)).await {
-        if n > 0 {
-            let mut response = buf[..n].to_vec();
-            let full_packet = if response.starts_with(b"SSH-") {
-                response
-            } else if response.starts_with(b"Invalid") || response.starts_with(b"Too many") || response.starts_with(b"Protocol mismatch") {
-                println!("🚨 Messaggio testuale ricevuto da sshd: {:?}", String::from_utf8_lossy(&response));
-                response
-            } else if let Some(modified) = process_server_payload(&mut response, context, signing_key) {
-                modified
-            } else {
-                println!("✉️ SSH packet: {:?}", &buf[..12]);
-                build_ssh_packet(&response)
-            };
+    loop {
+        match timeout(Duration::from_millis(50), sshd.read(&mut buf)).await {
+            Ok(Ok(n)) if n > 0 => {
+                recv_buffer.extend_from_slice(&buf[..n]);
 
-            send_tcp_stream(
-                tx_clone.clone(),
-                virtual_mac,
-                virtual_ip,
-                destination_mac,
-                destination_ip,
-                22,
-                src_port,
-                next_seq,
-                next_ack,
-                TcpFlags::ACK | TcpFlags::PSH,
-                &full_packet,
-            ).await;
+                while let Some(packet) = extract_complete_ssh_packet(&mut recv_buffer) {
+                    let full_packet = if packet.starts_with(b"Invalid") || packet.starts_with(b"Too many") {
+                        println!("🚨 Messaggio testuale ricevuto da sshd: {:?}", String::from_utf8_lossy(&packet));
+                        packet
+                    } else if let Some(modified) = process_server_payload(&mut packet.clone(), context, signing_key) {
+                        modified
+                    } else {
+                        build_ssh_packet(&packet)
+                    };
 
-            //next_ack += response.len() as u32;
-            //next_seq += response.len() as u32;
+                    send_tcp_stream(
+                        tx.clone(),
+                        virtual_mac,
+                        virtual_ip,
+                        destination_mac,
+                        destination_ip,
+                        22,
+                        src_port,
+                        next_seq,
+                        next_ack,
+                        TcpFlags::ACK | TcpFlags::PSH,
+                        &full_packet,
+                    ).await;
+                }
+            }
+            _ => break,
+    
         }
     }
 }
+
+
+fn extract_complete_ssh_packet(buffer: &mut Vec<u8>) -> Option<Vec<u8>> {
+    if buffer.len() < 5 {
+        return None;
+    }
+
+    let packet_len = u32::from_be_bytes([buffer[0], buffer[1], buffer[2], buffer[3]]) as usize;
+
+    if buffer.len() < 4 + packet_len {
+        return None;
+    }
+
+    let full_len = 4 + packet_len;
+    Some(buffer.drain(..full_len).collect())
+}
+
 
 async fn get_or_create_ssh_session(virtual_ip: Ipv4Addr, destination_ip: Ipv4Addr) -> Arc<Mutex<SSHSession>> {
     let mut sessions = SSH_SESSIONS.lock().await;
