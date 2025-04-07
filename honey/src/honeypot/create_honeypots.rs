@@ -9,4 +9,6 @@ pub async fn create_honeypots(graph: Arc<Mutex<NetworkGraph>>){
         let mut graph_locked = graph.lock().await;
         graph_locked.add_virtual_node().await;
     }
+    let graph_locked = graph.lock().await;
+    graph_locked.print_virtual_nodes();
 }
