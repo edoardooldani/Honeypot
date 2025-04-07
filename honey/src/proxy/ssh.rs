@@ -9,6 +9,8 @@ use ed25519_dalek::{Signer, SigningKey};
 use x25519_dalek::{StaticSecret, PublicKey as X25519PublicKey};
 use sha2::{Sha256, Digest};
 
+const HARDCODED_SERVER_BANNER: &[u8] = b"SSH-2.0-OpenSSH_9.2p1 Debian-2+deb12u3\r\n";
+
 #[derive(Debug, Default)]
 struct SSHSessionContext {
     v_c: Option<Vec<u8>>,        // Version string client
@@ -58,7 +60,7 @@ pub async fn handle_ssh_connection(
     let SSHSession { stream: sshd, signing_key, context } = &mut *ssh_session_locked;
 
     check_client_context(payload_from_client, context);
-    if payload_from_client.starts_with(b"SSH-") && !context.v_s.is_none(){
+    if payload_from_client.starts_with(b"SSH-"){
         send_tcp_stream(
             tx_clone.clone(),
             virtual_mac,
@@ -70,7 +72,7 @@ pub async fn handle_ssh_connection(
             next_seq,
             next_ack,
             TcpFlags::ACK | TcpFlags::PSH,
-            &context.v_s.as_ref().expect("Server banner is empty"),
+            HARDCODED_SERVER_BANNER,
         ).await;
         
         return;
