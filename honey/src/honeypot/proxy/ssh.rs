@@ -234,7 +234,7 @@ fn process_server_payload(payload: &mut Vec<u8>, context: &mut SSHSessionContext
             idx += 4;
             let q_s = payload[idx..idx + q_s_len].to_vec();
             context.q_s = Some(q_s.clone());
-            idx += q_s_len;
+            //idx += q_s_len;
 
             if context.k.is_none() {
                 if let Some(q_c_bytes) = &context.q_c {

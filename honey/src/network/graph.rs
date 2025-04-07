@@ -3,9 +3,6 @@ use pnet::util::MacAddr;
 use std::{collections::HashMap, net::Ipv4Addr, str::FromStr};
 use rand::Rng;
 
-use crate::utilities::network::find_ip_by_mac;
-
-
 #[derive(Debug, Clone)]
 pub struct Connection {
     pub total_bytes: u64,
@@ -52,13 +49,9 @@ impl NetworkGraph {
         }
     }
 
-    pub async fn add_node(&mut self, mac_address: MacAddr, mut ip_address: Ipv4Addr, node_type: NodeType) -> NodeIndex {
+    pub async fn add_node(&mut self, mac_address: MacAddr, ip_address: Ipv4Addr, node_type: NodeType) -> NodeIndex {
         if let Some(&existing_node) = self.nodes.get(&mac_address) {
             return existing_node;
-        }
-
-        if ip_address != Ipv4Addr::new(0, 0, 0, 0){
-            ip_address = find_ip_by_mac(&mac_address).await;
         }
 
         let mut node = NetworkNode {

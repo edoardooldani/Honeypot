@@ -9,9 +9,6 @@ use pnet::util::MacAddr;
 use tokio::sync::Mutex;
 use std::collections::HashSet;
 use std::net::Ipv4Addr;
-use std::process::Command;
-use std::str::FromStr;
-use std::str;
 use std::sync::Arc;
 use lazy_static::lazy_static;
 
@@ -148,53 +145,8 @@ pub async fn send_tcp_stream(
 
     ethernet_packet.set_payload(ipv4_packet.packet());
 
-    /* 
-    let ethernet_pack = ethernet_packet.packet();
-    let ethernet_pack = match ethernet_pack.iter().rposition(|&b| b != 0) {
-        Some(pos) => &ethernet_pack[..=pos],
-        None => &[],
-    };*/
 
-    println!("[DEBUG] TCP header len: {}", tcp_header_len);
-    println!("[DEBUG] Payload len: {}", payload.len());
-    println!("[DEBUG] TCP header + payload len: {}", tcp_header_len+payload.len());
-    println!("[DEBUG] TCP len set: {}", TCP_LEN + payload.len());
-
-    println!("Reply I send: {:?}", ethernet_packet.packet());
+    println!("Reply I send: {:?}\n", ethernet_packet.packet());
     let mut tx_sender = tx.lock().await;
     let _ = tx_sender.send_to(ethernet_packet.packet(), None).expect("Failed sending TCP stream");
-}
-
-
-
-pub async fn get_mac_address(ip: String) -> Option<MacAddr> {
-    // Eseguiamo il comando 'arp' per ottenere la mappatura IP -> MAC
-    let output = Command::new("arp")
-        .arg("-n") // Aggiungiamo l'opzione per evitare di risolvere i nomi host (evita problemi su Linux)
-        .arg(ip)
-        .output();
-
-    match output {
-        Ok(output) => {
-            if !output.stdout.is_empty() {
-                let result = str::from_utf8(&output.stdout)
-                    .unwrap_or("")
-                    .to_string();
-
-                // Cerchiamo di estrarre l'indirizzo MAC dal risultato
-                let mac_str = result.split_whitespace()
-                    .nth(3);  // L'indirizzo MAC dovrebbe trovarsi al quarto posto
-                
-                if let Some(mac) = mac_str {
-                    // Convertiamo la stringa MAC in un MacAddr
-                    MacAddr::from_str(mac).ok()
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        },
-        Err(_) => None,  // In caso di errore nell'esecuzione del comando
-    }
 }

@@ -1,7 +1,7 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherType, EtherTypes}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tokio::sync::Mutex;
 use tracing::error;
-use crate::{network::sender::send_arp_reply, proxy::ssh::handle_ssh_connection};
+use crate::{network::sender::send_arp_reply, honeypot::proxy::ssh::handle_ssh_connection};
 use std::{net::Ipv4Addr, sync::Arc};
 
 use super::tcp::handle_tcp_packet;

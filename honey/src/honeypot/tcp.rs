@@ -2,8 +2,8 @@ use std::{net::Ipv4Addr, sync::Arc};
 
 use pnet::{datalink::DataLinkSender, packet::tcp::{TcpFlags, TcpPacket}, util::MacAddr};
 use tokio::sync::Mutex;
-
-use crate::{network::sender::send_tcp_stream, proxy::ssh::handle_ssh_connection};
+use super::proxy::ssh::handle_ssh_connection;
+use crate::network::sender::send_tcp_stream;
 
 pub async fn handle_tcp_packet<'a>(
     tx: Arc<Mutex<Box<dyn DataLinkSender + Send>>>,
