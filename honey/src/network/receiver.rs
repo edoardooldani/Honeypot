@@ -13,13 +13,14 @@ use std::time::Instant;
 use crate::utilities::network::{classify_mac_address, get_local_mac, get_primary_interface, get_src_dest_ip};
 use crate::trackers::arp_tracker::{detect_arp_attacks, ArpRepliesTracker, ArpReqAlertTracker, ArpRequestTracker, ArpResAlertTracker};
 use crate::trackers::tcp_tracker::{detect_tcp_syn_attack, TcpSynDetector};
-use crate::virtual_net::virtual_node::handle_virtual_packet;
-use crate::virtual_net::graph::NetworkGraph;
+use crate::honeypot::virtual_node::handle_virtual_packet;
+use crate::network::graph::NetworkGraph;
 
 pub async fn scan_datalink(
     tx: futures_channel::mpsc::UnboundedSender<Message>, 
     session_id: Arc<Mutex<u32>>, 
-    graph: Arc<Mutex<NetworkGraph>>) {
+    graph: Arc<Mutex<NetworkGraph>>
+) {
 
     let interface = get_primary_interface().expect("Nessuna interfaccia valida trovata");
 
@@ -91,13 +92,6 @@ pub async fn scan_datalink(
                             graph.add_connection(src_mac, dest_mac, &protocol.to_string(), bytes).await;
                         }
                     }       
-
-                    /* 
-                    if dest_mac.octets().iter().all(|&byte| byte == 0xFF) {
-                        handle_broadcast(&ethernet_packet, &mut *graph, &mut *tx_datalink).await;
-                    }*/
-
-
                     
                     // Handle virtual receiver
                     if let Some(dest_node) = graph.find_virtual_node_by_ip_or_mac(dest_mac, dest_ip) {
@@ -172,19 +166,6 @@ async fn detect_attacks<'a>(
         if let Some(ipv4_packet) = Ipv4Packet::new(ethernet_packet.payload()) {
             let next_protocol = ipv4_packet.get_next_level_protocol();
             match next_protocol {
-                /*
-                IpNextHeaderProtocols::Icmp => {
-                    println!("ICMP ");
-                    if let Some(icmp_packet) = IcmpPacket::new(ipv4_packet.payload()) {
-                        if icmp_packet.get_icmp_type() == IcmpTypes::EchoRequest {
-                            if let Some(echo_request) = EchoRequestPacket::new(icmp_packet.packet()) {
-                                //send_icmp_reply(tx, ethernet_packet, &ipv4_packet, virtual_mac, virtual_ip, sender_mac, &echo_request);
-                                println!("echo req: {:?}", echo_request);
-                            }
-                        }
-                    }
-                }*/
-
                 IpNextHeaderProtocols::Tcp => {
                     detect_tcp_syn_attack(
                         tx.clone(),

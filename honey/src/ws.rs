@@ -4,7 +4,8 @@ use tracing::{error, info, warn};
 use std::sync::Arc;
 use common::tls::generate_client_session_id;
 use crate::network::receiver::scan_datalink;
-use crate::virtual_net::graph::NetworkGraph;
+use crate::honeypot::create_honeypots::create_honeypots;
+use crate::network::graph::NetworkGraph;
 use tokio::sync::Mutex;
 
 
@@ -26,7 +27,10 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
 
     let graph = Arc::new(Mutex::new(NetworkGraph::new()));
     let graph_clone = Arc::clone(&graph);
+    let graph_virtual_clone = Arc::clone(&graph);
 
+
+    tokio::spawn(create_honeypots(graph_virtual_clone));
     tokio::spawn(scan_datalink(stdin_tx_graph, Arc::clone(&session_id), graph_clone));
 
     let (mut write, read) = ws_stream.split();

@@ -13,7 +13,7 @@ use tokio_tungstenite::tungstenite::Message;
 use tracing::warn;
 
 use crate::utilities::network::mac_to_bytes;
-use crate::virtual_net::graph::{NetworkGraph, NodeType};
+use crate::network::graph::{NetworkGraph, NodeType};
 
 
 pub type ArpReqAlertTracker = Arc<Mutex<HashMap<MacAddr, Instant>>>;

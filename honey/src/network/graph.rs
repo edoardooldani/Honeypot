@@ -76,13 +76,12 @@ impl NetworkGraph {
         let node_index = self.graph.add_node(node);
         self.nodes.insert(mac_address, node_index);
     
-        self.add_virtual_node().await;
         node_index
         
     }
 
 
-    async fn add_virtual_node(&mut self) -> NodeIndex {
+    pub async fn add_virtual_node(&mut self) -> NodeIndex {
 
         let assigned_ip = self.generate_virtual_ip();
         let assigned_ipv6 = self.generate_virtual_ipv6();

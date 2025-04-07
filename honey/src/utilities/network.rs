@@ -2,7 +2,7 @@ use std::{net::Ipv4Addr, str::FromStr, sync::{Arc, Mutex}, time::Duration};
 
 use pnet::{datalink::{Channel, NetworkInterface}, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, ipv4::Ipv4Packet, Packet}, util::MacAddr};
 use pnet::datalink;
-use crate::{network::sender::send_arp_request, virtual_net::graph::NodeType};
+use crate::{network::sender::send_arp_request, network::graph::NodeType};
 
 pub fn get_src_dest_ip(packet: &EthernetPacket) -> Option<(Ipv4Addr, Ipv4Addr)> {
     match packet.get_ethertype() {
