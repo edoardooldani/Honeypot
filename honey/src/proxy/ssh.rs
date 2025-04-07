@@ -166,7 +166,7 @@ fn process_server_payload(payload: &mut Vec<u8>, context: &mut SSHSessionContext
         if let Some(pos) = payload.iter().position(|&b| b == b'\n') {
             context.v_s = Some(payload[..=pos].to_vec());
             println!("🛰️ Salvato V_S: {:?}", String::from_utf8_lossy(&payload[..=pos]));
-            return None;
+            return Some(payload.to_vec());
         }
     }
 
