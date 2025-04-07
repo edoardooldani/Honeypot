@@ -90,6 +90,7 @@ pub async fn handle_ssh_connection(
             let full_packet = if let Some(modified) = process_server_payload(&mut response, context, signing_key) {
                 modified
             } else {
+                println!("✉️ SSH packet: {:?}", &buf[..12]);
                 build_ssh_packet(&response)
             };
 
