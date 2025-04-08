@@ -109,6 +109,7 @@ pub async fn handle_ssh_connection(
                 counter += 1;
                 recv_buffer.extend_from_slice(&buf[..n]);
 
+                /* 
                 while let Some(packet) = extract_complete_ssh_packet(&mut recv_buffer) {
                     let full_packet = if packet.starts_with(b"Invalid") || packet.starts_with(b"Too many") {
                         println!("🚨 Messaggio testuale ricevuto da sshd: {:?}", String::from_utf8_lossy(&packet));
@@ -120,7 +121,13 @@ pub async fn handle_ssh_connection(
                     };
                     println!("Sending response to packet: {:?}", counter);
                     println!("Reply I send: {:?}\n", full_packet);
+                    */
+                if recv_buffer.len() >= 4 {
+                let packet_len = u32::from_be_bytes([recv_buffer[0], recv_buffer[1], recv_buffer[2], recv_buffer[3]]) as usize;
 
+                if recv_buffer.len() >= 4 + packet_len {
+                    let full_packet = recv_buffer.drain(..4 + packet_len).collect::<Vec<u8>>();
+                    
                     send_tcp_stream(
                         tx.clone(),
                         virtual_mac,
@@ -134,7 +141,14 @@ pub async fn handle_ssh_connection(
                         TcpFlags::ACK | TcpFlags::PSH,
                         &full_packet,
                     ).await;
+
+                    // Esci dal loop perché abbiamo inviato il pacchetto completo
+                    break;
+                }else {
+                    println!("Da ricevere ancora altro!\n");
                 }
+            }
+                //}
             }
             _ => break,
     
