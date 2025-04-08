@@ -47,23 +47,40 @@ pub async fn handle_ssh_connection(
         return;
     }
 
-    info!("\nPayload received from client: {:?}", tcp_received_packet.payload());
-    let ssh_session_mutex = get_or_create_ssh_session(tx, virtual_ip, destination_ip, virtual_mac, destination_mac).await;
-    let mut ssh_session_locked = ssh_session_mutex.lock().await;
-    let SSHSession { context , tx_sshd, rx_sshd} = &mut *ssh_session_locked;
+    let payload_from_client = tcp_received_packet.payload();
+    info!("\nPayload received from client: {:?}", payload_from_client);
+
+    let ssh_session_mutex = get_or_create_ssh_session(tx.clone(), virtual_ip, destination_ip, virtual_mac, destination_mac).await;
+    let SSHSession { context , tx_sshd, rx_sshd} = &mut *ssh_session_mutex.lock().await;
 
     let tx_sshd_clone = Arc::clone(&tx_sshd);
     let rx_sshd_clone = Arc::clone(&rx_sshd);
 
+    check_client_context(payload_from_client, context);
 
     tx_sshd_clone.lock().await.send(tcp_received_packet.packet().to_vec()).await.expect("Failed to send payload to SSHD");
-    println!("Pacchetto inviato: {:?}", tcp_received_packet.payload().to_vec());
 
     loop {
         match rx_sshd_clone.lock().await.recv().await {
             Some(response_packet) => {
                 println!("Ricevuta risposta dal canale SSHD: {:?}", response_packet);
-                
+                let src_port = tcp_received_packet.get_source();
+                let next_ack: u32 = tcp_received_packet.get_sequence() + payload_from_client.len() as u32;
+                let next_seq: u32 = tcp_received_packet.get_acknowledgement();
+
+                send_tcp_stream(
+                    tx, 
+                    virtual_mac, 
+                    virtual_ip, 
+                    destination_mac, 
+                    destination_ip, 
+                    22, 
+                    src_port, 
+                    next_seq, 
+                    next_ack, 
+                    TcpFlags::ACK | TcpFlags::PSH, 
+                    &response_packet
+                ).await;
                 break;
             },
             None => {
@@ -98,8 +115,6 @@ pub async fn handle_ssh_connection(
         ).await;
         return;
     }
-
-    check_client_context(payload_from_client, context);
 
     println!("Write on sshd, now receive");
     // Handle sshd response
