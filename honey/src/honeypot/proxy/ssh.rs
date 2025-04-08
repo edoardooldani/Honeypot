@@ -59,6 +59,7 @@ pub async fn handle_ssh_connection(
 
     // Handle banner 
     if payload_from_client.starts_with(b"SSH-"){
+        println!("🚨 Reply I send (first banner): {:?}", HARDCODED_SERVER_BANNER);
         send_tcp_stream(
             tx.clone(),
             virtual_mac,
@@ -71,7 +72,8 @@ pub async fn handle_ssh_connection(
             next_ack,
             TcpFlags::ACK | TcpFlags::PSH,
             HARDCODED_SERVER_BANNER,
-        ).await
+        ).await;
+        return;
     }
 
     check_client_context(payload_from_client, context);
