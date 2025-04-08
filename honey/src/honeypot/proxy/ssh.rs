@@ -123,7 +123,7 @@ pub async fn handle_ssh_connection(
                 if recv_buffer.len() >= 4 {
                     let packet_len = u32::from_be_bytes([recv_buffer[0], recv_buffer[1], recv_buffer[2], recv_buffer[3]]) as usize;
 
-                    if recv_buffer.len() >= 4 + packet_len {
+                    if recv_buffer.len() >= 4 + packet_len || recv_buffer.starts_with(b"SSH-"){
                     
                         let packet = extract_complete_ssh_packet(&mut recv_buffer).expect("Packet too small!");
                         let full_packet = if packet.starts_with(b"Invalid") || packet.starts_with(b"Too many") {
