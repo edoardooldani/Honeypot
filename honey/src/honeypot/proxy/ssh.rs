@@ -128,6 +128,7 @@ pub async fn handle_ssh_connection(
                 if recv_buffer.len() >= 4 + packet_len {
                     let full_packet = recv_buffer.drain(..4 + packet_len).collect::<Vec<u8>>();
                     
+                    println!("Reply I send: {:?}", full_packet);
                     send_tcp_stream(
                         tx.clone(),
                         virtual_mac,
