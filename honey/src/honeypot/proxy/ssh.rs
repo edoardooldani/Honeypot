@@ -107,21 +107,7 @@ pub async fn handle_ssh_connection(
             Ok(Ok(n)) if n > 0 => {
                 recv_buffer.extend_from_slice(&buf[..n]);
 
-                /* 
-                while let Some(packet) = extract_complete_ssh_packet(&mut recv_buffer) {
-                    let full_packet = if packet.starts_with(b"Invalid") || packet.starts_with(b"Too many") {
-                        println!("🚨 Messaggio testuale ricevuto da sshd: {:?}", String::from_utf8_lossy(&packet));
-                        packet
-                    } else if let Some(modified) = process_server_payload(&mut packet.clone(), context, signing_key) {
-                        modified
-                    } else {
-                        build_ssh_packet(&packet)
-                    };
-                    println!("Sending response to packet: {:?}", counter);
-                    println!("Reply I send: {:?}\n", full_packet);
-                    */
                 if recv_buffer.len() >= 4 {
-                    let packet_len = u32::from_be_bytes([recv_buffer[0], recv_buffer[1], recv_buffer[2], recv_buffer[3]]) as usize +4;
 
                     if recv_buffer.starts_with(b"SSH-") {
                         let mut packet = Vec::new();
@@ -130,7 +116,7 @@ pub async fn handle_ssh_connection(
                         packet.extend_from_slice(&packet_length.to_be_bytes());
                         packet.extend(recv_buffer);
 
-                        println!("🚨 Banner ricevuto da sshd: {:?}, size set: {:?}", packet, packet_length);
+                        println!("🚨 Reply I send (banner): {:?}, size set: {:?}", packet, packet_length);
                         send_tcp_stream(
                             tx.clone(),
                             virtual_mac,
@@ -147,7 +133,6 @@ pub async fn handle_ssh_connection(
                         break;
                     }else {
 
-                    //if recv_buffer.len() >= 4 + packet_len{
                         let packet_length = (n + 4) as u32;
                         let mut packet = Vec::new();
                         packet.extend_from_slice(&packet_length.to_be_bytes());
@@ -164,7 +149,7 @@ pub async fn handle_ssh_connection(
 
                         packet.extend(full_packet);
 
-                        println!("Reply I send: {:?}", packet);
+                        println!("Reply I send: {:?}, size set: {:?}", packet, packet_length);
                         send_tcp_stream(
                             tx.clone(),
                             virtual_mac,
@@ -179,10 +164,6 @@ pub async fn handle_ssh_connection(
                             &packet,
                         ).await;
 
-                        // Esci dal loop perché abbiamo inviato il pacchetto completo
-                        //break;
-                    //}else {
-                        println!("Da ricevere ancora altro!\n Packet len: {:?}, buffer len: {:?}, calculated len: {:?}\n Buffer: {:?}", 4 + packet_len, recv_buffer.len(), n+4, recv_buffer);
                         break;
                     }
             }
