@@ -102,11 +102,9 @@ pub async fn handle_ssh_connection(
     // Handle sshd response
     let mut buf = [0u8; 4096];
     let mut recv_buffer: Vec<u8> = vec![];
-    let mut counter = 0;
     loop {
         match timeout(Duration::from_millis(50), sshd.read(&mut buf)).await {
             Ok(Ok(n)) if n > 0 => {
-                counter += 1;
                 recv_buffer.extend_from_slice(&buf[..n]);
 
                 /* 
@@ -126,8 +124,17 @@ pub async fn handle_ssh_connection(
                 let packet_len = u32::from_be_bytes([recv_buffer[0], recv_buffer[1], recv_buffer[2], recv_buffer[3]]) as usize;
 
                 if recv_buffer.len() >= 4 + packet_len {
-                    let full_packet = recv_buffer.drain(..4 + packet_len).collect::<Vec<u8>>();
-                    
+                
+                    let packet = extract_complete_ssh_packet(&mut recv_buffer).expect("Packet too small!");
+                    let full_packet = if packet.starts_with(b"Invalid") || packet.starts_with(b"Too many") {
+                        println!("🚨 Messaggio testuale ricevuto da sshd: {:?}", String::from_utf8_lossy(&packet));
+                        packet
+                    } else if let Some(modified) = process_server_payload(&mut packet.clone(), context, signing_key) {
+                        modified
+                    } else {
+                        build_ssh_packet(&packet)
+                    };
+
                     println!("Reply I send: {:?}", full_packet);
                     send_tcp_stream(
                         tx.clone(),
