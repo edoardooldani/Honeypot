@@ -86,7 +86,7 @@ pub async fn generate_virtual_ip(graph: &mut NetworkGraph) -> Ipv4Addr {
     loop {
         let new_ip = Ipv4Addr::new(base_ip[0], base_ip[1], base_ip[2], last_octet);
 
-        if graph.graph.node_weights().any(|node| node.ipv4_address == new_ip) {
+        if !graph.graph.node_weights().any(|node| node.ipv4_address == new_ip) {
             return new_ip;
         }
 
