@@ -1,7 +1,8 @@
 use petgraph::graph::{Graph, NodeIndex};
 use pnet::util::MacAddr;
-use std::{collections::HashMap, net::Ipv4Addr, str::FromStr};
-use rand::Rng;
+use std::{collections::HashMap, net::Ipv4Addr};
+
+use crate::utilities::network::{generate_virtual_ip, generate_virtual_ipv6, generate_virtual_mac};
 
 #[derive(Debug, Clone)]
 pub struct Connection {
@@ -15,6 +16,7 @@ impl Connection {
         self.total_bytes += bytes;
     }
 }
+
 
 #[derive(Debug, Clone)]
 pub struct NetworkNode {
@@ -76,8 +78,8 @@ impl NetworkGraph {
 
     pub async fn add_virtual_node(&mut self) -> NodeIndex {
 
-        let assigned_ip = self.generate_virtual_ip();
-        let assigned_ipv6 = self.generate_virtual_ipv6();
+        let assigned_ip = generate_virtual_ip(self).await;
+        let assigned_ipv6 = generate_virtual_ipv6();
 
         let assigned_mac = generate_virtual_mac();
 
@@ -93,28 +95,6 @@ impl NetworkGraph {
         
         node_index
     }
-
-
-    fn generate_virtual_ip(&self) -> Ipv4Addr {
-        let mut rng = rand::rng();
-        let mut last_octet = rng.random_range(100..120);
-    
-        let base_ip = [192, 168, 1];
-    
-        loop {
-            let new_ip = Ipv4Addr::new(base_ip[0], base_ip[1], base_ip[2], last_octet);
-    
-            if !self.graph.node_weights().any(|node| node.ipv4_address == new_ip) {
-                return new_ip;
-            }
-    
-            last_octet += 1;
-            if last_octet > 253 {
-                panic!("No IP address available!");
-            }
-        }
-    }
-
 
     
     pub async fn add_connection(&mut self, src_mac: MacAddr, dst_mac: MacAddr, protocol: &str, bytes: u64) {
@@ -134,30 +114,6 @@ impl NetworkGraph {
             self.graph.add_edge(src_index, dst_index, new_connection);
         }
 
-    }
-
-
-    fn generate_virtual_ipv6(&self) -> String {
-        let mut rng = rand::rng();
-        let last_segment = rng.random_range(100..130);
-        let base_ip = "fe80::1000:".to_string(); // Link-local address base
-        
-        format!("{}{:x}", base_ip, last_segment) // Concatenate to create a valid IPv6 address
-    }
-    
-    pub fn is_router(&self, mac: MacAddr) -> bool {
-        self.nodes.values().any(|&idx| {
-            let node = &self.graph[idx];
-            node.node_type == NodeType::Router && node.mac_address == mac
-        })
-    }
-
-    pub fn find_node_by_ip(&self, ip: Ipv4Addr) -> Option<&NetworkNode> {
-        self.graph.node_weights().find(|node| node.ipv4_address == ip)
-    }
-
-    pub fn find_virtual_node_by_ip(&self, ip: Ipv4Addr) -> Option<&NetworkNode> {
-        self.graph.node_weights().find(|node| node.node_type == NodeType::Virtual && node.ipv4_address == ip)
     }
 
     pub fn find_virtual_node_by_ip_or_mac(&self, mac_address: MacAddr, ip: Ipv4Addr) -> Option<&NetworkNode> {
@@ -208,30 +164,4 @@ impl NetworkGraph {
     }
 
 
-}
-
-
-
-fn generate_virtual_mac() -> MacAddr {
-    let mac_prefixes = vec![
-        "00:1A:2B", // Cisco
-        "34:56:78", // Samsung
-        "70:C9:32", // Apple
-        "D8:21:DA", // TP-Link
-        "60:1D:9D", // Dell
-        "C4:3C:B0", // Asus
-    ];
-
-    let mut rng = rand::rng();
-    let prefix = mac_prefixes[rng.random_range(0..mac_prefixes.len())];
-    
-    let suffix = [
-        rng.random_range(0..=255),
-        rng.random_range(0..=255),
-        rng.random_range(0..=255),
-    ];
-
-    let mac_string = format!("{}:{:02X}:{:02X}:{:02X}", prefix, suffix[0], suffix[1], suffix[2]);
-
-    MacAddr::from_str(&mac_string).expect("Failed to parse MAC address")
 }

@@ -2,7 +2,8 @@ use std::{net::Ipv4Addr, str::FromStr};
 
 use pnet::{datalink::NetworkInterface, packet::{arp::ArpPacket, ethernet::{EtherTypes, EthernetPacket}, ipv4::Ipv4Packet, Packet}, util::MacAddr};
 use pnet::datalink;
-use crate::network::graph::NodeType;
+use rand::Rng;
+use crate::network::graph::{NetworkGraph, NodeType};
 
 pub fn get_src_dest_ip(packet: &EthernetPacket) -> Option<(Ipv4Addr, Ipv4Addr)> {
     match packet.get_ethertype() {
@@ -74,4 +75,58 @@ pub fn get_primary_interface() -> Option<NetworkInterface> {
 pub fn mac_to_bytes(mac: &MacAddr) -> [u8; 6] {
     let mac_bytes = mac.octets(); // Ottieni i byte direttamente tramite octets()
     [mac_bytes[0], mac_bytes[1], mac_bytes[2], mac_bytes[3], mac_bytes[4], mac_bytes[5]]
+}
+
+pub async fn generate_virtual_ip(graph: &mut NetworkGraph) -> Ipv4Addr {
+    let mut rng = rand::rng();
+    let mut last_octet = rng.random_range(100..115);
+
+    let base_ip = [192, 168, 1];
+
+    loop {
+        let new_ip = Ipv4Addr::new(base_ip[0], base_ip[1], base_ip[2], last_octet);
+
+        if graph.graph.node_weights().any(|node| node.ipv4_address == new_ip) {
+            return new_ip;
+        }
+
+        last_octet += 1;
+        if last_octet > 253 {
+            panic!("No IP address available!");
+        }
+    }
+}
+
+pub fn generate_virtual_ipv6() -> String {
+    let mut rng = rand::rng();
+    let last_segment = rng.random_range(100..130);
+    let base_ip = "fe80::1000:".to_string(); // Link-local address base
+    
+    format!("{}{:x}", base_ip, last_segment) // Concatenate to create a valid IPv6 address
+}
+
+
+
+pub fn generate_virtual_mac() -> MacAddr {
+    let mac_prefixes = vec![
+        "00:1A:2B", // Cisco
+        "34:56:78", // Samsung
+        "70:C9:32", // Apple
+        "D8:21:DA", // TP-Link
+        "60:1D:9D", // Dell
+        "C4:3C:B0", // Asus
+    ];
+
+    let mut rng = rand::rng();
+    let prefix = mac_prefixes[rng.random_range(0..mac_prefixes.len())];
+    
+    let suffix = [
+        rng.random_range(0..=255),
+        rng.random_range(0..=255),
+        rng.random_range(0..=255),
+    ];
+
+    let mac_string = format!("{}:{:02X}:{:02X}:{:02X}", prefix, suffix[0], suffix[1], suffix[2]);
+
+    MacAddr::from_str(&mac_string).expect("Failed to parse MAC address")
 }
