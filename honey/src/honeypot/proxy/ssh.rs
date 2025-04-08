@@ -121,15 +121,16 @@ pub async fn handle_ssh_connection(
                     println!("Reply I send: {:?}\n", full_packet);
                     */
                 if recv_buffer.len() >= 4 {
-                    let packet_len = u32::from_be_bytes([recv_buffer[0], recv_buffer[1], recv_buffer[2], recv_buffer[3]]) as usize;
+                    let packet_len = u32::from_be_bytes([recv_buffer[0], recv_buffer[1], recv_buffer[2], recv_buffer[3]]) as usize +4;
 
                     if recv_buffer.starts_with(b"SSH-") {
                         let mut packet = Vec::new();
-    
-                        packet.extend_from_slice(&packet_len.to_be_bytes());
+                        let packet_length = (n + 4) as u32;
+
+                        packet.extend_from_slice(&packet_length.to_be_bytes());
                         packet.extend(recv_buffer);
 
-                        println!("🚨 Banner ricevuto da sshd: {:?}", packet);
+                        println!("🚨 Banner ricevuto da sshd: {:?}, size set: {:?}", packet, packet_length);
                         send_tcp_stream(
                             tx.clone(),
                             virtual_mac,
