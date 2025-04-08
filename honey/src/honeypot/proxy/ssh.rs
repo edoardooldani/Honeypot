@@ -183,6 +183,7 @@ pub async fn handle_ssh_connection(
                         //break;
                     //}else {
                         println!("Da ricevere ancora altro!\n Packet len: {:?}, buffer len: {:?}, calculated len: {:?}\n Buffer: {:?}", 4 + packet_len, recv_buffer.len(), n+4, recv_buffer);
+                        break;
                     }
             }
                 //}
