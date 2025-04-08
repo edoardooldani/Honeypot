@@ -139,14 +139,13 @@ pub async fn handle_ssh_connection(
                         let mut packet = Vec::new();
                         packet.extend_from_slice(&packet_length.to_be_bytes());
 
-                        let packet_extracted = extract_complete_ssh_packet(&mut recv_buffer).expect("Packet too small!");
-                        let full_packet = if packet_extracted.starts_with(b"Invalid") || packet_extracted.starts_with(b"Too many") {
-                            println!("🚨 Messaggio testuale ricevuto da sshd: {:?}", String::from_utf8_lossy(&packet_extracted));
-                            packet_extracted
-                        } else if let Some(modified) = process_server_payload(&mut packet_extracted.clone(), context, signing_key) {
+                        let full_packet = if recv_buffer.starts_with(b"Invalid") || recv_buffer.starts_with(b"Too many") {
+                            println!("🚨 Messaggio testuale ricevuto da sshd: {:?}", String::from_utf8_lossy(&recv_buffer));
+                            recv_buffer
+                        } else if let Some(modified) = process_server_payload(&mut recv_buffer.clone(), context, signing_key) {
                             modified
                         } else {
-                            build_ssh_packet(&packet_extracted)
+                            build_ssh_packet(&recv_buffer)
                         };
 
                         packet.extend(full_packet);
