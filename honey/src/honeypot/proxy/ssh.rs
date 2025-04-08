@@ -148,7 +148,7 @@ pub async fn handle_ssh_connection(
                     }
 
                     if recv_buffer.len() >= 4 + packet_len{
-                    
+                        
                         let packet = extract_complete_ssh_packet(&mut recv_buffer).expect("Packet too small!");
                         let full_packet = if packet.starts_with(b"Invalid") || packet.starts_with(b"Too many") {
                             println!("🚨 Messaggio testuale ricevuto da sshd: {:?}", String::from_utf8_lossy(&packet));
@@ -177,7 +177,7 @@ pub async fn handle_ssh_connection(
                         // Esci dal loop perché abbiamo inviato il pacchetto completo
                         break;
                     }else {
-                        println!("Da ricevere ancora altro!\n Packet len: {:?}, buffer len: {:?}\n Buffer: {:?}", 4 + packet_len, recv_buffer.len(), recv_buffer);
+                        println!("Da ricevere ancora altro!\n Packet len: {:?}, buffer len: {:?}, calculated len: {:?}\n Buffer: {:?}", 4 + packet_len, recv_buffer.len(), n+4, recv_buffer);
                     }
             }
                 //}
