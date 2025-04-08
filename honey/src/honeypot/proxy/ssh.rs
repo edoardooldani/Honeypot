@@ -45,8 +45,7 @@ pub async fn handle_ssh_connection(
         return;
     }
 
-    info!("\nPacket received from client: {:?}", tcp_received_packet.packet());
-
+    info!("\nPayload received from client: {:?}", tcp_received_packet.payload());
     let ssh_session_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
     let mut ssh_session_locked = ssh_session_mutex.lock().await;
     let SSHSession { stream: sshd, signing_key, context } = &mut *ssh_session_locked;
