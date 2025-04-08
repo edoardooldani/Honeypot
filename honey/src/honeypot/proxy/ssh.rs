@@ -100,12 +100,15 @@ pub async fn handle_ssh_connection(
         return;
     }
 
+    println!("Write on sshd, now receive");
     // Handle sshd response
     let mut buf = [0u8; 4096];
     let mut recv_buffer: Vec<u8> = vec![];
     loop {
         match timeout(Duration::from_millis(50), sshd.read(&mut buf)).await {
             Ok(Ok(n)) if n > 0 => {
+                println!("Response received");
+
                 recv_buffer.extend_from_slice(&buf[..n]);
 
                 if recv_buffer.len() >= 4 {
@@ -166,8 +169,10 @@ pub async fn handle_ssh_connection(
 
                         break;
                     }
-            }
-                //}
+                }else {
+                    println!("Buffer too small");
+                }
+                
             }
             _ => break,
     
