@@ -48,7 +48,7 @@ pub async fn handle_ssh_connection(
     }
 
     info!("\nPayload received from client: {:?}", tcp_received_packet.payload());
-    let ssh_session_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
+    let ssh_session_mutex = get_or_create_ssh_session(tx, virtual_ip, destination_ip, virtual_mac, destination_mac).await;
     let mut ssh_session_locked = ssh_session_mutex.lock().await;
     let SSHSession { context , tx_sshd, rx_sshd} = &mut *ssh_session_locked;
 
@@ -56,7 +56,7 @@ pub async fn handle_ssh_connection(
     let rx_sshd_clone = Arc::clone(&rx_sshd);
 
 
-    tx_sshd_clone.lock().await.send(tcp_received_packet.payload().to_vec()).await.expect("Failed to send payload to SSHD");
+    tx_sshd_clone.lock().await.send(tcp_received_packet.packet().to_vec()).await.expect("Failed to send payload to SSHD");
     println!("Pacchetto inviato: {:?}", tcp_received_packet.payload().to_vec());
 
     loop {
@@ -186,7 +186,7 @@ pub async fn handle_ssh_connection(
 
 
 
-async fn get_or_create_ssh_session(virtual_ip: Ipv4Addr, destination_ip: Ipv4Addr) -> Arc<Mutex<SSHSession>> {
+async fn get_or_create_ssh_session(tx_datalink: Arc<Mutex<Box<dyn DataLinkSender + Send>>>, virtual_ip: Ipv4Addr, destination_ip: Ipv4Addr, virtual_mac: MacAddr, destination_mac: MacAddr) -> Arc<Mutex<SSHSession>> {
     let mut sessions = SSH_SESSIONS.lock().await;
     let key = (virtual_ip, destination_ip);
 
@@ -194,15 +194,11 @@ async fn get_or_create_ssh_session(virtual_ip: Ipv4Addr, destination_ip: Ipv4Add
         Some(session) => Arc::clone(session),
         None => {
             
-            //let signing_key = generate_signing_key();
-
             let (tx, rx) = mpsc::channel::<Vec<u8>>(2000);
             let tx_sshd = Arc::new(Mutex::new(tx));
             let rx_sshd = Arc::new(Mutex::new(rx));
 
             let session = SSHSession {
-                //stream,
-                //signing_key,
                 context: SSHSessionContext::default(),
                 tx_sshd: tx_sshd.clone(),
                 rx_sshd: rx_sshd.clone()
@@ -212,7 +208,7 @@ async fn get_or_create_ssh_session(virtual_ip: Ipv4Addr, destination_ip: Ipv4Add
             let rx_sshd_clone = Arc::clone(&rx_sshd);
 
             tokio::spawn(async move {
-                handle_sshd(tx_sshd_clone, rx_sshd_clone).await;
+                handle_sshd(tx_datalink, tx_sshd_clone, rx_sshd_clone, virtual_ip, destination_ip, virtual_mac, destination_mac).await;
             });
 
             let arc_session = Arc::new(Mutex::new(session));
@@ -224,7 +220,15 @@ async fn get_or_create_ssh_session(virtual_ip: Ipv4Addr, destination_ip: Ipv4Add
 
 
 
-async fn handle_sshd(tx_sshd: Arc<Mutex<mpsc::Sender<Vec<u8>>>>, rx_sshd: Arc<Mutex<mpsc::Receiver<Vec<u8>>>>){
+async fn handle_sshd(
+    tx: Arc<Mutex<Box<dyn DataLinkSender + Send>>>,
+    tx_sshd: Arc<Mutex<mpsc::Sender<Vec<u8>>>>, 
+    rx_sshd: Arc<Mutex<mpsc::Receiver<Vec<u8>>>>,
+    virtual_ip: Ipv4Addr,
+    destination_ip: Ipv4Addr, 
+    virtual_mac: MacAddr, 
+    destination_mac: MacAddr,
+){
     let mut stream = TcpStream::connect("127.0.0.1:2222").await.expect("❌ Connessione al server SSH fallita");
     let signing_key = generate_signing_key();
 
@@ -232,32 +236,44 @@ async fn handle_sshd(tx_sshd: Arc<Mutex<mpsc::Sender<Vec<u8>>>>, rx_sshd: Arc<Mu
         match rx_sshd.lock().await.recv().await {
             Some(response_packet) => {
 
-                if let Err(e) = stream.write_all(&response_packet).await {
-                    error!("❌ Errore nell’invio dati a sshd: {}", e);
-                    let mut sessions = SSH_SESSIONS.lock().await;
+                if let Some(tcp_packet) = TcpPacket::new(&response_packet) {
+                    println!("Pacchetto TCP ricevuto: {:?}", tcp_packet);
 
-                    /*sessions.remove(&(virtual_ip, destination_ip));
-            
-                    let fin_flags = TcpFlags::ACK | TcpFlags::FIN;
-                    send_tcp_stream(
-                        tx.clone(),
-                        virtual_mac,
-                        virtual_ip,
-                        destination_mac,
-                        destination_ip,
-                        22,
-                        src_port,
-                        tcp_received_packet.get_acknowledgement(),
-                        tcp_received_packet.get_sequence() + payload_from_client.len() as u32,
-                        fin_flags,
-                        &[],
-                    ).await;
-                    return;
-                    */
+                    if let Err(e) = stream.write_all(&response_packet).await {
+                        error!("❌ Errore nell’invio dati a sshd: {}", e);
+                        let mut sessions = SSH_SESSIONS.lock().await;
+
+                        sessions.remove(&(virtual_ip, destination_ip));
+                
+                        let fin_flags = TcpFlags::ACK | TcpFlags::FIN;
+                        send_tcp_stream(
+                            tx.clone(),
+                            virtual_mac,
+                            virtual_ip,
+                            destination_mac,
+                            destination_ip,
+                            22,
+                            tcp_packet.get_source(),
+                            tcp_packet.get_acknowledgement(),
+                            tcp_packet.get_sequence() + tcp_packet.payload().len() as u32,
+                            fin_flags,
+                            &[],
+                        ).await;
+                        break;
+                    }
+
+                    let mut buf = [0u8; 4096];
+                    let mut recv_buffer: Vec<u8> = vec![];
+                    loop {
+                        match timeout(Duration::from_millis(50), stream.read(&mut buf)).await {
+                            Ok(Ok(n)) if n > 0 => {
+                                println!("Response received from sshd");
+                                tx_sshd.lock().await.send(buf[..n].to_vec()).await.expect("Failed to send through sshd ");
+                            }
+                            _ => break,
+                        }
+                    }
                 }
-                println!("Pacchetto ricevuto: {:?}", response_packet);
-
-                break;
             },
             None => {
                 println!("Canale rx_sshd chiuso, terminando il loop.");
