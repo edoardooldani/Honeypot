@@ -41,10 +41,11 @@ pub async fn handle_ssh_connection(
     destination_ip: Ipv4Addr,
     tcp_received_packet: TcpPacket<'_>,
 ) {
-    if tcp_received_packet.payload().is_empty() {
+    if tcp_received_packet.payload().is_empty() || tcp_received_packet.payload()[5] == 99{
         return;
     }
 
+    
     info!("\nPayload received from client: {:?}", tcp_received_packet.payload());
     let ssh_session_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
     let mut ssh_session_locked = ssh_session_mutex.lock().await;
