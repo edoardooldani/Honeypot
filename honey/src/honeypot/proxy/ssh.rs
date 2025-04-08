@@ -121,40 +121,44 @@ pub async fn handle_ssh_connection(
                     println!("Reply I send: {:?}\n", full_packet);
                     */
                 if recv_buffer.len() >= 4 {
-                let packet_len = u32::from_be_bytes([recv_buffer[0], recv_buffer[1], recv_buffer[2], recv_buffer[3]]) as usize;
+                    let packet_len = u32::from_be_bytes([recv_buffer[0], recv_buffer[1], recv_buffer[2], recv_buffer[3]]) as usize;
+                    
+                    if recv_buffer.starts_with(b"Invalid") || recv_buffer.starts_with(b"Too many") {
+                        println!("🚨 Messaggio testuale ricevuto da sshd: {:?}", String::from_utf8_lossy(&recv_buffer));
+                    }else 
 
-                if recv_buffer.len() >= 4 + packet_len {
-                
-                    let packet = extract_complete_ssh_packet(&mut recv_buffer).expect("Packet too small!");
-                    let full_packet = if packet.starts_with(b"Invalid") || packet.starts_with(b"Too many") {
-                        println!("🚨 Messaggio testuale ricevuto da sshd: {:?}", String::from_utf8_lossy(&packet));
-                        packet
-                    } else if let Some(modified) = process_server_payload(&mut packet.clone(), context, signing_key) {
-                        modified
-                    } else {
-                        build_ssh_packet(&packet)
-                    };
+                    if recv_buffer.len() >= 4 + packet_len {
+                    
+                        let packet = extract_complete_ssh_packet(&mut recv_buffer).expect("Packet too small!");
+                        let full_packet = if packet.starts_with(b"Invalid") || packet.starts_with(b"Too many") {
+                            println!("🚨 Messaggio testuale ricevuto da sshd: {:?}", String::from_utf8_lossy(&packet));
+                            packet
+                        } else if let Some(modified) = process_server_payload(&mut packet.clone(), context, signing_key) {
+                            modified
+                        } else {
+                            build_ssh_packet(&packet)
+                        };
 
-                    println!("Reply I send: {:?}", full_packet);
-                    send_tcp_stream(
-                        tx.clone(),
-                        virtual_mac,
-                        virtual_ip,
-                        destination_mac,
-                        destination_ip,
-                        22,
-                        src_port,
-                        next_seq,
-                        next_ack,
-                        TcpFlags::ACK | TcpFlags::PSH,
-                        &full_packet,
-                    ).await;
+                        println!("Reply I send: {:?}", full_packet);
+                        send_tcp_stream(
+                            tx.clone(),
+                            virtual_mac,
+                            virtual_ip,
+                            destination_mac,
+                            destination_ip,
+                            22,
+                            src_port,
+                            next_seq,
+                            next_ack,
+                            TcpFlags::ACK | TcpFlags::PSH,
+                            &full_packet,
+                        ).await;
 
-                    // Esci dal loop perché abbiamo inviato il pacchetto completo
-                    break;
-                }else {
-                    println!("Da ricevere ancora altro!\n Packet len: {:?}, buffer len: {:?}\n", 4 + packet_len, recv_buffer.len());
-                }
+                        // Esci dal loop perché abbiamo inviato il pacchetto completo
+                        break;
+                    }else {
+                        println!("Da ricevere ancora altro!\n Packet len: {:?}, buffer len: {:?}\n", 4 + packet_len, recv_buffer.len());
+                    }
             }
                 //}
             }
