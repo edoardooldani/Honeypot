@@ -146,7 +146,7 @@ pub async fn handle_ssh_connection(
                     // Esci dal loop perché abbiamo inviato il pacchetto completo
                     break;
                 }else {
-                    println!("Da ricevere ancora altro!\n");
+                    println!("Da ricevere ancora altro!\n Packet len: {:?}, buffer len: {:?}\n", 4 + packet_len, recv_buffer.len());
                 }
             }
                 //}
