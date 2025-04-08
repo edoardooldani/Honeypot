@@ -122,10 +122,6 @@ pub async fn handle_ssh_connection(
                     */
                 if recv_buffer.len() >= 4 {
                     let packet_len = u32::from_be_bytes([recv_buffer[0], recv_buffer[1], recv_buffer[2], recv_buffer[3]]) as usize;
-                    
-                    if recv_buffer.starts_with(b"Invalid") || recv_buffer.starts_with(b"Too many") {
-                        println!("🚨 Messaggio testuale ricevuto da sshd: {:?}", String::from_utf8_lossy(&recv_buffer));
-                    }else 
 
                     if recv_buffer.len() >= 4 + packet_len {
                     
@@ -157,7 +153,7 @@ pub async fn handle_ssh_connection(
                         // Esci dal loop perché abbiamo inviato il pacchetto completo
                         break;
                     }else {
-                        println!("Da ricevere ancora altro!\n Packet len: {:?}, buffer len: {:?}\n", 4 + packet_len, recv_buffer.len());
+                        println!("Da ricevere ancora altro!\n Packet len: {:?}, buffer len: {:?}\n Buffer: {:?}", 4 + packet_len, recv_buffer.len(), recv_buffer);
                     }
             }
                 //}
