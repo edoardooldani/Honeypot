@@ -124,8 +124,12 @@ pub async fn handle_ssh_connection(
                     let packet_len = u32::from_be_bytes([recv_buffer[0], recv_buffer[1], recv_buffer[2], recv_buffer[3]]) as usize;
 
                     if recv_buffer.starts_with(b"SSH-") {
-                        
-                        println!("🚨 Banner ricevuto da sshd: {:?}", String::from_utf8_lossy(&recv_buffer[..n]));
+                        let mut packet = Vec::new();
+    
+                        packet.extend_from_slice(&packet_len.to_be_bytes());
+                        packet.extend(recv_buffer);
+
+                        println!("🚨 Banner ricevuto da sshd: {:?}", packet);
                         send_tcp_stream(
                             tx.clone(),
                             virtual_mac,
@@ -137,7 +141,7 @@ pub async fn handle_ssh_connection(
                             next_seq,
                             next_ack,
                             TcpFlags::ACK | TcpFlags::PSH,
-                            &recv_buffer[..n],
+                            &packet,
                         ).await;
                         break;
                     }
