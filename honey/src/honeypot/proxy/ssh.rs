@@ -118,7 +118,9 @@ pub async fn handle_ssh_connection(
                     } else {
                         build_ssh_packet(&packet)
                     };
-                    println!("Sending response to packet: {counter}");
+                    println!("Sending response to packet: {:?}", counter);
+                    println!("Reply I send: {:?}\n", full_packet);
+
                     send_tcp_stream(
                         tx.clone(),
                         virtual_mac,

@@ -145,8 +145,6 @@ pub async fn send_tcp_stream(
 
     ethernet_packet.set_payload(ipv4_packet.packet());
 
-
-    println!("Reply I send: {:?}\n", ethernet_packet.packet());
     let mut tx_sender = tx.lock().await;
     let _ = tx_sender.send_to(ethernet_packet.packet(), None).expect("Failed sending TCP stream");
 }
