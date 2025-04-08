@@ -41,7 +41,7 @@ pub async fn handle_ssh_connection(
     destination_ip: Ipv4Addr,
     tcp_received_packet: TcpPacket<'_>,
 ) {
-    if tcp_received_packet.payload().is_empty() || tcp_received_packet.payload()[5] == 99{
+    if tcp_received_packet.payload().is_empty() || tcp_received_packet.payload()[5] > 90{
         return;
     }
 
