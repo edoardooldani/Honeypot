@@ -257,7 +257,7 @@ async fn handle_sshd(
             Some(packet_from_client) => {
 
                 if let Some(tcp_packet) = TcpPacket::new(&packet_from_client) {
-                    println!("Pacchetto TCP ricevuto dal client: {:?}", tcp_packet);
+                    println!("Pacchetto TCP ricevuto dal client: {:?}", tcp_packet.packet());
 
                     if let Err(e) = stream.write_all(&tcp_packet.payload()).await {
                         error!("❌ Errore nell’invio dati a sshd: {}", e);
@@ -459,7 +459,6 @@ async fn build_packet_31(context: Arc<Mutex<SSHSessionContext>>, signing_key: &S
 fn generate_signing_key() -> SigningKey {
     let mut secret_bytes = [0u8; 32];
     OsRng.try_fill_bytes(&mut secret_bytes).expect("Failed filling secret key");
-    println!("Secret key: {:?}", secret_bytes);
     SigningKey::from_bytes(&secret_bytes)
 }
 
