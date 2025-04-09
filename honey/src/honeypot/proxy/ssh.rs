@@ -26,7 +26,7 @@ struct SSHSessionContext {
 pub struct SSHSession {
     //stream: TcpStream,
     //signing_key: SigningKey,
-    context: SSHSessionContext,
+    context: Arc<Mutex<SSHSessionContext>>,
     tx_sshd: Arc<Mutex<mpsc::Sender<Vec<u8>>>>, 
     rx_sshd: Arc<Mutex<mpsc::Receiver<Vec<u8>>>>, 
 }
@@ -48,7 +48,6 @@ pub async fn handle_ssh_connection(
     }
 
     let payload_from_client = tcp_received_packet.payload();
-    info!("\nPacket I send received from client: {:?}", tcp_received_packet.packet().to_vec());
 
     let ssh_session_mutex = get_or_create_ssh_session(tx.clone(), virtual_ip, destination_ip, virtual_mac, destination_mac).await;
     let SSHSession { context , tx_sshd, rx_sshd} = &mut *ssh_session_mutex.lock().await;
@@ -56,7 +55,7 @@ pub async fn handle_ssh_connection(
     let tx_sshd_clone = Arc::clone(&tx_sshd);
     let rx_sshd_clone = Arc::clone(&rx_sshd);
 
-    check_client_context(payload_from_client, context);
+    check_client_context(payload_from_client, context).await;
 
     tx_sshd_clone.lock().await.send(tcp_received_packet.packet().to_vec()).await.expect("Failed to send payload to SSHD");
 
@@ -215,18 +214,20 @@ async fn get_or_create_ssh_session(tx_datalink: Arc<Mutex<Box<dyn DataLinkSender
             let (tx, rx) = mpsc::channel::<Vec<u8>>(2000);
             let tx_sshd = Arc::new(Mutex::new(tx));
             let rx_sshd = Arc::new(Mutex::new(rx));
+            let context= Arc::new(Mutex::new(SSHSessionContext::default()));
 
             let session = SSHSession {
-                context: SSHSessionContext::default(),
+                context: context.clone(),
                 tx_sshd: tx_sshd.clone(),
                 rx_sshd: rx_sshd.clone()
             };
 
             let tx_sshd_clone = Arc::clone(&tx_sshd);
             let rx_sshd_clone = Arc::clone(&rx_sshd);
+            let context_clone = Arc::clone(&context);
 
             tokio::spawn(async move {
-                handle_sshd(tx_datalink, tx_sshd_clone, rx_sshd_clone, virtual_ip, destination_ip, virtual_mac, destination_mac).await;
+                handle_sshd(tx_datalink, tx_sshd_clone, rx_sshd_clone, context_clone, virtual_ip, destination_ip, virtual_mac, destination_mac).await;
             });
 
             let arc_session = Arc::new(Mutex::new(session));
@@ -242,6 +243,7 @@ async fn handle_sshd(
     tx: Arc<Mutex<Box<dyn DataLinkSender + Send>>>,
     tx_sshd: Arc<Mutex<mpsc::Sender<Vec<u8>>>>, 
     rx_sshd: Arc<Mutex<mpsc::Receiver<Vec<u8>>>>,
+    context: Arc<Mutex<SSHSessionContext>>,
     virtual_ip: Ipv4Addr,
     destination_ip: Ipv4Addr, 
     virtual_mac: MacAddr, 
@@ -255,7 +257,7 @@ async fn handle_sshd(
             Some(packet_from_client) => {
 
                 if let Some(tcp_packet) = TcpPacket::new(&packet_from_client) {
-                    println!("Pacchetto TCP ricevuto: {:?}", tcp_packet);
+                    println!("Pacchetto TCP ricevuto dal client: {:?}", tcp_packet);
 
                     if let Err(e) = stream.write_all(&tcp_packet.payload()).await {
                         error!("❌ Errore nell’invio dati a sshd: {}", e);
@@ -280,13 +282,15 @@ async fn handle_sshd(
                         break;
                     }
 
-                    let mut buf = [0u8; 2048];
-                    let mut recv_buffer: Vec<u8> = vec![];
+                    let mut sshd_response = [0u8; 2048];
                     loop {
-                        match timeout(Duration::from_millis(50), stream.read(&mut buf)).await {
+                        match timeout(Duration::from_millis(50), stream.read(&mut sshd_response)).await {
                             Ok(Ok(n)) if n > 0 => {
                                 println!("Response received from sshd");
-                                tx_sshd.lock().await.send(buf[..n].to_vec()).await.expect("Failed to send through sshd ");
+                                check_server_context(&mut sshd_response.to_vec(), context.clone(), &signing_key).await;
+
+                                tx_sshd.lock().await.send(sshd_response[..n].to_vec()).await.expect("Failed to send through sshd ");
+
                             }
                             _ => break,
                         }
@@ -301,21 +305,17 @@ async fn handle_sshd(
 
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
-
-
-
-
-    
-
 }
 
 
 
-fn check_client_context(received_packet: &[u8], context: &mut SSHSessionContext) {
-    if context.v_c.is_none() && received_packet.starts_with(b"SSH-") {
+async fn check_client_context(received_packet: &[u8], context: &mut Arc<Mutex<SSHSessionContext>>) {
+    let mut context_locked = context.lock().await;
+
+    if context_locked.v_c.is_none() && received_packet.starts_with(b"SSH-") {
         if let Some(pos) = received_packet.iter().position(|&b| b == b'\n') {
             let line = &received_packet[..=pos];
-            context.v_c = Some(line.to_vec());
+            context_locked.v_c = Some(line.to_vec());
             println!("🔍 Salvato V_C: {:?}", String::from_utf8_lossy(line));
             return;
         }
@@ -324,22 +324,23 @@ fn check_client_context(received_packet: &[u8], context: &mut SSHSessionContext)
     if received_packet.len() < 6 { return; }
     let msg_type = received_packet[5];
     match msg_type {
-        20 => if context.i_c.is_none() {
-            context.i_c = Some(received_packet[5..].to_vec());
+        20 => if context_locked.i_c.is_none() {
+            context_locked.i_c = Some(received_packet[5..].to_vec());
             println!("🔍 Salvato i_C");
         },
-        30 => if context.q_c.is_none() {
-            context.q_c = Some(received_packet[6..].to_vec());
+        30 => if context_locked.q_c.is_none() {
+            context_locked.q_c = Some(received_packet[6..].to_vec());
             println!("🔍 Salvato q_C");
         },
         _ => {}
     }
 }
 
-fn process_server_payload(payload: &mut Vec<u8>, context: &mut SSHSessionContext, signing_key: &SigningKey) -> Option<Vec<u8>> {
-    if context.v_s.is_none() && payload.starts_with(b"SSH-") {
+async fn check_server_context(payload: &mut Vec<u8>, context: Arc<Mutex<SSHSessionContext>>, signing_key: &SigningKey) -> Option<Vec<u8>> {
+    let mut context_locked = context.lock().await;
+    if context_locked.v_s.is_none() && payload.starts_with(b"SSH-") {
         if let Some(pos) = payload.iter().position(|&b| b == b'\n') {
-            context.v_s = Some(payload[..=pos].to_vec());
+            context_locked.v_s = Some(payload[..=pos].to_vec());
             println!("🛰️ Salvato V_S: {:?}", String::from_utf8_lossy(&payload[..=pos]));
             return Some(payload.to_vec());
         }
@@ -349,8 +350,8 @@ fn process_server_payload(payload: &mut Vec<u8>, context: &mut SSHSessionContext
     let msg_type = payload[5];
 
     match msg_type {
-        20 => if context.i_s.is_none() {
-            context.i_s = Some(payload[5..].to_vec());
+        20 => if context_locked.i_s.is_none() {
+            context_locked.i_s = Some(payload[5..].to_vec());
             println!("📡 Salvato I_S (KEXINIT server)");
         },
         31 => {
@@ -358,25 +359,25 @@ fn process_server_payload(payload: &mut Vec<u8>, context: &mut SSHSessionContext
             let k_s_len = u32::from_be_bytes(payload[idx..idx+4].try_into().unwrap()) as usize;
             idx += 4;
             let k_s = payload[idx..idx + k_s_len].to_vec();
-            context.k_s = Some(k_s);
+            context_locked.k_s = Some(k_s);
             idx += k_s_len;
 
             let q_s_len = u32::from_be_bytes(payload[idx..idx+4].try_into().unwrap()) as usize;
             idx += 4;
             let q_s = payload[idx..idx + q_s_len].to_vec();
-            context.q_s = Some(q_s.clone());
+            context_locked.q_s = Some(q_s.clone());
             //idx += q_s_len;
 
-            if context.k.is_none() {
-                if let Some(q_c_bytes) = &context.q_c {
+            if context_locked.k.is_none() {
+                if let Some(q_c_bytes) = &context_locked.q_c {
                     if let Some(shared) = derive_shared_secret(q_c_bytes, signing_key) {
-                        context.k = Some(shared);
+                        context_locked.k = Some(shared);
                         println!("🤝 Derivato shared secret K");
                     }
                 }
             }
 
-            return Some(build_packet_31(context, signing_key));
+            return Some(build_packet_31(context.clone(), signing_key).await);
         }
         _ => {}
     }
@@ -394,7 +395,7 @@ fn derive_shared_secret(q_c_bytes: &[u8], signing_key: &SigningKey) -> Option<Ve
     Some(scalar.diffie_hellman(&client_pub).as_bytes().to_vec())
 }
 
-fn calculate_session_hash(context: &SSHSessionContext) -> Option<Vec<u8>> {
+async fn calculate_session_hash(context: Arc<Mutex<SSHSessionContext>>) -> Option<Vec<u8>> {
     let mut hasher = Sha256::new();
     macro_rules! append_field {
         ($field:expr) => {
@@ -406,18 +407,20 @@ fn calculate_session_hash(context: &SSHSessionContext) -> Option<Vec<u8>> {
             }
         };
     }
-    append_field!(context.v_c);
-    append_field!(context.v_s);
-    append_field!(context.i_c);
-    append_field!(context.i_s);
-    append_field!(context.k_s);
-    append_field!(context.q_c);
-    append_field!(context.q_s);
-    append_field!(context.k);
+
+    let context_locked = context.lock().await;
+    append_field!(context_locked.v_c);
+    append_field!(context_locked.v_s);
+    append_field!(context_locked.i_c);
+    append_field!(context_locked.i_s);
+    append_field!(context_locked.k_s);
+    append_field!(context_locked.q_c);
+    append_field!(context_locked.q_s);
+    append_field!(context_locked.k);
     Some(hasher.finalize().to_vec())
 }
 
-fn build_packet_31(context: &SSHSessionContext, signing_key: &SigningKey) -> Vec<u8> {
+async fn build_packet_31(context: Arc<Mutex<SSHSessionContext>>, signing_key: &SigningKey) -> Vec<u8> {
     let pubkey_bytes = signing_key.verifying_key().to_bytes();
     let key_type = b"ssh-ed25519";
     let mut k_s: Vec<u8> = vec![];
@@ -426,7 +429,7 @@ fn build_packet_31(context: &SSHSessionContext, signing_key: &SigningKey) -> Vec
     k_s.extend(&(pubkey_bytes.len() as u32).to_be_bytes());
     k_s.extend(&pubkey_bytes);
 
-    let signature = signing_key.sign(&calculate_session_hash(context).expect("Hash session calculation failed"));
+    let signature = signing_key.sign(&calculate_session_hash(context.clone()).await.expect("Hash session calculation failed"));
     let mut signature_field: Vec<u8> = vec![];
     signature_field.extend(&(key_type.len() as u32).to_be_bytes());
     signature_field.extend(key_type);
@@ -436,7 +439,9 @@ fn build_packet_31(context: &SSHSessionContext, signing_key: &SigningKey) -> Vec
     let mut payload = vec![31];
     payload.extend(&(k_s.len() as u32).to_be_bytes());
     payload.extend(k_s);
-    let q_s = context.q_s.as_ref().unwrap();
+
+    let context_locked = context.lock().await;
+    let q_s = context_locked.q_s.as_ref().unwrap();
     payload.extend(&(q_s.len() as u32).to_be_bytes());
     payload.extend(q_s);
     payload.extend(&(signature_field.len() as u32).to_be_bytes());
