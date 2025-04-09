@@ -172,6 +172,7 @@ async fn get_or_create_ssh_session(tx_datalink: Arc<Mutex<Box<dyn DataLinkSender
 
             let arc_session = Arc::new(Mutex::new(session));
             sessions.insert(key, arc_session.clone());
+            println!("Sessions: {:?}", sessions.keys());
             arc_session
         }
     }
