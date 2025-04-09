@@ -175,7 +175,7 @@ async fn handle_sshd(
                     }
 
                     let mut sshd_response = [0u8; 2048];
-                    println!("Aspetto una risposta dal sshd, sshd resp empty: {:?}", sshd_response.is_empty());
+                    println!("Aspetto una risposta dal sshd, sshd resp: {:?}", sshd_response);
                     loop{
                         sleep(Duration::from_millis(200)).await;
 
