@@ -484,6 +484,9 @@ fn build_ssh_packet(payload: &mut [u8]){
     let padding: Vec<u8> = (0..padding_len).map(|_| rand::random::<u8>()).collect();
     buf.extend_from_slice(&padding);
 
-    println!("Payload size: {:?} buf size: {:?}", payload.len(), buf.len());
+    println!("Payload size: {:?} buf size: {:?}\n", payload.len(), buf.len());
+    println!("Payload: {:?} buf: {:?}\n\n\n", payload, buf);
+
+
     payload.copy_from_slice(&buf);
 }
