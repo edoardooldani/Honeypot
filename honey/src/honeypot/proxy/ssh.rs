@@ -2,14 +2,12 @@ use std::{collections::HashMap, net::Ipv4Addr, sync::Arc, time::Duration};
 use pnet::{datalink::DataLinkSender, packet::{tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use rand::{rngs::OsRng, TryRngCore};
 use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream, sync::{mpsc, Mutex}, time::{sleep, timeout}};
-use tracing::{info, error};
+use tracing::error;
 use crate::network::sender::send_tcp_stream;
 use lazy_static::lazy_static;
 use ed25519_dalek::{Signer, SigningKey};
 use x25519_dalek::{StaticSecret, PublicKey as X25519PublicKey};
 use sha2::{Sha256, Digest};
-
-const HARDCODED_SERVER_BANNER: &[u8] = b"SSH-2.0-OpenSSH_9.2p1 Debian-2+deb12u3\r\n";
 
 #[derive(Debug, Default)]
 struct SSHSessionContext {
@@ -44,6 +42,7 @@ pub async fn handle_ssh_connection(
     tcp_received_packet: TcpPacket<'_>,
 ) {
     if tcp_received_packet.payload().is_empty(){
+        println!("Payload empty: {:?}", tcp_received_packet.packet());
         return;
     }
 
@@ -93,50 +92,6 @@ pub async fn handle_ssh_connection(
 
         }
     }
-    
-/* 
-                        let packet_length = (n + 4) as u32;
-                        let mut packet = Vec::new();
-                        packet.extend_from_slice(&packet_length.to_be_bytes());
-
-                        let full_packet = if recv_buffer.starts_with(b"Invalid") || recv_buffer.starts_with(b"Too many") {
-                            println!("🚨 Messaggio testuale ricevuto da sshd: {:?}", String::from_utf8_lossy(&recv_buffer));
-                            recv_buffer
-                        } else if let Some(modified) = process_server_payload(&mut recv_buffer.clone(), context, signing_key) {
-                            modified
-                        } else {
-                            build_ssh_packet(&recv_buffer)
-                        };
-
-                        packet.extend(full_packet);
-
-                        println!("Reply I send: {:?}, size set: {:?}", packet, packet_length);
-                        send_tcp_stream(
-                            tx.clone(),
-                            virtual_mac,
-                            virtual_ip,
-                            destination_mac,
-                            destination_ip,
-                            22,
-                            src_port,
-                            next_seq,
-                            next_ack,
-                            TcpFlags::ACK | TcpFlags::PSH,
-                            &packet,
-                        ).await;
-
-                        break;
-                    }
-                }else {
-                    println!("Buffer too small");
-                }
-                
-            }
-            _ => break,
-    
-        }
-    }
-    */
 
 }
 
@@ -226,7 +181,7 @@ async fn handle_sshd(
                         match timeout(Duration::from_millis(50), stream.read(&mut sshd_response)).await {
                             Ok(Ok(n)) if n > 0 => {
                                 let mut sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
-                                check_server_context(&mut sshd_vec, context.clone(), &signing_key).await;
+                                check_server_context(&sshd_vec, context.clone(), &signing_key).await;
 
                                 if !sshd_vec.starts_with(b"SSH-"){
                                     println!("SSH packet must be changed");
@@ -282,7 +237,7 @@ async fn check_client_context(received_packet: &[u8], context: &mut Arc<Mutex<SS
     }
 }
 
-async fn check_server_context(payload: &mut Vec<u8>, context: Arc<Mutex<SSHSessionContext>>, signing_key: &SigningKey) -> Option<Vec<u8>> {
+async fn check_server_context(payload: &Vec<u8>, context: Arc<Mutex<SSHSessionContext>>, signing_key: &SigningKey) -> Option<Vec<u8>> {
     let mut context_locked = context.lock().await;
     if context_locked.v_s.is_none() && payload.starts_with(b"SSH-") {
         if let Some(pos) = payload.iter().position(|&b| b == b'\n') {
