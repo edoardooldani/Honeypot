@@ -85,7 +85,7 @@ pub async fn handle_ssh_connection(
                     TcpFlags::ACK | TcpFlags::PSH, 
                     &response_packet
                 ).await;
-                //break;
+                break;
             },
             None => {
                 println!("Canale rx_sshd chiuso, terminando il loop.");
