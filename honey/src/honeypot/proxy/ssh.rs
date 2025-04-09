@@ -196,8 +196,9 @@ async fn handle_sshd(
     loop {
         match rx_sshd.lock().await.recv().await {
             Some(packet_from_client) => {
-
+                println!("Received: {:?}", packet_from_client);
                 if let Some(tcp_packet) = TcpPacket::new(&packet_from_client) {
+                    println!("Received tcp: {:?}", tcp_packet);
 
                     if let Err(e) = stream.write_all(&tcp_packet.payload()).await {
                         error!("❌ Errore nell’invio dati a sshd: {}", e);
