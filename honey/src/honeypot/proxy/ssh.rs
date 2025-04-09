@@ -59,8 +59,10 @@ pub async fn handle_ssh_connection(
     check_client_context(payload_from_client, context);
 
     tx_sshd_clone.lock().await.send(tcp_received_packet.packet().to_vec()).await.expect("Failed to send payload to SSHD");
-    /* 
+
     loop {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
         match rx_sshd_clone.lock().await.recv().await {
             Some(response_packet) => {
                 println!("Ricevuta risposta dal canale SSHD: {:?}", response_packet);
@@ -87,11 +89,11 @@ pub async fn handle_ssh_connection(
                 println!("Canale rx_sshd chiuso, terminando il loop.");
                 break;
             }
+
         }
 
-        tokio::time::sleep(Duration::from_millis(100)).await;
     }
-    */
+    
 
 /*     let src_port = tcp_received_packet.get_source();
     let payload_from_client = tcp_received_packet.payload();
