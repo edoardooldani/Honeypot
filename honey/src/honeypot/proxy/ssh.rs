@@ -286,14 +286,15 @@ async fn handle_sshd(
                     loop {
                         match timeout(Duration::from_millis(50), stream.read(&mut sshd_response)).await {
                             Ok(Ok(n)) if n > 0 => {
-                                check_server_context(&mut sshd_response.to_vec(), context.clone(), &signing_key).await;
+                                let mut sshd_vec: Vec<u8> = sshd_response.to_vec();
+                                check_server_context(&mut sshd_vec, context.clone(), &signing_key).await;
 
-                                if !sshd_response.starts_with(b"SSH-"){
-                                    build_ssh_packet(&mut sshd_response.to_vec());
+                                if !sshd_vec.starts_with(b"SSH-"){
+                                    build_ssh_packet(&mut sshd_vec);
                                 }
-                                println!("Payload: after {:?} \n\n\n", sshd_response);
+                                println!("Payload: after {:?} \n\n\n", sshd_vec);
 
-                                tx_sshd.lock().await.send(sshd_response.to_vec()).await.expect("Failed to send through sshd ");
+                                tx_sshd.lock().await.send(sshd_vec).await.expect("Failed to send through sshd ");
 
                             }
                             _ => break,
