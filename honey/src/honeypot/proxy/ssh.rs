@@ -176,24 +176,25 @@ async fn handle_sshd(
 
                     let mut sshd_response = [0u8; 2048];
                     loop{
-                        sleep(Duration::from_millis(500)).await;
+                        sleep(Duration::from_millis(50)).await;
 
-                        match timeout(Duration::from_millis(200), stream.read(&mut sshd_response)).await {
+                        match timeout(Duration::from_millis(100), stream.read(&mut sshd_response)).await {
                             Ok(Ok(n)) if n > 0 => {
                                 let mut sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
                                 check_server_context(&sshd_vec, context.clone(), &signing_key).await;
-
-                                //if !sshd_vec.starts_with(b"SSH-"){
-                                    //build_ssh_packet(&mut sshd_vec);
-                                //}
-                                
+                        
                                 println!("\n\nPacchetto TCP ricevuto dal client: {:?}\n\n Risposta che invio: {:?}\n\n", tcp_packet.packet(), sshd_vec);
-
                                 tx_sshd.lock().await.send(sshd_vec).await.expect("Failed to send through sshd ");
                                 break;
-                            }
-                            _ => { println!("Received zero bytes");
-                            break;},
+                            },
+                            Ok(Err(e)) => {
+                                println!("Error reading from SSHD stream: {}", e);
+                                break;
+                            },
+                            _ => {
+                                println!("Received zero bytes, retrying...");
+                                continue;
+                            },
                         }
                     }
                 }
