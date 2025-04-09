@@ -222,23 +222,24 @@ async fn handle_sshd(
                     }
 
                     let mut sshd_response = [0u8; 2048];
+                    loop{
+                        match timeout(Duration::from_millis(50), stream.read(&mut sshd_response)).await {
+                            Ok(Ok(n)) if n > 0 => {
+                                let mut sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
+                                check_server_context(&mut sshd_vec, context.clone(), &signing_key).await;
 
-                    match timeout(Duration::from_millis(50), stream.read(&mut sshd_response)).await {
-                        Ok(Ok(n)) if n > 0 => {
-                            let mut sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
-                            check_server_context(&mut sshd_vec, context.clone(), &signing_key).await;
+                                if !sshd_vec.starts_with(b"SSH-"){
+                                    println!("SSH packet must be changed");
+                                    build_ssh_packet(&mut sshd_vec);
+                                }
+                                
+                                println!("\n\nPacchetto TCP ricevuto dal client: {:?}\n Risposta che invio: {:?}", tcp_packet.packet(), sshd_vec);
 
-                            if !sshd_vec.starts_with(b"SSH-"){
-                                println!("SSH packet must be changed");
-                                build_ssh_packet(&mut sshd_vec);
+                                tx_sshd.lock().await.send(sshd_vec).await.expect("Failed to send through sshd ");
+
                             }
-                            
-                            println!("\n\nPacchetto TCP ricevuto dal client: {:?}\n Risposta che invio: {:?}", tcp_packet.packet(), sshd_vec);
-
-                            tx_sshd.lock().await.send(sshd_vec).await.expect("Failed to send through sshd ");
-
+                            _ => break,
                         }
-                        _ => break,
                     }
                 }
             },
