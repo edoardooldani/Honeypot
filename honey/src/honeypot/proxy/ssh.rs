@@ -151,7 +151,7 @@ async fn handle_sshd(
         match rx_sshd.lock().await.recv().await {
             Some(packet_from_client) => {
                 if let Some(tcp_packet) = TcpPacket::new(&packet_from_client) {
-                    println!("Pacchetto che arriva: {:?}", tcp_packet.packet());
+                    println!("Pacchetto che arriva: {:?}", tcp_packet.payload());
                     if let Err(e) = stream.write_all(&tcp_packet.payload()).await {
                         error!("❌ Errore nell’invio dati a sshd: {}", e);
                         let mut sessions = SSH_SESSIONS.lock().await;
