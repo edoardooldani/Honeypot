@@ -176,7 +176,7 @@ async fn handle_sshd(
 
                     let mut sshd_response = [0u8; 2048];
                     loop{
-                        sleep(Duration::from_millis(30)).await;
+                        sleep(Duration::from_millis(100)).await;
 
                         match timeout(Duration::from_millis(50), stream.read(&mut sshd_response)).await {
                             Ok(Ok(n)) if n > 0 => {
