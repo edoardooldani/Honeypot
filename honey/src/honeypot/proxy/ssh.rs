@@ -48,7 +48,7 @@ pub async fn handle_ssh_connection(
     }
 
     let payload_from_client = tcp_received_packet.payload();
-    info!("\nPayload received from client: {:?}", payload_from_client);
+    info!("\nPacket I send received from client: {:?}", tcp_received_packet.packet().to_vec());
 
     let ssh_session_mutex = get_or_create_ssh_session(tx.clone(), virtual_ip, destination_ip, virtual_mac, destination_mac).await;
     let SSHSession { context , tx_sshd, rx_sshd} = &mut *ssh_session_mutex.lock().await;
@@ -59,7 +59,7 @@ pub async fn handle_ssh_connection(
     check_client_context(payload_from_client, context);
 
     tx_sshd_clone.lock().await.send(tcp_received_packet.packet().to_vec()).await.expect("Failed to send payload to SSHD");
-
+    /* 
     loop {
         match rx_sshd_clone.lock().await.recv().await {
             Some(response_packet) => {
@@ -91,6 +91,7 @@ pub async fn handle_ssh_connection(
 
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
+    */
 
 /*     let src_port = tcp_received_packet.get_source();
     let payload_from_client = tcp_received_packet.payload();
@@ -249,9 +250,9 @@ async fn handle_sshd(
 
     loop {
         match rx_sshd.lock().await.recv().await {
-            Some(response_packet) => {
+            Some(packet_from_client) => {
 
-                if let Some(tcp_packet) = TcpPacket::new(&response_packet) {
+                if let Some(tcp_packet) = TcpPacket::new(&packet_from_client) {
                     println!("Pacchetto TCP ricevuto: {:?}", tcp_packet);
 
                     if let Err(e) = stream.write_all(&tcp_packet.payload()).await {
