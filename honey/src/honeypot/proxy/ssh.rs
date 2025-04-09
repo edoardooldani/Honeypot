@@ -254,7 +254,7 @@ async fn handle_sshd(
                 if let Some(tcp_packet) = TcpPacket::new(&response_packet) {
                     println!("Pacchetto TCP ricevuto: {:?}", tcp_packet);
 
-                    if let Err(e) = stream.write_all(&response_packet).await {
+                    if let Err(e) = stream.write_all(&tcp_packet.payload()).await {
                         error!("❌ Errore nell’invio dati a sshd: {}", e);
                         let mut sessions = SSH_SESSIONS.lock().await;
 
@@ -277,7 +277,7 @@ async fn handle_sshd(
                         break;
                     }
 
-                    let mut buf = [0u8; 4096];
+                    let mut buf = [0u8; 2048];
                     let mut recv_buffer: Vec<u8> = vec![];
                     loop {
                         match timeout(Duration::from_millis(50), stream.read(&mut buf)).await {
