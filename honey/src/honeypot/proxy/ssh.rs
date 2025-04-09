@@ -236,7 +236,7 @@ async fn handle_sshd(
                                 println!("\n\nPacchetto TCP ricevuto dal client: {:?}\n Risposta che invio: {:?}", tcp_packet.packet(), sshd_vec);
 
                                 tx_sshd.lock().await.send(sshd_vec).await.expect("Failed to send through sshd ");
-
+                                break;
                             }
                             _ => break,
                         }
