@@ -289,10 +289,11 @@ async fn handle_sshd(
                                 check_server_context(&mut sshd_response.to_vec(), context.clone(), &signing_key).await;
 
                                 if !sshd_response.starts_with(b"SSH-"){
-                                    build_ssh_packet(&mut sshd_response[..n+4]);
+                                    build_ssh_packet(&mut sshd_response.to_vec());
                                 }
+                                println!("Payload: after {:?} \n\n\n", sshd_response);
 
-                                tx_sshd.lock().await.send(sshd_response[..n].to_vec()).await.expect("Failed to send through sshd ");
+                                tx_sshd.lock().await.send(sshd_response.to_vec()).await.expect("Failed to send through sshd ");
 
                             }
                             _ => break,
@@ -466,7 +467,7 @@ fn generate_signing_key() -> SigningKey {
 }
 
 
-fn build_ssh_packet(payload: &mut [u8]){
+fn build_ssh_packet(payload: &mut Vec<u8>) {
     let block_size = 8;
     let mut padding_len = block_size - ((payload.len() + 5) % block_size);
     if padding_len < 4 {
@@ -474,7 +475,6 @@ fn build_ssh_packet(payload: &mut [u8]){
     }
 
     let total_len = (payload.len() + padding_len + 1) as u32;
-
 
     let mut buf = Vec::new();
     buf.extend_from_slice(&total_len.to_be_bytes());
@@ -485,8 +485,8 @@ fn build_ssh_packet(payload: &mut [u8]){
     buf.extend_from_slice(&padding);
 
     println!("Payload size: {:?} buf size: {:?}\n", payload.len(), buf.len());
-    println!("Payload: {:?} buf: {:?}\n\n\n", payload, buf);
+    println!("Payload: before {:?} \n\n\n", payload);
 
-
-    payload.copy_from_slice(&buf);
+    payload.clear(); // Clear the existing payload
+    payload.extend_from_slice(&buf);
 }
