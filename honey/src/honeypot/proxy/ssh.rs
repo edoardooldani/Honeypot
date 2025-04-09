@@ -176,9 +176,9 @@ async fn handle_sshd(
 
                     let mut sshd_response = [0u8; 2048];
                     loop{
-                        sleep(Duration::from_millis(500)).await;
+                        sleep(Duration::from_millis(50)).await;
 
-                        match timeout(Duration::from_millis(50), stream.read(&mut sshd_response)).await {
+                        match timeout(Duration::from_millis(200), stream.read(&mut sshd_response)).await {
                             Ok(Ok(n)) if n > 0 => {
                                 let mut sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
                                 check_server_context(&sshd_vec, context.clone(), &signing_key).await;
