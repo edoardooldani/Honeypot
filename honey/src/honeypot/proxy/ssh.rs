@@ -198,7 +198,6 @@ async fn handle_sshd(
                     if let Err(e) = stream.write_all(&tcp_packet.payload()).await {
                         error!("❌ Errore nell’invio dati a sshd: {}", e);
                         let mut sessions = SSH_SESSIONS.lock().await;
-
                         sessions.remove(&(virtual_ip, destination_ip));
                 
                         let fin_flags = TcpFlags::ACK | TcpFlags::FIN;
@@ -219,22 +218,20 @@ async fn handle_sshd(
                     }
 
                     let mut sshd_response = [0u8; 2048];
-                    loop {
-                        match timeout(Duration::from_millis(50), stream.read(&mut sshd_response)).await {
-                            Ok(Ok(n)) if n > 0 => {
-                                let mut sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
-                                check_server_context(&mut sshd_vec, context.clone(), &signing_key).await;
+                    match timeout(Duration::from_millis(50), stream.read(&mut sshd_response)).await {
+                        Ok(Ok(n)) if n > 0 => {
+                            let mut sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
+                            check_server_context(&mut sshd_vec, context.clone(), &signing_key).await;
 
-                                if !sshd_vec.starts_with(b"SSH-"){
-                                    println!("SSH packet must be changed");
-                                    build_ssh_packet(&mut sshd_vec);
-                                }
-                                
-                                tx_sshd.lock().await.send(sshd_vec).await.expect("Failed to send through sshd ");
-
+                            if !sshd_vec.starts_with(b"SSH-"){
+                                println!("SSH packet must be changed");
+                                build_ssh_packet(&mut sshd_vec);
                             }
-                            _ => break,
+                            
+                            tx_sshd.lock().await.send(sshd_vec).await.expect("Failed to send through sshd ");
+
                         }
+                        _ => break,
                     }
                 }
             },
