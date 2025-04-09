@@ -60,7 +60,7 @@ pub async fn handle_ssh_connection(
     tx_sshd_clone.lock().await.send(tcp_received_packet.packet().to_vec()).await.expect("Failed to send payload to SSHD");
 
     loop {
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        tokio::time::sleep(Duration::from_millis(50)).await;
 
         match rx_sshd_clone.lock().await.recv().await {
             Some(response_packet) => {
@@ -93,68 +93,7 @@ pub async fn handle_ssh_connection(
 
     }
     
-
-/*     let src_port = tcp_received_packet.get_source();
-    let payload_from_client = tcp_received_packet.payload();
-    let next_ack: u32 = tcp_received_packet.get_sequence() + payload_from_client.len() as u32;
-    let next_seq: u32 = tcp_received_packet.get_acknowledgement();
-
-    // Handle banner 
-    if payload_from_client.starts_with(b"SSH-"){
-        println!("🚨 Reply I send (first banner): {:?}", HARDCODED_SERVER_BANNER);
-        send_tcp_stream(
-            tx.clone(),
-            virtual_mac,
-            virtual_ip,
-            destination_mac,
-            destination_ip,
-            22,
-            src_port,
-            next_seq,
-            next_ack,
-            TcpFlags::ACK | TcpFlags::PSH,
-            HARDCODED_SERVER_BANNER,
-        ).await;
-        return;
-    }
-
-    println!("Write on sshd, now receive");
-    // Handle sshd response
-    let mut buf = [0u8; 4096];
-    let mut recv_buffer: Vec<u8> = vec![];
-    loop {
-        match timeout(Duration::from_millis(50), sshd.read(&mut buf)).await {
-            Ok(Ok(n)) if n > 0 => {
-                println!("Response received");
-
-                recv_buffer.extend_from_slice(&buf[..n]);
-
-                if recv_buffer.len() >= 4 {
-
-                    if recv_buffer.starts_with(b"SSH-") {
-                        let mut packet = Vec::new();
-                        let packet_length = (n + 4) as u32;
-
-                        packet.extend_from_slice(&packet_length.to_be_bytes());
-                        packet.extend(recv_buffer);
-
-                        println!("🚨 Reply I send (banner): {:?}, size set: {:?}", packet, packet_length);
-                        send_tcp_stream(
-                            tx.clone(),
-                            virtual_mac,
-                            virtual_ip,
-                            destination_mac,
-                            destination_ip,
-                            22,
-                            src_port,
-                            next_seq,
-                            next_ack,
-                            TcpFlags::ACK | TcpFlags::PSH,
-                            &packet,
-                        ).await;
-                        break;
-                    }else {
-
+/* 
                         let packet_length = (n + 4) as u32;
                         let mut packet = Vec::new();
                         packet.extend_from_slice(&packet_length.to_be_bytes());
@@ -486,7 +425,7 @@ fn build_ssh_packet(payload: &mut Vec<u8>) {
 
     let padding: Vec<u8> = (0..padding_len).map(|_| rand::random::<u8>()).collect();
     buf.extend_from_slice(&padding);
-    
+
     payload.clear();
     payload.extend_from_slice(&buf);
 }
