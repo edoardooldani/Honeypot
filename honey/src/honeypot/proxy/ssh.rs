@@ -196,9 +196,7 @@ async fn handle_sshd(
     loop {
         match rx_sshd.lock().await.recv().await {
             Some(packet_from_client) => {
-                println!("Received: {:?}", packet_from_client);
                 if let Some(tcp_packet) = TcpPacket::new(&packet_from_client) {
-                    println!("Received tcp: {:?}", tcp_packet);
 
                     if let Err(e) = stream.write_all(&tcp_packet.payload()).await {
                         error!("❌ Errore nell’invio dati a sshd: {}", e);
@@ -221,22 +219,19 @@ async fn handle_sshd(
                         ).await;
                         break;
                     }
-                    println!("Sent to sshd");
 
                     let mut sshd_response = [0u8; 2048];
                     loop{
-                        sleep(Duration::from_millis(20)).await;
+                        sleep(Duration::from_millis(10)).await;
 
                         match timeout(Duration::from_millis(50), stream.read(&mut sshd_response)).await {
                             Ok(Ok(n)) if n > 0 => {
-                                println!("Read {n} bytes");
                                 let mut sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
                                 check_server_context(&mut sshd_vec, context.clone(), &signing_key).await;
-                                println!("Checked server context");
 
                                 if !sshd_vec.starts_with(b"SSH-"){
                                     println!("SSH packet must be changed");
-                                    build_ssh_packet(&mut sshd_vec);
+                                    //build_ssh_packet(&mut sshd_vec);
                                 }
                                 
                                 println!("\n\nPacchetto TCP ricevuto dal client: {:?}\n Risposta che invio: {:?}", tcp_packet.packet(), sshd_vec);
