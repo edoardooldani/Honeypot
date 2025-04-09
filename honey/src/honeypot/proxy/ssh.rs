@@ -67,7 +67,6 @@ pub async fn handle_ssh_connection(
                     continue;
                 }
 
-                println!("Ricevuta risposta dal canale SSHD: {:?}", response_packet);
                 let src_port = tcp_received_packet.get_source();
                 let next_ack: u32 = tcp_received_packet.get_sequence() + payload_from_client.len() as u32;
                 let next_seq: u32 = tcp_received_packet.get_acknowledgement();
@@ -222,7 +221,7 @@ async fn handle_sshd(
 
                     let mut sshd_response = [0u8; 2048];
                     loop{
-                        sleep(Duration::from_millis(10)).await;
+                        sleep(Duration::from_millis(30)).await;
 
                         match timeout(Duration::from_millis(50), stream.read(&mut sshd_response)).await {
                             Ok(Ok(n)) if n > 0 => {
@@ -289,7 +288,7 @@ async fn check_server_context(payload: &mut Vec<u8>, context: Arc<Mutex<SSHSessi
         if let Some(pos) = payload.iter().position(|&b| b == b'\n') {
             context_locked.v_s = Some(payload[..=pos].to_vec());
             println!("🛰️ Salvato V_S: {:?}", String::from_utf8_lossy(&payload[..=pos]));
-            return Some(payload.to_vec());
+            //return Some(payload.to_vec());
         }
     }
 
@@ -324,7 +323,7 @@ async fn check_server_context(payload: &mut Vec<u8>, context: Arc<Mutex<SSHSessi
                 }
             }
 
-            return Some(build_packet_31(context.clone(), signing_key).await);
+            //return Some(build_packet_31(context.clone(), signing_key).await);
         }
         _ => {}
     }
