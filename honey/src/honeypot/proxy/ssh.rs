@@ -286,10 +286,10 @@ async fn handle_sshd(
                     loop {
                         match timeout(Duration::from_millis(50), stream.read(&mut sshd_response)).await {
                             Ok(Ok(n)) if n > 0 => {
-                                println!("Response received from sshd");
                                 check_server_context(&mut sshd_response.to_vec(), context.clone(), &signing_key).await;
 
-                                tx_sshd.lock().await.send(sshd_response[..n].to_vec()).await.expect("Failed to send through sshd ");
+                                let ssh_packet = build_ssh_packet(&sshd_response);
+                                tx_sshd.lock().await.send(ssh_packet[..n].to_vec()).await.expect("Failed to send through sshd ");
 
                             }
                             _ => break,
