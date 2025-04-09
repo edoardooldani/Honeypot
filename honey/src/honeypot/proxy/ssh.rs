@@ -286,7 +286,7 @@ async fn handle_sshd(
                     loop {
                         match timeout(Duration::from_millis(50), stream.read(&mut sshd_response)).await {
                             Ok(Ok(n)) if n > 0 => {
-                                let mut sshd_vec: Vec<u8> = sshd_response.to_vec();
+                                let mut sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
                                 check_server_context(&mut sshd_vec, context.clone(), &signing_key).await;
 
                                 if !sshd_vec.starts_with(b"SSH-"){
