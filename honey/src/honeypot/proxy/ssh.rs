@@ -173,7 +173,6 @@ async fn get_or_create_ssh_session(tx_datalink: Arc<Mutex<Box<dyn DataLinkSender
 
             let arc_session = Arc::new(Mutex::new(session));
             sessions.insert(key, arc_session.clone());
-            println!("Sessions: {:?}", sessions.keys());
             arc_session
         }
     }
@@ -223,6 +222,7 @@ async fn handle_sshd(
                     }
 
                     let mut sshd_response = [0u8; 2048];
+
                     match timeout(Duration::from_millis(50), stream.read(&mut sshd_response)).await {
                         Ok(Ok(n)) if n > 0 => {
                             let mut sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
@@ -236,7 +236,6 @@ async fn handle_sshd(
                             println!("\n\nPacchetto TCP ricevuto dal client: {:?}\n Risposta che invio: {:?}", tcp_packet.packet(), sshd_vec);
 
                             tx_sshd.lock().await.send(sshd_vec).await.expect("Failed to send through sshd ");
-                            tokio::time::sleep(Duration::from_millis(80)).await;
 
                         }
                         _ => break,
@@ -249,7 +248,7 @@ async fn handle_sshd(
             }
         }
 
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        sleep(Duration::from_millis(50)).await;
     }
 }
 
