@@ -289,7 +289,7 @@ async fn handle_sshd(
                                 check_server_context(&mut sshd_response.to_vec(), context.clone(), &signing_key).await;
 
                                 if !sshd_response.starts_with(b"SSH-"){
-                                    build_ssh_packet(&mut sshd_response);
+                                    build_ssh_packet(&mut sshd_response[..n+4]);
                                 }
 
                                 tx_sshd.lock().await.send(sshd_response[..n].to_vec()).await.expect("Failed to send through sshd ");
@@ -484,6 +484,6 @@ fn build_ssh_packet(payload: &mut [u8]){
     let padding: Vec<u8> = (0..padding_len).map(|_| rand::random::<u8>()).collect();
     buf.extend_from_slice(&padding);
 
+    println!("Payload size: {:?} buf size: {:?}", payload.len(), buf.len());
     payload.copy_from_slice(&buf);
-
 }
