@@ -59,35 +59,35 @@ pub async fn handle_ssh_connection(
 
     tx_sshd_clone.lock().await.send(tcp_received_packet.packet().to_vec()).await.expect("Failed to send payload to SSHD");
 
-    //loop {
-    tokio::time::sleep(Duration::from_millis(50)).await;
-    match rx_sshd_clone.lock().await.recv().await {
-        Some(response_packet) => {
-            println!("Ricevuta risposta dal canale SSHD: {:?}", response_packet);
-            let src_port = tcp_received_packet.get_source();
-            let next_ack: u32 = tcp_received_packet.get_sequence() + payload_from_client.len() as u32;
-            let next_seq: u32 = tcp_received_packet.get_acknowledgement();
+    loop {
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        match rx_sshd_clone.lock().await.recv().await {
+            Some(response_packet) => {
+                println!("Ricevuta risposta dal canale SSHD: {:?}", response_packet);
+                let src_port = tcp_received_packet.get_source();
+                let next_ack: u32 = tcp_received_packet.get_sequence() + payload_from_client.len() as u32;
+                let next_seq: u32 = tcp_received_packet.get_acknowledgement();
 
-            send_tcp_stream(
-                tx, 
-                virtual_mac, 
-                virtual_ip, 
-                destination_mac, 
-                destination_ip, 
-                22, 
-                src_port, 
-                next_seq, 
-                next_ack, 
-                TcpFlags::ACK | TcpFlags::PSH, 
-                &response_packet
-            ).await;
+                send_tcp_stream(
+                    tx, 
+                    virtual_mac, 
+                    virtual_ip, 
+                    destination_mac, 
+                    destination_ip, 
+                    22, 
+                    src_port, 
+                    next_seq, 
+                    next_ack, 
+                    TcpFlags::ACK | TcpFlags::PSH, 
+                    &response_packet
+                ).await;
+                break;
+            },
+            None => {
+                println!("Canale rx_sshd chiuso, terminando il loop.");
+            }
 
-        },
-        None => {
-            println!("Canale rx_sshd chiuso, terminando il loop.");
         }
-
-        //}
     }
     
 /* 
