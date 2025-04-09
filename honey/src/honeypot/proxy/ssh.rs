@@ -193,7 +193,6 @@ async fn handle_sshd(
             Some(packet_from_client) => {
 
                 if let Some(tcp_packet) = TcpPacket::new(&packet_from_client) {
-                    println!("Pacchetto TCP ricevuto dal client: {:?}", tcp_packet.packet());
 
                     if let Err(e) = stream.write_all(&tcp_packet.payload()).await {
                         error!("❌ Errore nell’invio dati a sshd: {}", e);
@@ -228,6 +227,8 @@ async fn handle_sshd(
                                 build_ssh_packet(&mut sshd_vec);
                             }
                             
+                            println!("\n\nPacchetto TCP ricevuto dal client: {:?}\n Risposta che invio: {:?}", tcp_packet.packet(), sshd_vec);
+
                             tx_sshd.lock().await.send(sshd_vec).await.expect("Failed to send through sshd ");
 
                         }
