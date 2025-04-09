@@ -59,7 +59,7 @@ pub async fn handle_ssh_connection(
 
     tx_sshd_clone.lock().await.send(tcp_received_packet.packet().to_vec()).await.expect("Failed to send payload to SSHD");
 
-    loop {
+    //loop {
         tokio::time::sleep(Duration::from_millis(50)).await;
         match rx_sshd_clone.lock().await.recv().await {
             Some(response_packet) => {
@@ -81,14 +81,14 @@ pub async fn handle_ssh_connection(
                     TcpFlags::ACK | TcpFlags::PSH, 
                     &response_packet
                 ).await;
-                break;
+                //break;
             },
             None => {
                 println!("Canale rx_sshd chiuso, terminando il loop.");
             }
 
         }
-    }
+    //}
     
 /* 
                         let packet_length = (n + 4) as u32;
@@ -230,6 +230,7 @@ async fn handle_sshd(
                             println!("\n\nPacchetto TCP ricevuto dal client: {:?}\n Risposta che invio: {:?}", tcp_packet.packet(), sshd_vec);
 
                             tx_sshd.lock().await.send(sshd_vec).await.expect("Failed to send through sshd ");
+                            tokio::time::sleep(Duration::from_millis(80)).await;
 
                         }
                         _ => break,
