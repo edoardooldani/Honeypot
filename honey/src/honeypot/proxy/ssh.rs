@@ -221,13 +221,16 @@ async fn handle_sshd(
                         ).await;
                         break;
                     }
+                    println!("Sent to sshd");
 
                     let mut sshd_response = [0u8; 2048];
                     loop{
                         match timeout(Duration::from_millis(50), stream.read(&mut sshd_response)).await {
                             Ok(Ok(n)) if n > 0 => {
+                                println!("Read {n} bytes");
                                 let mut sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
                                 check_server_context(&mut sshd_vec, context.clone(), &signing_key).await;
+                                println!("Checked server context");
 
                                 if !sshd_vec.starts_with(b"SSH-"){
                                     println!("SSH packet must be changed");
