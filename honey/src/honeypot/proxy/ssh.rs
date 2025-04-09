@@ -292,8 +292,7 @@ async fn handle_sshd(
                                 if !sshd_vec.starts_with(b"SSH-"){
                                     build_ssh_packet(&mut sshd_vec);
                                 }
-                                println!("Payload: after {:?} \n\n\n", sshd_vec);
-
+                                
                                 tx_sshd.lock().await.send(sshd_vec).await.expect("Failed to send through sshd ");
 
                             }
@@ -461,11 +460,13 @@ async fn build_packet_31(context: Arc<Mutex<SSHSessionContext>>, signing_key: &S
     final_packet
 }
 
+
 fn generate_signing_key() -> SigningKey {
     let mut secret_bytes = [0u8; 32];
     OsRng.try_fill_bytes(&mut secret_bytes).expect("Failed filling secret key");
     SigningKey::from_bytes(&secret_bytes)
 }
+
 
 
 fn build_ssh_packet(payload: &mut Vec<u8>) {
@@ -485,9 +486,6 @@ fn build_ssh_packet(payload: &mut Vec<u8>) {
     let padding: Vec<u8> = (0..padding_len).map(|_| rand::random::<u8>()).collect();
     buf.extend_from_slice(&padding);
 
-    println!("Payload size: {:?} buf size: {:?}\n", payload.len(), buf.len());
-    println!("Payload: before {:?} \n\n\n", payload);
-
-    payload.clear(); // Clear the existing payload
+    payload.clear();
     payload.extend_from_slice(&buf);
 }
