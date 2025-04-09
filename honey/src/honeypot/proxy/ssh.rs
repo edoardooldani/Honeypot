@@ -151,7 +151,7 @@ async fn handle_sshd(
         match rx_sshd.lock().await.recv().await {
             Some(packet_from_client) => {
                 if let Some(tcp_packet) = TcpPacket::new(&packet_from_client) {
-
+                    println!("Pacchetto che arriva: {:?}", tcp_packet.packet());
                     if let Err(e) = stream.write_all(&tcp_packet.payload()).await {
                         error!("❌ Errore nell’invio dati a sshd: {}", e);
                         let mut sessions = SSH_SESSIONS.lock().await;
@@ -184,11 +184,10 @@ async fn handle_sshd(
                                 check_server_context(&sshd_vec, context.clone(), &signing_key).await;
 
                                 if !sshd_vec.starts_with(b"SSH-"){
-                                    println!("SSH packet must be changed");
                                     //build_ssh_packet(&mut sshd_vec);
                                 }
                                 
-                                println!("\n\nPacchetto TCP ricevuto dal client: {:?}\n Risposta che invio: {:?}", tcp_packet.packet(), sshd_vec);
+                                println!("\n\nPacchetto TCP ricevuto dal client: {:?}\n\n Risposta che invio: {:?}\n\n", tcp_packet.packet(), sshd_vec);
 
                                 tx_sshd.lock().await.send(sshd_vec).await.expect("Failed to send through sshd ");
                                 break;
