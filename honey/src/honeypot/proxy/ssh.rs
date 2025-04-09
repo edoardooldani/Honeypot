@@ -290,6 +290,7 @@ async fn handle_sshd(
                                 check_server_context(&mut sshd_vec, context.clone(), &signing_key).await;
 
                                 if !sshd_vec.starts_with(b"SSH-"){
+                                    println!("SSH packet must be changed");
                                     build_ssh_packet(&mut sshd_vec);
                                 }
                                 
@@ -485,7 +486,7 @@ fn build_ssh_packet(payload: &mut Vec<u8>) {
 
     let padding: Vec<u8> = (0..padding_len).map(|_| rand::random::<u8>()).collect();
     buf.extend_from_slice(&padding);
-
+    
     payload.clear();
     payload.extend_from_slice(&buf);
 }
