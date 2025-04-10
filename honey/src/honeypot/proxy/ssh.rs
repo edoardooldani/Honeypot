@@ -151,38 +151,8 @@ async fn handle_sshd(
         match rx_sshd.lock().await.recv().await {
             Some(packet_from_client) => {
                 if let Some(tcp_packet) = TcpPacket::new(&packet_from_client) {
-                    println!("Pacchetto che arriva: {:?}", tcp_packet.payload());
-
-                    const MAX_PACKET_SIZE: usize = 1024;  // Ad esempio, inviamo pacchetti di dimensione max di 1024 byte
-    
-                    let mut start = 0;
-                    while start < tcp_packet.payload().len() {
-                        let end = std::cmp::min(start + MAX_PACKET_SIZE, tcp_packet.payload().len());
-                        let chunk = &tcp_packet.payload()[start..end];
-                        if let Err(e) = stream.write_all(chunk).await {
-                            error!("❌ Errore nell’invio dati a sshd: {}", e);
-                            let mut sessions = SSH_SESSIONS.lock().await;
-                            sessions.remove(&(virtual_ip, destination_ip));
+                    println!("Pacchetto che arriva: {:?}\n con size: {:?}", tcp_packet.payload(), tcp_packet.payload().len());
                     
-                            let fin_flags = TcpFlags::ACK | TcpFlags::FIN;
-                            send_tcp_stream(
-                                tx.clone(),
-                                virtual_mac,
-                                virtual_ip,
-                                destination_mac,
-                                destination_ip,
-                                22,
-                                tcp_packet.get_source(),
-                                tcp_packet.get_acknowledgement(),
-                                tcp_packet.get_sequence() + tcp_packet.payload().len() as u32,
-                                fin_flags,
-                                &[],
-                            ).await;
-                            break;
-                        }  
-                        start = end;  // Avanza al prossimo blocco
-                    }
-                    /*
                     if let Err(e) = stream.write_all(&tcp_packet.payload()).await {
                         error!("❌ Errore nell’invio dati a sshd: {}", e);
                         let mut sessions = SSH_SESSIONS.lock().await;
@@ -204,7 +174,7 @@ async fn handle_sshd(
                         ).await;
                         break;
                     }
-                    */
+                    
                     let mut sshd_response = [0u8; 2048];
                     loop{
                         sleep(Duration::from_millis(50)).await;
@@ -224,6 +194,8 @@ async fn handle_sshd(
                             },
                             _ => {
                                 println!("Received zero bytes, retrying...");
+                                stream.write_all(&tcp_packet.payload()).await.expect("Failed sending again the message");
+                                
                                 continue;
                             },
                         }
