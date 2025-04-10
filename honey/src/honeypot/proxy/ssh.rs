@@ -180,13 +180,14 @@ async fn handle_sshd(
                     
                     let mut sshd_response = [0u8; 2048];
                     loop{
-                        println!("\n\n\nSSHD RESPONSE BUFFER: {:?}\n\n\n", sshd_response);
                         sleep(Duration::from_millis(50)).await;
                         match timeout(Duration::from_millis(100), stream.read(&mut sshd_response)).await {
                             
                             Ok(Ok(n)) => {
                                 if n == 0 {
                                     println!("Received zero bytes, retrying...");
+                                    println!("\n\n\nSSHD RESPONSE BUFFER: {:?}\n\n\n", sshd_response);
+
                                     //stream.write_all(&tcp_packet.payload()).await.expect("Failed sending again the message");
                                     
                                     continue;
