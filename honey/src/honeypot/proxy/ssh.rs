@@ -148,6 +148,7 @@ async fn handle_sshd(
     let mut stream = TcpStream::connect("127.0.0.1:2222").await.expect("❌ Connessione al server SSH fallita");
     let signing_key = generate_signing_key();
     let mut rx_locked = rx_sshd.lock().await;
+    let tx_sshd_clone = Arc::clone(&tx_sshd);
 
     loop {
         match rx_locked.recv().await {
@@ -220,14 +221,14 @@ async fn handle_sshd(
                                     println!("📦 Banner: {:?}", String::from_utf8_lossy(banner));
                                     println!("📦 Altri dati (probabile KEX): {:?}", remaining);
                                 
-                                    tx_sshd.lock().await.send(banner.to_vec()).await.expect("send banner");
+                                    tx_sshd_clone.lock().await.send(banner.to_vec()).await.expect("send banner");
                                 
                                     if !remaining.is_empty() {
-                                        tx_sshd.lock().await.send(remaining.to_vec()).await.expect("send remaining");
+                                        tx_sshd_clone.lock().await.send(remaining.to_vec()).await.expect("send remaining");
                                     }
                                 
                                 } else {
-                                    tx_sshd.lock().await.send(sshd_vec).await.expect("send fallback");
+                                    tx_sshd_clone.lock().await.send(sshd_vec).await.expect("send fallback");
                                 }
                                 
                                 break;
