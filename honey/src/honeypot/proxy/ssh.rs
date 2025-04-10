@@ -59,7 +59,7 @@ pub async fn handle_ssh_connection(
     tx_sshd_clone.lock().await.send(tcp_received_packet.packet().to_vec()).await.expect("Failed to send payload to SSHD");
 
     loop {
-        sleep(Duration::from_millis(50)).await;
+        sleep(Duration::from_millis(100)).await;
         match rx_sshd_clone.lock().await.recv().await {
             Some(response_packet) => {
                 if response_packet == tcp_received_packet.packet().to_vec(){
@@ -196,7 +196,7 @@ async fn handle_sshd(
                             fin_flags,
                             &[],
                         ).await;
-                        break;
+                        return;
                     }
 
 
@@ -212,7 +212,7 @@ async fn handle_sshd(
 
                                 let mut sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
                                 check_server_context(&sshd_vec, context.clone(), &signing_key.clone()).await;
-                        
+                                println!("Vector I send: {:?}", sshd_vec);
                                 tx_sshd.lock().await.send(sshd_vec).await.expect("Failed to send through sshd ");
                                 break;
                             },
