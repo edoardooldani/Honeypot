@@ -213,7 +213,23 @@ async fn handle_sshd(
                                 let sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
                                 //check_server_context(&sshd_vec, context.clone(), &signing_key.clone()).await;
                                 println!("Vector I send: {:?}", sshd_vec);
-                                tx_sshd.lock().await.send(sshd_vec).await.expect("Failed to send through sshd ");
+                                if let Some(pos) = sshd_vec.iter().position(|&b| b == b'\n') {
+                                    let banner = &sshd_vec[..=pos];
+                                    let remaining = &sshd_vec[pos + 1..];
+                                
+                                    println!("📦 Banner: {:?}", String::from_utf8_lossy(banner));
+                                    println!("📦 Altri dati (probabile KEX): {:?}", remaining);
+                                
+                                    tx_sshd.lock().await.send(banner.to_vec()).await.expect("send banner");
+                                
+                                    if !remaining.is_empty() {
+                                        tx_sshd.lock().await.send(remaining.to_vec()).await.expect("send remaining");
+                                    }
+                                
+                                } else {
+                                    tx_sshd.lock().await.send(sshd_vec).await.expect("send fallback");
+                                }
+                                
                                 break;
                             },
                             Ok(Err(e)) => {
