@@ -155,13 +155,18 @@ async fn handle_sshd(
                 if let Some(tcp_packet) = TcpPacket::new(&packet_from_client) {
                     println!("Pacchetto che arriva: {:?}\n con size: {:?}", tcp_packet.payload(), tcp_packet.payload().len());
                     
-                    if tcp_packet.payload().len() <= 0 {
-                        println!("Emtpy payload");
-                        continue;
+                    if tcp_packet.payload().len() >= 4 {
+                        let packet_len = u32::from_be_bytes([tcp_packet.payload()[0], tcp_packet.payload()[1], tcp_packet.payload()[2], tcp_packet.payload()[3]]) as usize;
+                        if tcp_packet.payload().len() >= packet_len + 4 {
+                            // Pacchetto completo!
+                            println!("COMPLETE PACKET");
+                        } else {
+                            println!("\n\nNOT COMPLETE MUST WAIT ANOTHER PACKET");
+                        }
                     }
 
 
-                    if let Err(e) = stream.write_all(&tcp_packet.payload()[..tcp_packet.packet().len()/2]).await {
+                    if let Err(e) = stream.write_all(&tcp_packet.payload()).await {
                         error!("❌ Errore nell’invio dati a sshd: {}", e);
                         let mut sessions = SSH_SESSIONS.lock().await;
                         sessions.remove(&(virtual_ip, destination_ip));
@@ -184,28 +189,6 @@ async fn handle_sshd(
                         break;
                     }
 
-                    if let Err(e) = stream.write_all(&tcp_packet.payload()[tcp_packet.packet().len()/2..]).await {
-                        error!("❌ Errore nell’invio dati a sshd: {}", e);
-                        let mut sessions = SSH_SESSIONS.lock().await;
-                        sessions.remove(&(virtual_ip, destination_ip));
-                
-                        let fin_flags = TcpFlags::ACK | TcpFlags::FIN;
-
-                        send_tcp_stream(
-                            tx.clone(),
-                            virtual_mac,
-                            virtual_ip,
-                            destination_mac,
-                            destination_ip,
-                            22,
-                            tcp_packet.get_source(),
-                            tcp_packet.get_acknowledgement(),
-                            tcp_packet.get_sequence() + tcp_packet.payload().len() as u32,
-                            fin_flags,
-                            &[],
-                        ).await;
-                        break;
-                    }
 
                     let mut sshd_response = [0u8; 2048];
                     loop{
