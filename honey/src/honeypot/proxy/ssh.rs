@@ -59,7 +59,7 @@ pub async fn handle_ssh_connection(
     tx_sshd_clone.lock().await.send(tcp_received_packet.packet().to_vec()).await.expect("Failed to send payload to SSHD");
 
     loop {
-        sleep(Duration::from_millis(200)).await;
+        sleep(Duration::from_millis(50)).await;
         match rx_sshd_clone.lock().await.recv().await {
             Some(response_packet) => {
                 /*if response_packet == tcp_received_packet.packet().to_vec(){
@@ -213,7 +213,10 @@ async fn handle_sshd(
 
                                 let sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
                                 //check_server_context(&sshd_vec, context.clone(), &signing_key.clone()).await;
+
                                 println!("Vector I send: {:?}", sshd_vec);
+                                let tx_response = tx_sshd_clone.lock().await;
+                                
                                 if let Some(pos) = sshd_vec.iter().position(|&b| b == b'\n') {
                                     let banner = &sshd_vec[..=pos];
                                     let remaining = &sshd_vec[pos + 1..];
@@ -221,14 +224,14 @@ async fn handle_sshd(
                                     println!("📦 Banner: {:?}", String::from_utf8_lossy(banner));
                                     println!("📦 Altri dati (probabile KEX): {:?}", remaining);
                                 
-                                    tx_sshd_clone.lock().await.send(banner.to_vec()).await.expect("send banner");
-                                
+                                    tx_response.send(banner.to_vec()).await.expect("send banner");
+                                    /* 
                                     if !remaining.is_empty() {
-                                        tx_sshd_clone.lock().await.send(remaining.to_vec()).await.expect("send remaining");
+                                        tx_response.send(remaining.to_vec()).await.expect("send remaining");
                                     }
-                                
+                                */
                                 } else {
-                                    tx_sshd_clone.lock().await.send(sshd_vec).await.expect("send fallback");
+                                    tx_response.send(sshd_vec).await.expect("send fallback");
                                 }
                                 
                                 break;
