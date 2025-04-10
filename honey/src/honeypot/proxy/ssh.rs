@@ -148,6 +148,7 @@ async fn handle_sshd(
     let mut stream = TcpStream::connect("127.0.0.1:2222").await.expect("❌ Connessione al server SSH fallita");
     let signing_key = generate_signing_key();
     let mut rx_locked = rx_sshd.lock().await;
+
     loop {
         match rx_locked.recv().await {
             Some(packet_from_client) => {
@@ -160,6 +161,7 @@ async fn handle_sshd(
                         sessions.remove(&(virtual_ip, destination_ip));
                 
                         let fin_flags = TcpFlags::ACK | TcpFlags::FIN;
+
                         send_tcp_stream(
                             tx.clone(),
                             virtual_mac,
@@ -178,6 +180,7 @@ async fn handle_sshd(
                     
                     let mut sshd_response = [0u8; 2048];
                     loop{
+                        println!("\n\n\nSSHD RESPONSE BUFFER: {:?}\n\n\n", sshd_response);
                         sleep(Duration::from_millis(50)).await;
                         match timeout(Duration::from_millis(100), stream.read(&mut sshd_response)).await {
                             
