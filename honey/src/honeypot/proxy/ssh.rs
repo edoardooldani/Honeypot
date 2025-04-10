@@ -160,7 +160,31 @@ async fn handle_sshd(
                         continue;
                     }
 
-                    if let Err(e) = stream.write_all(&tcp_packet.payload()).await {
+
+                    if let Err(e) = stream.write_all(&tcp_packet.payload()[..tcp_packet.packet().len()/2]).await {
+                        error!("❌ Errore nell’invio dati a sshd: {}", e);
+                        let mut sessions = SSH_SESSIONS.lock().await;
+                        sessions.remove(&(virtual_ip, destination_ip));
+                
+                        let fin_flags = TcpFlags::ACK | TcpFlags::FIN;
+
+                        send_tcp_stream(
+                            tx.clone(),
+                            virtual_mac,
+                            virtual_ip,
+                            destination_mac,
+                            destination_ip,
+                            22,
+                            tcp_packet.get_source(),
+                            tcp_packet.get_acknowledgement(),
+                            tcp_packet.get_sequence() + tcp_packet.payload().len() as u32,
+                            fin_flags,
+                            &[],
+                        ).await;
+                        break;
+                    }
+
+                    if let Err(e) = stream.write_all(&tcp_packet.payload()[tcp_packet.packet().len()/2..]).await {
                         error!("❌ Errore nell’invio dati a sshd: {}", e);
                         let mut sessions = SSH_SESSIONS.lock().await;
                         sessions.remove(&(virtual_ip, destination_ip));
