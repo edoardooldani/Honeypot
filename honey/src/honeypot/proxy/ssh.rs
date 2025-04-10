@@ -65,7 +65,7 @@ pub async fn handle_ssh_connection(
                 if response_packet == tcp_received_packet.packet().to_vec(){
                     continue;
                 }
-
+                println!("Received from sshd: {:?}", response_packet);
                 let src_port = tcp_received_packet.get_source();
                 let next_ack: u32 = tcp_received_packet.get_sequence() + payload_from_client.len() as u32;
                 let next_seq: u32 = tcp_received_packet.get_acknowledgement();
