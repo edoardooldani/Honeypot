@@ -210,8 +210,8 @@ async fn handle_sshd(
                                     continue;
                                 }
 
-                                let mut sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
-                                check_server_context(&sshd_vec, context.clone(), &signing_key.clone()).await;
+                                let sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
+                                //check_server_context(&sshd_vec, context.clone(), &signing_key.clone()).await;
                                 println!("Vector I send: {:?}", sshd_vec);
                                 tx_sshd.lock().await.send(sshd_vec).await.expect("Failed to send through sshd ");
                                 break;
