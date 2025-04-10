@@ -62,9 +62,9 @@ pub async fn handle_ssh_connection(
         sleep(Duration::from_millis(200)).await;
         match rx_sshd_clone.lock().await.recv().await {
             Some(response_packet) => {
-                if response_packet == tcp_received_packet.packet().to_vec(){
+                /*if response_packet == tcp_received_packet.packet().to_vec(){
                     continue;
-                }
+                }*/
                 println!("Received from sshd: {:?}", response_packet);
                 let src_port = tcp_received_packet.get_source();
                 let next_ack: u32 = tcp_received_packet.get_sequence() + payload_from_client.len() as u32;
@@ -83,7 +83,7 @@ pub async fn handle_ssh_connection(
                     TcpFlags::ACK | TcpFlags::PSH, 
                     &response_packet
                 ).await;
-                break;
+
             },
             None => {
                 println!("Canale rx_sshd chiuso, terminando il loop.");
