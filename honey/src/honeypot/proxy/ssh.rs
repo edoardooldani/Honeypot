@@ -155,6 +155,11 @@ async fn handle_sshd(
                 if let Some(tcp_packet) = TcpPacket::new(&packet_from_client) {
                     println!("Pacchetto che arriva: {:?}\n con size: {:?}", tcp_packet.payload(), tcp_packet.payload().len());
                     
+                    if tcp_packet.payload().len() <= 0 {
+                        println!("Emtpy payload");
+                        continue;
+                    }
+
                     if let Err(e) = stream.write_all(&tcp_packet.payload()).await {
                         error!("❌ Errore nell’invio dati a sshd: {}", e);
                         let mut sessions = SSH_SESSIONS.lock().await;
@@ -177,25 +182,20 @@ async fn handle_sshd(
                         ).await;
                         break;
                     }
-                    
+
                     let mut sshd_response = [0u8; 2048];
                     loop{
                         sleep(Duration::from_millis(50)).await;
                         match timeout(Duration::from_millis(100), stream.read(&mut sshd_response)).await {
-                            
                             Ok(Ok(n)) => {
                                 if n == 0 {
-                                    println!("Received zero bytes, retrying...");
-
                                     //stream.write_all(&tcp_packet.payload()).await.expect("Failed sending again the message");
-                                    
                                     continue;
                                 }
 
                                 let mut sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
-                                check_server_context(&sshd_vec, context.clone(), &signing_key).await;
+                                check_server_context(&sshd_vec, context.clone(), &signing_key.clone()).await;
                         
-                                println!("\n\nPacchetto TCP ricevuto dal client: {:?}\n\n Risposta che invio: {:?}\n\n", tcp_packet.packet(), sshd_vec);
                                 tx_sshd.lock().await.send(sshd_vec).await.expect("Failed to send through sshd ");
                                 break;
                             },
@@ -209,10 +209,11 @@ async fn handle_sshd(
                             }
                             _ => {
                                 println!("Unexpected result from read: {:?}", sshd_response);
+                                break;
                             }
                         }
                         
-                    }
+                    }                    
                 }
             },
             None => {
