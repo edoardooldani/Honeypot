@@ -147,9 +147,9 @@ async fn handle_sshd(
 ){
     let mut stream = TcpStream::connect("127.0.0.1:2222").await.expect("❌ Connessione al server SSH fallita");
     let signing_key = generate_signing_key();
-
+    let mut rx_locked = rx_sshd.lock().await;
     loop {
-        match rx_sshd.lock().await.recv().await {
+        match rx_locked.recv().await {
             Some(packet_from_client) => {
                 if let Some(tcp_packet) = TcpPacket::new(&packet_from_client) {
                     println!("Pacchetto che arriva: {:?}\n con size: {:?}", tcp_packet.payload(), tcp_packet.payload().len());
@@ -179,7 +179,6 @@ async fn handle_sshd(
                     let mut sshd_response = [0u8; 2048];
                     loop{
                         sleep(Duration::from_millis(50)).await;
-
                         match timeout(Duration::from_millis(100), stream.read(&mut sshd_response)).await {
                             
                             Ok(Ok(n)) => {
@@ -188,7 +187,7 @@ async fn handle_sshd(
                                     stream.write_all(&tcp_packet.payload()).await.expect("Failed sending again the message");
                                     
                                     continue;
-                                } 
+                                }
 
                                 let mut sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
                                 check_server_context(&sshd_vec, context.clone(), &signing_key).await;
@@ -201,7 +200,13 @@ async fn handle_sshd(
                                 println!("Error reading from SSHD stream: {}", e);
                                 break;
                             },
-                            _ => {},
+                            Err(e) => { 
+                                println!("Timeout expired while reading SSHD stream: {}", e);
+                                continue;
+                            }
+                            _ => {
+                                println!("Unexpected result from read: {:?}", sshd_response);
+                            }
                         }
                         
                     }
@@ -213,7 +218,7 @@ async fn handle_sshd(
             }
         }
 
-        sleep(Duration::from_millis(50)).await;
+        sleep(Duration::from_millis(20)).await;
     }
 }
 
