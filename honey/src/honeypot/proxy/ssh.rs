@@ -121,6 +121,7 @@ async fn get_or_create_ssh_session(tx_datalink: Arc<Mutex<Box<dyn DataLinkSender
             let rx_sshd_clone = Arc::clone(&rx_sshd);
             let context_clone = Arc::clone(&context);
 
+            println!("Creating new thread for new connection");
             tokio::spawn(async move {
                 handle_sshd(tx_datalink, tx_sshd_clone, rx_sshd_clone, context_clone, virtual_ip, destination_ip, virtual_mac, destination_mac).await;
             });
@@ -179,7 +180,36 @@ async fn handle_sshd(
                     loop{
                         sleep(Duration::from_millis(50)).await;
 
-                        match timeout(Duration::from_millis(100), stream.read(&mut sshd_response)).await {
+                        //match timeout(Duration::from_millis(100), stream.read(&mut sshd_response)).await {
+                            match stream.read(&mut sshd_response).await {
+                                
+                                Ok(n) => {
+                                    if n == 0 {
+                                        println!("Received zero bytes, retrying...");
+                                        
+                                        if let Err(e) = stream.write_all(&tcp_packet.payload()).await {
+                                            eprintln!("Failed sending again the message: {}", e);
+                                            break;  
+                                        }
+                    
+                                        continue;
+                                    }
+                                    let sshd_vec = sshd_response[..n].to_vec();
+                                    println!("\n\nPacchetto TCP ricevuto dal client: {:?}\nRisposta che invio: {:?}", tcp_packet.packet(), sshd_vec);
+                    
+                                    if let Err(e) = stream.write_all(&sshd_vec).await {
+                                        eprintln!("Failed to send data to sshd: {}", e);
+                                        break; 
+                                    }
+                    
+                                    break; 
+                                }
+                                Err(e) => {
+                                    eprintln!("Error reading from stream: {}", e);
+                                    break; // Esci se ci sono errori nella lettura
+                                }
+                            }
+                            /*
                             Ok(Ok(n)) if n > 0 => {
                                 let mut sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
                                 check_server_context(&sshd_vec, context.clone(), &signing_key).await;
@@ -198,7 +228,8 @@ async fn handle_sshd(
                                 
                                 continue;
                             },
-                        }
+                             */
+                        
                     }
                 }
             },
