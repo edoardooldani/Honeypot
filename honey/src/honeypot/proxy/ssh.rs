@@ -184,7 +184,7 @@ async fn handle_sshd(
                             Ok(Ok(n)) => {
                                 if n == 0 {
                                     println!("Received zero bytes, retrying...");
-                                    stream.write_all(&tcp_packet.payload()).await.expect("Failed sending again the message");
+                                    //stream.write_all(&tcp_packet.payload()).await.expect("Failed sending again the message");
                                     
                                     continue;
                                 }
