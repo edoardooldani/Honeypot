@@ -155,14 +155,24 @@ async fn handle_sshd(
                 if let Some(tcp_packet) = TcpPacket::new(&packet_from_client) {
                     println!("Pacchetto che arriva: {:?}\n con size: {:?}", tcp_packet.payload(), tcp_packet.payload().len());
                     
-                    if tcp_packet.payload().len() >= 4 {
-                        let packet_len = u32::from_be_bytes([tcp_packet.payload()[0], tcp_packet.payload()[1], tcp_packet.payload()[2], tcp_packet.payload()[3]]) as usize;
-                        if tcp_packet.payload().len() >= packet_len + 4 {
-                            // Pacchetto completo!
-                            println!("COMPLETE PACKET");
-                        } else {
-                            println!("\n\nNOT COMPLETE MUST WAIT ANOTHER PACKET");
-                        }
+                    let payload = tcp_packet.payload();
+
+                    if payload.len() < 4 {
+                        println!("Non ci sono abbastanza byte per leggere il packet_length");
+                        return;
+                    }
+
+                    let packet_length = u32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]]) as usize;
+                    let total_length = 4 + packet_length;
+
+                    if payload.len() >= total_length {
+                        println!("✅ Pacchetto SSH completo ricevuto ({} byte)", total_length);
+                    } else {
+                        println!(
+                            "⏳ Pacchetto incompleto. Richiede {} byte, ma ho solo {}",
+                            total_length,
+                            payload.len()
+                        );
                     }
 
 
