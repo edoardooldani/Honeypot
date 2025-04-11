@@ -150,23 +150,20 @@ async fn handle_sshd(
     authenticate_with_public_key(&mut session, username, private_key_path).await;
     let mut buffer = [0u8; 1024];
 
-    // Test: Invia un comando SSH di esempio (ad esempio, "ls" per listare i file)
-    let command = "ls -l\n"; // Comando di test
+    let command = "ls -l\n";
 
-    // Creazione di un canale per inviare il comando
     let mut channel = session.channel_session().expect("Failed to create SSH channel");
 
-    // Scrivi il comando nel canale SSH
     channel.write_all(command.as_bytes()).expect("Failed to send command to SSH server");
     channel.flush().expect("Failed to flush data to SSH server");
 
-    // Leggi la risposta dal server SSH
     let mut server_response = Vec::new();
     loop {
         let n = channel.read(&mut buffer).expect("Failed to read SSH server response");
         if n == 0 {
-            break; // Fine della risposta
+            break;
         }
+        println!("Response: {:?}", server_response);
         server_response.extend_from_slice(&buffer[..n]);
     }
 
@@ -175,7 +172,6 @@ async fn handle_sshd(
     } else {
         println!("Received response from SSH server: {:?}", server_response);
 
-        // Invia la risposta al client
         let tx_locked = tx_sshd.lock().await;
         if let Err(e) = tx_locked.send(server_response).await {
             eprintln!("Failed to send server response to client: {}", e);
