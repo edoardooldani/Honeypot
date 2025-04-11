@@ -151,7 +151,7 @@ async fn handle_sshd(
 
     let mut channel = session.channel_session().expect("Failed to create SSH channel");
     let mut buffer = [0u8; 1024];
-    let command = "ls -l\n";
+    let command = "yes\n";
 
     channel.write_all(command.as_bytes()).expect("Failed to send command to SSH server");
     channel.flush().expect("Failed to flush data to SSH server");
