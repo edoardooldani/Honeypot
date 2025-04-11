@@ -39,6 +39,29 @@ pub async fn handle_ssh_connection(
     let payload_str = String::from_utf8(payload_from_client.to_vec())
     .expect("Failed to convert payload to string");
 
+    let src_port = tcp_received_packet.get_source();
+    let next_ack: u32 = tcp_received_packet.get_sequence() + payload_from_client.len() as u32;
+    let next_seq: u32 = tcp_received_packet.get_acknowledgement();
+
+    if payload_str.starts_with("SSH-"){
+        println!("Received banner: {:?}", payload_str);
+        send_tcp_stream(
+            tx.clone(), 
+            virtual_mac, 
+            virtual_ip, 
+            destination_mac, 
+            destination_ip, 
+            22, 
+            src_port, 
+            next_seq, 
+            next_ack, 
+            TcpFlags::ACK | TcpFlags::PSH, 
+            b"SSH-2.0-OpenSSH_7.9p1 Debian-10+deb10u2"
+        ).await;
+    }
+
+    /*
+
     tx_sshd_clone.lock().await.send(payload_str.clone()).await.expect("Failed to send payload to SSHD");
 
     loop {
@@ -50,9 +73,7 @@ pub async fn handle_ssh_connection(
                 }
 
                 println!("Received from sshd: {:?}", response_packet);
-                let src_port = tcp_received_packet.get_source();
-                let next_ack: u32 = tcp_received_packet.get_sequence() + payload_from_client.len() as u32;
-                let next_seq: u32 = tcp_received_packet.get_acknowledgement();
+                
 
                 let response_bytes = response_packet.as_bytes();
 
@@ -78,7 +99,7 @@ pub async fn handle_ssh_connection(
 
         }
     }
-
+ */
 }
 
 
@@ -126,33 +147,27 @@ async fn handle_sshd(
     let stream = TcpStream::connect("127.0.0.1:22").await.expect("❌ Connessione al server SSH fallita");
     let mut session = Session::new().expect("Failed to create SSH session");
     session.set_tcp_stream(stream);
-    //session.handshake().expect("Failed to complete SSH handshake");
+    session.handshake().expect("Failed to complete SSH handshake");
 
     let username = "edoardo"; 
     let private_key_path = "src/honeypot/proxy/keys/ssh"; 
 
-    //authenticate_with_public_key(&mut session, username, private_key_path).await;
+    authenticate_with_public_key(&mut session, username, private_key_path).await;
 
     loop {
         match rx_sshd.lock().await.recv().await {
             Some(command) => {
                 println!("Pacchetto che arriva: {:?}\n", command);
 
-                if command.starts_with("SSH-"){
-                    session.set_banner(&command).expect("Failed to set client banner");
-                    tx_sshd.lock().await.send(session.userauth_banner().expect("Failed to fetch banner").expect("Failed getting banner").to_string()).await.expect("Failed sending response to command!");
-                    continue;
-                }
-
-
                 let mut channel = session.channel_session().expect("Failed to create SSH channel");
-
+                
                 channel.exec(&command).unwrap();
                 let mut s = String::new();
                 channel.read_to_string(&mut s).unwrap();
                 println!("{}", s);
 
-                
+                tx_sshd.lock().await.send(s.to_string()).await.expect("Failed sending response to command!");
+
             }
             _ => { break;}
         }
