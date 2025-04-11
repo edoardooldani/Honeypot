@@ -148,22 +148,22 @@ async fn handle_sshd(
     let private_key_path = "src/honeypot/proxy/keys/ssh"; 
 
     authenticate_with_public_key(&mut session, username, private_key_path).await;
-    let mut buffer = [0u8; 1024];
-
-    let command = "ls -l\n";
 
     let mut channel = session.channel_session().expect("Failed to create SSH channel");
+    let mut buffer = [0u8; 1024];
+    let command = "ls -l\n";
 
     channel.write_all(command.as_bytes()).expect("Failed to send command to SSH server");
     channel.flush().expect("Failed to flush data to SSH server");
 
+    let mut buffer = [0u8; 1024];
     let mut server_response = Vec::new();
+
     loop {
         let n = channel.read(&mut buffer).expect("Failed to read SSH server response");
         if n == 0 {
-            break;
+            break; 
         }
-        println!("Response: {:?}", server_response);
         server_response.extend_from_slice(&buffer[..n]);
     }
 
@@ -175,9 +175,10 @@ async fn handle_sshd(
         let tx_locked = tx_sshd.lock().await;
         if let Err(e) = tx_locked.send(server_response).await {
             eprintln!("Failed to send server response to client: {}", e);
-            return; // Esci in caso di errore
+            return; 
         }
     }
+
 }    
 
 
