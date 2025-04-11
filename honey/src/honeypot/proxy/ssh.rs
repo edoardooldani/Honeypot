@@ -150,36 +150,11 @@ async fn handle_sshd(
     authenticate_with_public_key(&mut session, username, private_key_path).await;
 
     let mut channel = session.channel_session().expect("Failed to create SSH channel");
-    let command = "ls\n";
-    println!("Channel: {:?}", channel.exec(command));
-    //channel.write_all(command.as_bytes()).expect("Failed to send command to SSH server");
-    //channel.flush().expect("Failed to flush data to SSH server");
 
-    
-    let mut buffer = [0u8; 1024];
-    let mut server_response = Vec::new();
-
-    loop {
-        let n = channel.read(&mut buffer).expect("Failed to read SSH server response");
-        if n == 0 {
-            break; 
-        }
-
-        server_response.extend_from_slice(&buffer[..n]);
-        println!("Server response: {:?}", server_response);
-    }
-
-    if server_response.is_empty() {
-        println!("No response from SSH server.");
-    } else {
-        println!("Received response from SSH server: {:?}", server_response);
-
-        let tx_locked = tx_sshd.lock().await;
-        if let Err(e) = tx_locked.send(server_response).await {
-            eprintln!("Failed to send server response to client: {}", e);
-            return; 
-        }
-    }
+    channel.exec("ls").unwrap();
+    let mut s = String::new();
+    channel.read_to_string(&mut s).unwrap();
+    println!("{}", s);
 
 }    
 
