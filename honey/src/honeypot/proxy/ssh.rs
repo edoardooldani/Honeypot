@@ -149,7 +149,7 @@ async fn handle_sshd(
     let stream = TcpStream::connect("127.0.0.1:2222").await.expect("❌ Connessione al server SSH fallita");
     let mut session = Session::new().expect("Failed to create SSH session");
     session.set_tcp_stream(stream);
-    session.handshake().expect("Failed to complete SSH handshake");
+    //session.handshake().expect("Failed to complete SSH handshake");
 
     let mut buffer = [0u8; 1024];
 
