@@ -1310,6 +1310,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "ssh2",
  "tokio",
  "tokio-tungstenite 0.26.2",
  "tracing",
@@ -1898,6 +1899,20 @@ dependencies = [
  "bindgen 0.70.1",
  "errno",
  "libc",
+]
+
+[[package]]
+name = "libssh2-sys"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "220e4f05ad4a218192533b300327f5150e809b54c4ec83b5a1d91833601811b9"
+dependencies = [
+ "cc",
+ "libc",
+ "libz-sys",
+ "openssl-sys",
+ "pkg-config",
+ "vcpkg",
 ]
 
 [[package]]
@@ -3478,6 +3493,18 @@ dependencies = [
  "thiserror 2.0.12",
  "tracing",
  "whoami",
+]
+
+[[package]]
+name = "ssh2"
+version = "0.9.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f84d13b3b8a0d4e91a2629911e951db1bb8671512f5c09d7d4ba34500ba68c8"
+dependencies = [
+ "bitflags 2.9.0",
+ "libc",
+ "libssh2-sys",
+ "parking_lot 0.12.3",
 ]
 
 [[package]]

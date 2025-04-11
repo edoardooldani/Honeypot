@@ -1,6 +1,7 @@
-use std::{collections::HashMap, net::Ipv4Addr, sync::Arc, time::Duration};
+use std::{collections::HashMap, io::{Read, Write}, net::Ipv4Addr, sync::Arc, time::Duration};
 use pnet::{datalink::DataLinkSender, packet::{tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use rand::{rngs::OsRng, TryRngCore};
+use ssh2::Session;
 use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream, sync::{mpsc, Mutex}, time::{sleep, timeout}};
 use tracing::error;
 use crate::network::sender::send_tcp_stream;
@@ -146,122 +147,45 @@ async fn handle_sshd(
     destination_mac: MacAddr,
 ){
     let mut stream = TcpStream::connect("127.0.0.1:2222").await.expect("❌ Connessione al server SSH fallita");
-    let signing_key = generate_signing_key();
-    let mut rx_locked = rx_sshd.lock().await;
-    let tx_sshd_clone = Arc::clone(&tx_sshd);
+    let mut session = Session::new().expect("Failed to create SSH session");
+    session.set_tcp_stream(stream);
+    session.handshake().expect("Failed to complete SSH handshake");
+
+    let mut buffer = [0u8; 1024];
 
     loop {
-        match rx_locked.recv().await {
-            Some(packet_from_client) => {
-                if let Some(tcp_packet) = TcpPacket::new(&packet_from_client) {
-                    println!("Pacchetto che arriva: {:?}\n con size: {:?}", tcp_packet.payload(), tcp_packet.payload().len());
-                    
-                    let payload = tcp_packet.payload();
+        let mut rx_sshd_locked = rx_sshd.lock().await;
 
-                    if payload.len() < 4 {
-                        println!("Non ci sono abbastanza byte per leggere il packet_length");
-                        return;
-                    }
-
-                    let packet_length = u32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]]) as usize;
-                    let total_length = 4 + packet_length;
-
-                    if payload.len() >= total_length {
-                        println!("✅ Pacchetto SSH completo ricevuto ({} byte)", total_length);
-                    } else {
-                        println!(
-                            "⏳ Pacchetto incompleto. Richiede {} byte, ma ho solo {}",
-                            total_length,
-                            payload.len()
-                        );
-                    }
-
-
-                    if let Err(e) = stream.write_all(&tcp_packet.payload()).await {
-                        error!("❌ Errore nell’invio dati a sshd: {}", e);
-                        let mut sessions = SSH_SESSIONS.lock().await;
-                        sessions.remove(&(virtual_ip, destination_ip));
-                
-                        let fin_flags = TcpFlags::ACK | TcpFlags::FIN;
-
-                        send_tcp_stream(
-                            tx.clone(),
-                            virtual_mac,
-                            virtual_ip,
-                            destination_mac,
-                            destination_ip,
-                            22,
-                            tcp_packet.get_source(),
-                            tcp_packet.get_acknowledgement(),
-                            tcp_packet.get_sequence() + tcp_packet.payload().len() as u32,
-                            fin_flags,
-                            &[],
-                        ).await;
-                        return;
-                    }
-
-
-                    let mut sshd_response = [0u8; 2048];
-                    loop{
-                        sleep(Duration::from_millis(50)).await;
-                        match timeout(Duration::from_millis(100), stream.read(&mut sshd_response)).await {
-                            Ok(Ok(n)) => {
-                                if n == 0 {
-                                    //stream.write_all(&tcp_packet.payload()).await.expect("Failed sending again the message");
-                                    continue;
-                                }
-
-                                let sshd_vec: Vec<u8> = sshd_response[..n].to_vec();
-                                //check_server_context(&sshd_vec, context.clone(), &signing_key.clone()).await;
-
-                                println!("Vector I send: {:?}", sshd_vec);
-                                let tx_response = tx_sshd_clone.lock().await;
-                                
-                                if let Some(pos) = sshd_vec.iter().position(|&b| b == b'\n') {
-                                    let banner = &sshd_vec[..=pos];
-                                    let remaining = &sshd_vec[pos + 1..];
-                                
-                                    println!("📦 Banner: {:?}", String::from_utf8_lossy(banner));
-                                    println!("📦 Altri dati (probabile KEX): {:?}", remaining);
-                                
-                                    tx_response.send(banner.to_vec()).await.expect("send banner");
-                                    /* 
-                                    if !remaining.is_empty() {
-                                        tx_response.send(remaining.to_vec()).await.expect("send remaining");
-                                    }
-                                */
-                                } else {
-                                    tx_response.send(sshd_vec).await.expect("send fallback");
-                                }
-                                
-                                break;
-                            },
-                            Ok(Err(e)) => {
-                                println!("Error reading from SSHD stream: {}", e);
-                                break;
-                            },
-                            Err(e) => { 
-                                println!("Timeout expired while reading SSHD stream: {}", e);
-                                continue;
-                            }
-                            _ => {
-                                println!("Unexpected result from read: {:?}", sshd_response);
-                                break;
-                            }
-                        }
-                        
-                    }                    
+        tokio::select! {
+            Some(packet) = rx_sshd_locked.recv() => {
+                if packet.is_empty() {
+                    println!("Empty packet received from mpsc channel, skipping...");
+                    continue;
                 }
-            },
-            None => {
-                println!("Canale rx_sshd chiuso, terminando il loop.");
-                break;
+                println!("Packet received: {:?}", packet);
+                let mut channel = session.channel_session().expect("Failed to create SSH channel");
+
+                channel.write_all(&packet).expect("Failed to send data to SSH server");
+                channel.flush().expect("Failed to flush data to SSH server");
+
+                let mut server_response = Vec::new();
+                channel.read_to_end(&mut server_response).expect("Failed to read SSH server response");
+
+                let tx_locked = tx_sshd.lock().await;
+                if let Err(e) = tx_locked.send(server_response).await {
+                    eprintln!("Failed to send server response to client: {}", e);
+                    break;
+                }
+            }
+
+            // Timeout o nessun altro dato nel canale
+            else => {
+                println!("No data received, continuing...");
+                continue;
             }
         }
-
-        sleep(Duration::from_millis(20)).await;
     }
-}
+}    
 
 
 
