@@ -172,7 +172,13 @@ async fn handle_sshd(
                 channel.flush().expect("Failed to flush data to SSH server");
 
                 let mut server_response = Vec::new();
-                channel.read_to_end(&mut server_response).expect("Failed to read SSH server response");
+                loop {
+                    let n = channel.read(&mut buffer).expect("Failed to read SSH server response");
+                    if n == 0 {
+                        break;
+                    }
+                    server_response.extend_from_slice(&buffer[..n]);
+                }
 
                 if server_response.is_empty() {
                     println!("No response from SSH server.");
