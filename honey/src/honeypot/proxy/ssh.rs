@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::{Read, Write}, net::Ipv4Addr, path::Path, sync::Arc, time::Duration};
+use std::{collections::HashMap, io::Read, net::Ipv4Addr, path::Path, sync::Arc, time::Duration};
 use pnet::{datalink::DataLinkSender, packet::{tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use ssh2::Session;
 use tokio::{net::TcpStream, sync::{mpsc, Mutex}, time::sleep};
@@ -31,7 +31,7 @@ pub async fn handle_ssh_connection(
 
     let payload_from_client = tcp_received_packet.payload();
 
-    let ssh_session_mutex = get_or_create_ssh_session(tx.clone(), virtual_ip, destination_ip, virtual_mac, destination_mac).await;
+    let ssh_session_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
     let SSHSession { tx_sshd, rx_sshd} = &mut *ssh_session_mutex.lock().await;
 
     let tx_sshd_clone = Arc::clone(&tx_sshd);
@@ -81,7 +81,7 @@ pub async fn handle_ssh_connection(
 
 
 
-async fn get_or_create_ssh_session(tx_datalink: Arc<Mutex<Box<dyn DataLinkSender + Send>>>, virtual_ip: Ipv4Addr, destination_ip: Ipv4Addr, virtual_mac: MacAddr, destination_mac: MacAddr) -> Arc<Mutex<SSHSession>> {
+async fn get_or_create_ssh_session(virtual_ip: Ipv4Addr, destination_ip: Ipv4Addr) -> Arc<Mutex<SSHSession>> {
     let mut sessions = SSH_SESSIONS.lock().await;
     let key = (virtual_ip, destination_ip);
 
@@ -119,7 +119,7 @@ async fn handle_sshd(
     tx_sshd: Arc<Mutex<mpsc::Sender<String>>>, 
     rx_sshd: Arc<Mutex<mpsc::Receiver<String>>>,
 ){
-    
+
     let stream = TcpStream::connect("127.0.0.1:22").await.expect("❌ Connessione al server SSH fallita");
     let mut session = Session::new().expect("Failed to create SSH session");
     session.set_tcp_stream(stream);
@@ -130,12 +130,12 @@ async fn handle_sshd(
 
     authenticate_with_public_key(&mut session, username, private_key_path).await;
 
-    let mut channel = session.channel_session().expect("Failed to create SSH channel");
-
     loop {
         match rx_sshd.lock().await.recv().await {
             Some(command) => {
                 println!("Pacchetto che arriva: {:?}\n", command);
+
+                let mut channel = session.channel_session().expect("Failed to create SSH channel");
 
                 channel.exec(&command).unwrap();
                 let mut s = String::new();
