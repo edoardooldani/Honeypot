@@ -25,7 +25,6 @@ pub async fn handle_ssh_connection(
     tcp_received_packet: TcpPacket<'_>,
 ) {
     if tcp_received_packet.payload().is_empty(){
-        //println!("Payload empty: {:?}", tcp_received_packet.packet());
         return;
     }
 
@@ -37,15 +36,19 @@ pub async fn handle_ssh_connection(
     let tx_sshd_clone = Arc::clone(&tx_sshd);
     let rx_sshd_clone = Arc::clone(&rx_sshd);
 
-    tx_sshd_clone.lock().await.send("ls".to_string()).await.expect("Failed to send payload to SSHD");
+    let payload_str = String::from_utf8(payload_from_client.to_vec())
+    .expect("Failed to convert payload to string");
+
+    tx_sshd_clone.lock().await.send(payload_str.clone()).await.expect("Failed to send payload to SSHD");
 
     loop {
         sleep(Duration::from_millis(50)).await;
         match rx_sshd_clone.lock().await.recv().await {
             Some(response_packet) => {
-                if response_packet == "ls".to_string(){
+                if response_packet == payload_str{
                     continue;
                 }
+
                 println!("Received from sshd: {:?}", response_packet);
                 let src_port = tcp_received_packet.get_source();
                 let next_ack: u32 = tcp_received_packet.get_sequence() + payload_from_client.len() as u32;
@@ -123,17 +126,24 @@ async fn handle_sshd(
     let stream = TcpStream::connect("127.0.0.1:22").await.expect("❌ Connessione al server SSH fallita");
     let mut session = Session::new().expect("Failed to create SSH session");
     session.set_tcp_stream(stream);
-    session.handshake().expect("Failed to complete SSH handshake");
+    //session.handshake().expect("Failed to complete SSH handshake");
 
     let username = "edoardo"; 
     let private_key_path = "src/honeypot/proxy/keys/ssh"; 
 
-    authenticate_with_public_key(&mut session, username, private_key_path).await;
+    //authenticate_with_public_key(&mut session, username, private_key_path).await;
 
     loop {
         match rx_sshd.lock().await.recv().await {
             Some(command) => {
                 println!("Pacchetto che arriva: {:?}\n", command);
+
+                if command.starts_with("SSH-"){
+                    session.set_banner(&command).expect("Failed to set client banner");
+                    tx_sshd.lock().await.send(session.banner().expect("Failed to fetch banner").to_string()).await.expect("Failed sending response to command!");
+                    continue;
+                }
+
 
                 let mut channel = session.channel_session().expect("Failed to create SSH channel");
 
@@ -142,7 +152,6 @@ async fn handle_sshd(
                 channel.read_to_string(&mut s).unwrap();
                 println!("{}", s);
 
-                tx_sshd.lock().await.send(s).await.expect("Failed sending response to command!");
                 
             }
             _ => { break;}
