@@ -140,7 +140,7 @@ async fn handle_sshd(
 
                 if command.starts_with("SSH-"){
                     session.set_banner(&command).expect("Failed to set client banner");
-                    tx_sshd.lock().await.send(session.banner().expect("Failed to fetch banner").to_string()).await.expect("Failed sending response to command!");
+                    tx_sshd.lock().await.send(session.userauth_banner().expect("Failed to fetch banner").expect("Failed getting banner").to_string()).await.expect("Failed sending response to command!");
                     continue;
                 }
 
