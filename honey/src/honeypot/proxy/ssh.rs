@@ -150,12 +150,12 @@ async fn handle_sshd(
     authenticate_with_public_key(&mut session, username, private_key_path).await;
 
     let mut channel = session.channel_session().expect("Failed to create SSH channel");
-    let mut buffer = [0u8; 1024];
-    let command = "yes\n";
+    let command = "ls\n";
+    println!("Channel: {:?}", channel.exec(command));
+    //channel.write_all(command.as_bytes()).expect("Failed to send command to SSH server");
+    //channel.flush().expect("Failed to flush data to SSH server");
 
-    channel.write_all(command.as_bytes()).expect("Failed to send command to SSH server");
-    channel.flush().expect("Failed to flush data to SSH server");
-
+    
     let mut buffer = [0u8; 1024];
     let mut server_response = Vec::new();
 
@@ -164,7 +164,9 @@ async fn handle_sshd(
         if n == 0 {
             break; 
         }
+
         server_response.extend_from_slice(&buffer[..n]);
+        println!("Server response: {:?}", server_response);
     }
 
     if server_response.is_empty() {
