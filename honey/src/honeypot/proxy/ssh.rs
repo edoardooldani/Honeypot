@@ -56,7 +56,7 @@ pub async fn handle_ssh_connection(
             next_seq, 
             next_ack, 
             TcpFlags::ACK | TcpFlags::PSH, 
-            b"SSH-2.0-OpenSSH_7.9p1 Debian-10+deb10u2"
+            b"SSH-2.0-OpenSSH_7.9p1 Debian-10+deb10u2\r\n"
         ).await;
     }
 
