@@ -148,52 +148,38 @@ async fn handle_sshd(
     let private_key_path = "src/honeypot/proxy/keys/ssh"; 
 
     authenticate_with_public_key(&mut session, username, private_key_path).await;
-
     let mut buffer = [0u8; 1024];
 
+    // Test: Invia un comando SSH di esempio (ad esempio, "ls" per listare i file)
+    let command = "ls -l\n"; // Comando di test
+
+    // Creazione di un canale per inviare il comando
+    let mut channel = session.channel_session().expect("Failed to create SSH channel");
+
+    // Scrivi il comando nel canale SSH
+    channel.write_all(command.as_bytes()).expect("Failed to send command to SSH server");
+    channel.flush().expect("Failed to flush data to SSH server");
+
+    // Leggi la risposta dal server SSH
+    let mut server_response = Vec::new();
     loop {
-        let mut rx_sshd_locked = rx_sshd.lock().await;
+        let n = channel.read(&mut buffer).expect("Failed to read SSH server response");
+        if n == 0 {
+            break; // Fine della risposta
+        }
+        server_response.extend_from_slice(&buffer[..n]);
+    }
 
-        tokio::select! {
-            Some(packet) = rx_sshd_locked.recv() => {
-                if packet.is_empty() {
-                    println!("Empty packet received from mpsc channel, skipping...");
-                    continue;
-                }
+    if server_response.is_empty() {
+        println!("No response from SSH server.");
+    } else {
+        println!("Received response from SSH server: {:?}", server_response);
 
-                let tcp_packet = TcpPacket::new(&packet).expect("Failed creating tcp packet");
-
-                println!("Packet payload received: {:?}", tcp_packet.payload());
-                let mut channel = session.channel_session().expect("Failed to create SSH channel");
-
-                channel.write_all(&tcp_packet.payload()).expect("Failed to send data to SSH server");
-                channel.flush().expect("Failed to flush data to SSH server");
-
-                let mut server_response = Vec::new();
-                loop {
-                    let n = channel.read(&mut buffer).expect("Failed to read SSH server response");
-                    if n == 0 {
-                        break;
-                    }
-                    server_response.extend_from_slice(&buffer[..n]);
-                }
-
-                if server_response.is_empty() {
-                    println!("No response from SSH server.");
-                } else {
-                    println!("Received response from SSH server: {:?}", server_response);
-
-                    let tx_locked = tx_sshd.lock().await;
-                    if let Err(e) = tx_locked.send(server_response).await {
-                        eprintln!("Failed to send server response to client: {}", e);
-                        break;
-                    }
-                }                
-            }
-            else => {
-                println!("No data received, continuing...");
-                continue;
-            }
+        // Invia la risposta al client
+        let tx_locked = tx_sshd.lock().await;
+        if let Err(e) = tx_locked.send(server_response).await {
+            eprintln!("Failed to send server response to client: {}", e);
+            return; // Esci in caso di errore
         }
     }
 }    
