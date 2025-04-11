@@ -165,7 +165,7 @@ async fn handle_sshd(
 
                 let tcp_packet = TcpPacket::new(&packet).expect("Failed creating tcp packet");
 
-                println!("Packet received: {:?}", tcp_packet);
+                println!("Packet payload received: {:?}", tcp_packet.payload());
                 let mut channel = session.channel_session().expect("Failed to create SSH channel");
 
                 channel.write_all(&tcp_packet.payload()).expect("Failed to send data to SSH server");
