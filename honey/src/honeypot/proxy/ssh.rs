@@ -171,6 +171,7 @@ async fn handle_sshd(
                 let mut server_response = Vec::new();
                 channel.read_to_end(&mut server_response).expect("Failed to read SSH server response");
 
+                println!("SSH server response: {:?}", server_response);
                 let tx_locked = tx_sshd.lock().await;
                 if let Err(e) = tx_locked.send(server_response).await {
                     eprintln!("Failed to send server response to client: {}", e);
