@@ -5,24 +5,11 @@ use tokio::{net::TcpStream, sync::{mpsc, Mutex}, time::sleep};
 use crate::network::sender::send_tcp_stream;
 use lazy_static::lazy_static;
 
-#[derive(Debug, Default)]
-struct SSHSessionContext {
-    v_c: Option<Vec<u8>>,        // Version string client
-    v_s: Option<Vec<u8>>,        // Version string server
-    i_c: Option<Vec<u8>>,        // KEXINIT client payload
-    i_s: Option<Vec<u8>>,        // KEXINIT server payload
-    k_s: Option<Vec<u8>>,        // Server host key
-    q_c: Option<Vec<u8>>,        // Ephemeral client key
-    q_s: Option<Vec<u8>>,        // Ephemeral server key
-    k:   Option<Vec<u8>>,        // Shared secret
-}
+
 
 pub struct SSHSession {
-    //stream: TcpStream,
-    //signing_key: SigningKey,
-    context: Arc<Mutex<SSHSessionContext>>,
-    tx_sshd: Arc<Mutex<mpsc::Sender<Vec<u8>>>>, 
-    rx_sshd: Arc<Mutex<mpsc::Receiver<Vec<u8>>>>, 
+    tx_sshd: Arc<Mutex<mpsc::Sender<String>>>, 
+    rx_sshd: Arc<Mutex<mpsc::Receiver<String>>>, 
 }
 
 lazy_static! {
@@ -45,24 +32,26 @@ pub async fn handle_ssh_connection(
     let payload_from_client = tcp_received_packet.payload();
 
     let ssh_session_mutex = get_or_create_ssh_session(tx.clone(), virtual_ip, destination_ip, virtual_mac, destination_mac).await;
-    let SSHSession { context , tx_sshd, rx_sshd} = &mut *ssh_session_mutex.lock().await;
+    let SSHSession { tx_sshd, rx_sshd} = &mut *ssh_session_mutex.lock().await;
 
     let tx_sshd_clone = Arc::clone(&tx_sshd);
     let rx_sshd_clone = Arc::clone(&rx_sshd);
 
-    tx_sshd_clone.lock().await.send(tcp_received_packet.packet().to_vec()).await.expect("Failed to send payload to SSHD");
+    tx_sshd_clone.lock().await.send("ls".to_string()).await.expect("Failed to send payload to SSHD");
 
     loop {
         sleep(Duration::from_millis(50)).await;
         match rx_sshd_clone.lock().await.recv().await {
             Some(response_packet) => {
-                if response_packet == tcp_received_packet.packet().to_vec(){
+                if response_packet == "ls".to_string(){
                     continue;
                 }
                 println!("Received from sshd: {:?}", response_packet);
                 let src_port = tcp_received_packet.get_source();
                 let next_ack: u32 = tcp_received_packet.get_sequence() + payload_from_client.len() as u32;
                 let next_seq: u32 = tcp_received_packet.get_acknowledgement();
+
+                let response_bytes = response_packet.as_bytes();
 
                 send_tcp_stream(
                     tx.clone(), 
@@ -75,7 +64,7 @@ pub async fn handle_ssh_connection(
                     next_seq, 
                     next_ack, 
                     TcpFlags::ACK | TcpFlags::PSH, 
-                    &response_packet
+                    &response_bytes
                 ).await;
 
             },
@@ -100,24 +89,21 @@ async fn get_or_create_ssh_session(tx_datalink: Arc<Mutex<Box<dyn DataLinkSender
         Some(session) => Arc::clone(session),
         None => {
             
-            let (tx, rx) = mpsc::channel::<Vec<u8>>(2000);
+            let (tx, rx) = mpsc::channel::<String>(2000);
             let tx_sshd = Arc::new(Mutex::new(tx));
             let rx_sshd = Arc::new(Mutex::new(rx));
-            let context= Arc::new(Mutex::new(SSHSessionContext::default()));
 
             let session = SSHSession {
-                context: context.clone(),
                 tx_sshd: tx_sshd.clone(),
                 rx_sshd: rx_sshd.clone()
             };
 
             let tx_sshd_clone = Arc::clone(&tx_sshd);
             let rx_sshd_clone = Arc::clone(&rx_sshd);
-            let context_clone = Arc::clone(&context);
 
             println!("Creating new thread for new connection");
             tokio::spawn(async move {
-                handle_sshd(tx_datalink, tx_sshd_clone, rx_sshd_clone, context_clone, virtual_ip, destination_ip, virtual_mac, destination_mac).await;
+                handle_sshd(tx_sshd_clone, rx_sshd_clone).await;
             });
 
             let arc_session = Arc::new(Mutex::new(session));
@@ -130,15 +116,10 @@ async fn get_or_create_ssh_session(tx_datalink: Arc<Mutex<Box<dyn DataLinkSender
 
 
 async fn handle_sshd(
-    tx: Arc<Mutex<Box<dyn DataLinkSender + Send>>>,
-    tx_sshd: Arc<Mutex<mpsc::Sender<Vec<u8>>>>, 
-    rx_sshd: Arc<Mutex<mpsc::Receiver<Vec<u8>>>>,
-    context: Arc<Mutex<SSHSessionContext>>,
-    virtual_ip: Ipv4Addr,
-    destination_ip: Ipv4Addr, 
-    virtual_mac: MacAddr, 
-    destination_mac: MacAddr,
+    tx_sshd: Arc<Mutex<mpsc::Sender<String>>>, 
+    rx_sshd: Arc<Mutex<mpsc::Receiver<String>>>,
 ){
+    
     let stream = TcpStream::connect("127.0.0.1:22").await.expect("❌ Connessione al server SSH fallita");
     let mut session = Session::new().expect("Failed to create SSH session");
     session.set_tcp_stream(stream);
@@ -151,11 +132,22 @@ async fn handle_sshd(
 
     let mut channel = session.channel_session().expect("Failed to create SSH channel");
 
-    channel.exec("ls").unwrap();
-    let mut s = String::new();
-    channel.read_to_string(&mut s).unwrap();
-    println!("{}", s);
+    loop {
+        match rx_sshd.lock().await.recv().await {
+            Some(command) => {
+                println!("Pacchetto che arriva: {:?}\n", command);
 
+                channel.exec(&command).unwrap();
+                let mut s = String::new();
+                channel.read_to_string(&mut s).unwrap();
+                println!("{}", s);
+
+                tx_sshd.lock().await.send(s).await.expect("Failed sending response to command!");
+                
+            }
+            _ => { break;}
+        }
+    }
 }    
 
 
