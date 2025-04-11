@@ -43,7 +43,7 @@ pub async fn handle_ssh_connection(
     tcp_received_packet: TcpPacket<'_>,
 ) {
     if tcp_received_packet.payload().is_empty(){
-        println!("Payload empty: {:?}", tcp_received_packet.packet());
+        //println!("Payload empty: {:?}", tcp_received_packet.packet());
         return;
     }
 
@@ -146,7 +146,7 @@ async fn handle_sshd(
     virtual_mac: MacAddr, 
     destination_mac: MacAddr,
 ){
-    let mut stream = TcpStream::connect("127.0.0.1:2222").await.expect("❌ Connessione al server SSH fallita");
+    let stream = TcpStream::connect("127.0.0.1:2222").await.expect("❌ Connessione al server SSH fallita");
     let mut session = Session::new().expect("Failed to create SSH session");
     session.set_tcp_stream(stream);
     session.handshake().expect("Failed to complete SSH handshake");
@@ -162,21 +162,31 @@ async fn handle_sshd(
                     println!("Empty packet received from mpsc channel, skipping...");
                     continue;
                 }
-                println!("Packet received: {:?}", packet);
+
+                let tcp_packet = TcpPacket::new(&packet).expect("Failed creating tcp packet");
+
+                println!("Packet received: {:?}", tcp_packet);
                 let mut channel = session.channel_session().expect("Failed to create SSH channel");
 
-                channel.write_all(&packet).expect("Failed to send data to SSH server");
+                channel.write_all(&tcp_packet.payload()).expect("Failed to send data to SSH server");
                 channel.flush().expect("Failed to flush data to SSH server");
 
                 let mut server_response = Vec::new();
                 channel.read_to_end(&mut server_response).expect("Failed to read SSH server response");
 
-                println!("SSH server response: {:?}", server_response);
-                let tx_locked = tx_sshd.lock().await;
-                if let Err(e) = tx_locked.send(server_response).await {
-                    eprintln!("Failed to send server response to client: {}", e);
-                    break;
-                }
+                if server_response.is_empty() {
+                    println!("No response from SSH server.");
+                } else {
+                    println!("Received response from SSH server: {:?}", server_response);
+
+                    let tx_locked = tx_sshd.lock().await;
+                    if let Err(e) = tx_locked.send(server_response).await {
+                        eprintln!("Failed to send server response to client: {}", e);
+                        break;
+                    }
+                }                
+
+                
             }
 
             // Timeout o nessun altro dato nel canale
