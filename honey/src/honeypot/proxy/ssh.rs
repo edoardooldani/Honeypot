@@ -41,7 +41,7 @@ pub async fn handle_ssh_connection(
     let next_seq: u32 = tcp_received_packet.get_acknowledgement();
 
     if payload_from_client.starts_with(b"SSH-"){
-        println!("Received banner: {:?}", payload_from_client);
+        println!("Received banner: {:?}\n Virtual ip: {:?}", payload_from_client, virtual_ip);
 
         send_tcp_stream(
             tx.clone(), 
