@@ -85,7 +85,7 @@ pub async fn handle_ssh_connection(
             0x36, 0x2c, 0x73, 0x73, 0x68, 0x2d, 0x65, 0x64, 0x32, 0x35, 0x35, 0x31, 0x39, 0x00, 0x00, 0x00
         ];
 
-        println!("Sending key inix: {:?}", payload_from_client);
+        println!("Sending key inix: {:?}", tcp_received_packet.packet());
 
         send_tcp_stream(
             tx.clone(), 
