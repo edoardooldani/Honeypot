@@ -41,7 +41,7 @@ pub async fn handle_ssh_connection(
     let next_seq: u32 = tcp_received_packet.get_acknowledgement();
 
     // Sending ACK
-    send_tcp_stream(
+    /*send_tcp_stream(
         tx.clone(), 
         virtual_mac, 
         virtual_ip, 
@@ -53,7 +53,7 @@ pub async fn handle_ssh_connection(
         next_ack, 
         TcpFlags::ACK, 
         &[]
-    ).await;
+    ).await;*/
 
     
     if payload_from_client.starts_with(b"SSH-"){
@@ -68,7 +68,7 @@ pub async fn handle_ssh_connection(
             destination_ip, 
             22,
             src_port,  
-            next_seq+1, 
+            next_seq, 
             next_ack,
             TcpFlags::ACK | TcpFlags::PSH, 
             banner
@@ -86,7 +86,7 @@ pub async fn handle_ssh_connection(
             destination_ip, 
             22,
             src_port, 
-            next_seq+1, 
+            next_seq, 
             next_ack, 
             TcpFlags::ACK | TcpFlags::PSH, 
             key_inix
