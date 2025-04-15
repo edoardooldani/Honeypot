@@ -68,8 +68,8 @@ pub async fn handle_ssh_connection(
             destination_ip, 
             22,
             src_port,  
-            next_ack, 
-            next_ack + banner.len() as u32,
+            next_seq+1, 
+            next_ack,
             TcpFlags::ACK | TcpFlags::PSH, 
             banner
         ).await;
@@ -86,8 +86,8 @@ pub async fn handle_ssh_connection(
             destination_ip, 
             22,
             src_port, 
+            next_seq+1, 
             next_ack, 
-            next_ack + key_inix.len() as u32, 
             TcpFlags::ACK | TcpFlags::PSH, 
             key_inix
         ).await;
