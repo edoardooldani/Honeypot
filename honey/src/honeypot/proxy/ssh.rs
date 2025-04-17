@@ -181,12 +181,12 @@ fn create_kexinit_response() -> Vec<u8> {
 
     // Update the length of the message
     let total_length = kexinit_msg.len() as u32;
-    kexinit_msg[1] = (total_length >> 24) as u8;  // Length MSB
-    kexinit_msg[2] = (total_length >> 16) as u8;
-    kexinit_msg[3] = (total_length >> 8) as u8;
-    kexinit_msg[4] = (total_length) as u8; // Length LSB
 
-    kexinit_msg
+    let mut key_init_payload: Vec<u8> = vec![];
+    key_init_payload.extend(&total_length.to_be_bytes());
+    key_init_payload.extend(kexinit_msg);
+
+    key_init_payload
 }
 
 
