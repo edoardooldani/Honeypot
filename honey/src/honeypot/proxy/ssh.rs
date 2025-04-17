@@ -73,7 +73,7 @@ pub async fn handle_ssh_connection(
             TcpFlags::ACK | TcpFlags::PSH, 
             banner
         ).await;
-        
+
     }else if payload_from_client[5] == 0x14 {
         let key_inix = &create_kexinit_response();
         println!("Received packet: {:?}\nSending key inix: {:?}", tcp_received_packet.payload(), key_inix);
@@ -92,7 +92,7 @@ pub async fn handle_ssh_connection(
             key_inix
         ).await;
     } else {
-        println!("Received other packages: {:?}")
+        println!("Received other package, payload: {:?}", tcp_received_packet.payload());
     }
 
     /*
