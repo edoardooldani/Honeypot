@@ -1,5 +1,6 @@
 use std::{collections::HashMap, io::Read, net::Ipv4Addr, path::Path, sync::Arc};
 use pnet::{datalink::DataLinkSender, packet::{tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
+use rand::Rng;
 use ssh2::Session;
 use tokio::{net::TcpStream, sync::{mpsc, Mutex}};
 use crate::network::sender::send_tcp_stream;
@@ -73,9 +74,8 @@ pub async fn handle_ssh_connection(
             banner
         ).await;
     }else {
-        let key_inix = b"000004540a146eff2b5c01d447135f82514dca417b2200000126736e747275703736317832353531392d736861353132406f70656e7373682e636f6d2c637572766532353531392d7368613235362c637572766532353531392d736861323536406c69627373682e6f72672c656364682d736861322d6e697374703235362c656364682d736861322d6e697374703338342c656364682d736861322d6e697374703532312c6469666669652d68656c6c6d616e2d67726f75702d65786368616e67652d7368613235362c6469666669652d68656c6c6d616e2d67726f757031362d7368613531322c6469666669652d68656c6c6d616e2d67726f757031382d7368613531322c6469666669652d68656c6c6d616e2d67726f757031342d7368613235362c6b65782d7374726963742d732d763030406f70656e7373682e636f6d000000397273612d736861322d3531322c7273612d736861322d3235362c65636473612d736861322d6e697374703235362c7373682d656432353531390000006c63686163686132302d706f6c7931333035406f70656e7373682e636f6d2c6165733132382d6374722c6165733139322d6374722c6165733235362d6374722c6165733132382d67636d406f70656e7373682e636f6d2c6165733235362d67636d406f70656e7373682e636f6d0000006c63686163686132302d706f6c7931333035406f70656e7373682e636f6d2c6165733132382d6374722c6165733139322d6374722c6165733235362d6374722c6165733132382d67636d406f70656e7373682e636f6d2c6165733235362d67636d406f70656e7373682e636f6d000000d5756d61632d36342d65746d406f70656e7373682e636f6d2c756d61632d3132382d65746d406f70656e7373682e636f6d2c686d61632d736861322d3235362d65746d406f70656e7373682e636f6d2c686d61632d736861322d3531322d65746d406f70656e7373682e636f6d2c686d61632d736861312d65746d406f70656e7373682e636f6d2c756d61632d3634406f70656e7373682e636f6d2c756d61632d313238406f70656e7373682e636f6d2c686d61632d736861322d3235362c686d61632d736861322d3531322c686d61632d73686131000000d5756d61632d36342d65746d406f70656e7373682e636f6d2c756d61632d3132382d65746d406f70656e7373682e636f6d2c686d61632d736861322d3235362d65746d406f70656e7373682e636f6d2c686d61632d736861322d3531322d65746d406f70656e7373682e636f6d2c686d61632d736861312d65746d406f70656e7373682e636f6d2c756d61632d3634406f70656e7373682e636f6d2c756d61632d313238406f70656e7373682e636f6d2c686d61632d736861322d3235362c686d61632d736861";
-
-        println!("Sending key inix: {:?}", tcp_received_packet.payload());
+        let key_inix = &create_kexinit_response();
+        println!("Received packet: {:?}\nSending key inix: {:?}", tcp_received_packet.payload(), key_inix);
 
         send_tcp_stream(
             tx.clone(), 
@@ -132,6 +132,61 @@ pub async fn handle_ssh_connection(
         }
     }
  */
+}
+
+
+fn generate_random_cookie() -> Vec<u8> {
+    let mut rng = rand::rng();
+    let cookie: Vec<u8> = (0..16).map(|_| rng.random()).collect();
+    cookie
+}
+
+fn create_kexinit_response() -> Vec<u8> {
+    let cookie = generate_random_cookie();
+
+    let mut kexinit_msg: Vec<u8> = vec![0x14]; // Message type SSH_MSG_KEXINIT
+
+    // Add the cookie
+    kexinit_msg.extend(cookie);
+
+    // Add the key exchange algorithms (Diffie-Hellman Group14)
+    kexinit_msg.extend([
+        0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // Diffie-Hellman Group14
+        0x64, 0x68, 0x66, 0x73, 0x68, 0x2d, 0x67, 0x72, 0x6f, 0x75, 0x70, 0x31, 0x34, 0x2d, 0x73, 0x68, 0x61, 0x31,
+    ]);
+
+    // Add ciphers (AES-128-CTR)
+    kexinit_msg.extend([
+        0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // AES-128-CTR
+        0x61, 0x65, 0x73, 0x31, 0x32, 0x38, 0x2d, 0x63, 0x74, 0x72, 0x00, 0x01,
+    ]);
+
+    // Add MAC (HMAC-SHA1)
+    kexinit_msg.extend([
+        0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // HMAC-SHA1
+        0x68, 0x6d, 0x61, 0x63, 0x2d, 0x73, 0x68, 0x61, 0x31, 0x00, 0x01,
+    ]);
+
+    // Add Compression method (None)
+    kexinit_msg.extend([
+        0x00, 0x00, 0x00, 0x01, // None compression method
+    ]);
+
+    // Add Language
+    kexinit_msg.extend([0x00, 0x01, 0x00, 0x01]); // Empty string for language
+
+    // Padding (Ensure the message length is a multiple of 8)
+    let padding_length = (8 - kexinit_msg.len() % 8) % 8;
+    kexinit_msg.extend(vec![0u8; padding_length]);
+
+    // Update the length of the message
+    let total_length = kexinit_msg.len() as u32;
+    kexinit_msg[1] = (total_length >> 24) as u8;  // Length MSB
+    kexinit_msg[2] = (total_length >> 16) as u8;
+    kexinit_msg[3] = (total_length >> 8) as u8;
+    kexinit_msg[4] = (total_length) as u8; // Length LSB
+
+    kexinit_msg
 }
 
 
@@ -215,3 +270,5 @@ async fn authenticate_with_public_key(session: &mut Session, username: &str, pri
     
     println!("Authentication with public key succeeded!");
 }
+
+
