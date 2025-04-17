@@ -179,12 +179,12 @@ fn create_kexinit_response() -> Vec<u8> {
     let padding_length = (8 - kexinit_msg.len() % 8) % 8;
     kexinit_msg.extend(vec![0u8; padding_length]);
 
-    // Update the length of the message
-    let total_length = kexinit_msg.len() as u32;
+    // Update the length of the message after padding
+    let total_length = (kexinit_msg.len() + 4) as u32; // Add 4 bytes for the length field itself
 
     let mut key_init_payload: Vec<u8> = vec![];
-    key_init_payload.extend(&total_length.to_be_bytes());
-    key_init_payload.extend(kexinit_msg);
+    key_init_payload.extend(&total_length.to_be_bytes()); // Add the total length
+    key_init_payload.extend(kexinit_msg); // Add the actual KEXINIT message
 
     key_init_payload
 }
