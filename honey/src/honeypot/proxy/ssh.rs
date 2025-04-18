@@ -334,7 +334,6 @@ async fn authenticate_with_public_key(session: &mut Session, username: &str, pri
 }
 
 
-
 fn create_kexdh_reply() -> Vec<u8> {
     let dh_pubkey = generate_dh_pubkey().expect("Failed to generate dh public key!");
     let signature = sign_dh_pubkey(&dh_pubkey).expect("Failed to sign dh key with private key!");
@@ -346,8 +345,15 @@ fn create_kexdh_reply() -> Vec<u8> {
     reply_msg.extend(dh_pubkey);
     reply_msg.extend(signature);
 
-    reply_msg
+    let total_length = reply_msg.len() as u32;
+
+    let mut full_reply_msg = Vec::new();
+    full_reply_msg.extend(&total_length.to_be_bytes());
+    full_reply_msg.extend(reply_msg);
+
+    full_reply_msg
 }
+
 
 fn generate_dh_pubkey() -> Result<Vec<u8>, ErrorStack> {
     let dh_params = Dh::get_2048_256()?;
