@@ -209,7 +209,7 @@ fn create_kexinit_response() -> Vec<u8> {
 
     let mut key_init_payload: Vec<u8> = vec![];
     key_init_payload.extend(&total_length.to_be_bytes()); // Add the total length
-    key_init_payload.extend(vec![padding_length as u8]);
+    //key_init_payload.extend(vec![padding_length as u8]);
     key_init_payload.extend(kexinit_msg); // Add the actual KEXINIT message
 
     key_init_payload
