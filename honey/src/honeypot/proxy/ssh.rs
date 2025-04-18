@@ -6,11 +6,33 @@ use tokio::{net::TcpStream, sync::{mpsc, Mutex}};
 use crate::network::sender::send_tcp_stream;
 use lazy_static::lazy_static;
 
+#[derive(Debug, Clone)]
+pub struct SSHSessionContext {
+    // Algoritmi di key exchange, cifratura, MAC, etc.
+    pub kex_algorithm: String,
+    pub cipher_algorithm: String,
+    pub mac_algorithm: String,
+    pub compression_algorithm: String,
+
+    // Parametri specifici della negoziazione
+    pub cookie: Vec<u8>,
+    pub server_pubkey: Vec<u8>,
+    pub client_pubkey: Vec<u8>,
+    pub session_id: Vec<u8>,
+
+    // Parametri di scambio della chiave (per esempio, Diffie-Hellman)
+    pub p: Option<Vec<u8>>,  // Parametro primo (in DH)
+    pub g: Option<Vec<u8>>,  // Base (in DH)
+    pub client_public_value: Option<Vec<u8>>,  // Public key del client (in DH)
+    pub server_public_value: Option<Vec<u8>>,  // Public key del server (in DH)
+    pub shared_key: Option<Vec<u8>>,  // La chiave condivisa calcolata
+}
 
 
 pub struct SSHSession {
     tx_sshd: Arc<Mutex<mpsc::Sender<String>>>, 
     rx_sshd: Arc<Mutex<mpsc::Receiver<String>>>, 
+    pub context: SSHSessionContext,
 }
 
 lazy_static! {
@@ -32,7 +54,7 @@ pub async fn handle_ssh_connection(
     let payload_from_client = tcp_received_packet.payload();
 
     let ssh_session_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
-    let SSHSession { tx_sshd, rx_sshd} = &mut *ssh_session_mutex.lock().await;
+    let SSHSession { tx_sshd, rx_sshd, context} = &mut *ssh_session_mutex.lock().await;
 
     let tx_sshd_clone = Arc::clone(&tx_sshd);
     let rx_sshd_clone = Arc::clone(&rx_sshd);
@@ -187,7 +209,7 @@ fn create_kexinit_response() -> Vec<u8> {
 
     let mut key_init_payload: Vec<u8> = vec![];
     key_init_payload.extend(&total_length.to_be_bytes()); // Add the total length
-    key_init_payload.extend([0x00]);
+    key_init_payload.extend(vec![padding_length as u8]);
     key_init_payload.extend(kexinit_msg); // Add the actual KEXINIT message
 
     key_init_payload
@@ -210,7 +232,22 @@ async fn get_or_create_ssh_session(virtual_ip: Ipv4Addr, destination_ip: Ipv4Add
 
             let session = SSHSession {
                 tx_sshd: tx_sshd.clone(),
-                rx_sshd: rx_sshd.clone()
+                rx_sshd: rx_sshd.clone(),
+                context: SSHSessionContext {
+                    kex_algorithm: "".to_string(),
+                    cipher_algorithm: "".to_string(),
+                    mac_algorithm: "".to_string(),
+                    compression_algorithm: "".to_string(),
+                    cookie: vec![],
+                    server_pubkey: vec![],
+                    client_pubkey: vec![],
+                    session_id: vec![],
+                    p: None,
+                    g: None,
+                    client_public_value: None,
+                    server_public_value: None,
+                    shared_key: None,
+                },
             };
 
             let tx_sshd_clone = Arc::clone(&tx_sshd);
