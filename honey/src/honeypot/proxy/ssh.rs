@@ -98,7 +98,7 @@ pub async fn handle_ssh_connection(
 
     }else if payload_from_client[5] == 0x14 {
         let key_inix = &create_kexinit_response();
-        println!("Received packet: {:?}\nSending key inix: {:?}", tcp_received_packet.payload(), key_inix);
+        println!("Received key init: {:?}\nSending key init: {:?}", tcp_received_packet.payload(), key_inix);
 
         send_tcp_stream(
             tx.clone(), 
@@ -114,19 +114,20 @@ pub async fn handle_ssh_connection(
             key_inix
         ).await;
     }else if payload_from_client[5] == 0x63 {
-        println!("Received CHANNEL SUCCESS, payload: {:?}", tcp_received_packet.payload());
+        let diffie_msg = create_kexdh_reply();
+        println!("Received CHANNEL SUCCESS, payload: {:?}\n Sending diffie hellman: {:?}", tcp_received_packet.payload(), diffie_msg);
         send_tcp_stream(
             tx.clone(), 
             virtual_mac, 
             virtual_ip, 
             destination_mac, 
             destination_ip, 
-            22, // Porta SSH
+            22,
             src_port, 
             next_seq, 
             next_ack, 
             TcpFlags::ACK | TcpFlags::PSH, 
-            &create_kexdh_reply() // Invia il pacchetto creato
+            &diffie_msg
         ).await;
     }else {
         println!("Received other package, payload: {:?}", tcp_received_packet.payload());
@@ -225,7 +226,6 @@ fn create_kexinit_response() -> Vec<u8> {
 
     let mut key_init_payload: Vec<u8> = vec![];
     key_init_payload.extend(&total_length.to_be_bytes()); // Add the total length
-    //key_init_payload.extend(vec![padding_length as u8]);
     key_init_payload.extend(kexinit_msg); // Add the actual KEXINIT message
 
     key_init_payload
