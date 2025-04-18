@@ -113,8 +113,24 @@ pub async fn handle_ssh_connection(
             TcpFlags::ACK | TcpFlags::PSH, 
             key_inix
         ).await;
-    } else {
+    }else if payload_from_client[5] == 0x63 {
+        println!("Received CHANNEL SUCCESS, payload: {:?}", tcp_received_packet.payload());
+        send_tcp_stream(
+            tx.clone(), 
+            virtual_mac, 
+            virtual_ip, 
+            destination_mac, 
+            destination_ip, 
+            22, // Porta SSH
+            src_port, 
+            next_seq, 
+            next_ack, 
+            TcpFlags::ACK | TcpFlags::PSH, 
+            &create_kexdh_reply() // Invia il pacchetto creato
+        ).await;
+    }else {
         println!("Received other package, payload: {:?}", tcp_received_packet.payload());
+
     }
 
     /*
@@ -313,3 +329,42 @@ async fn authenticate_with_public_key(session: &mut Session, username: &str, pri
 }
 
 
+
+fn create_kexdh_reply() -> Vec<u8> {
+    let dh_pubkey = generate_dh_pubkey(); // Genera la tua chiave pubblica DH
+    let signature = sign_dh_pubkey(&dh_pubkey); // Firma la chiave DH con la tua chiave privata
+
+    let mut reply_msg: Vec<u8> = vec![0x0e]; // SSH_MSG_KEXDH_REPLY
+
+    // Aggiungi l'algoritmo della chiave host (esempio 'ssh-rsa')
+    reply_msg.extend(vec![0x73, 0x73, 0x68, 0x2d, 0x72, 0x73, 0x61]); // 'ssh-rsa'
+
+    // Aggiungi la chiave host pubblica (RSA o altro)
+    reply_msg.extend(generate_host_key()); // La tua chiave pubblica host (RSA o altro)
+
+    // Aggiungi la chiave pubblica DH
+    reply_msg.extend(dh_pubkey);
+
+    // Aggiungi la firma della chiave pubblica
+    reply_msg.extend(signature);
+
+    reply_msg
+}
+
+// Funzione per generare la chiave pubblica Diffie-Hellman (un esempio)
+fn generate_dh_pubkey() -> Vec<u8> {
+    // Codice per generare la chiave pubblica DH
+    vec![0x01, 0x02, 0x03] // Esempio di chiave DH
+}
+
+// Funzione per firmare la chiave pubblica DH con la tua chiave privata
+fn sign_dh_pubkey(dh_pubkey: &[u8]) -> Vec<u8> {
+    // Codice per firmare la chiave pubblica DH
+    vec![0x10, 0x20, 0x30] // Esempio di firma
+}
+
+// Funzione per ottenere la chiave pubblica dell'host
+fn generate_host_key() -> Vec<u8> {
+    // Codice per generare la chiave pubblica RSA o altro
+    vec![0x01, 0x02, 0x03] // Esempio di chiave host
+}
