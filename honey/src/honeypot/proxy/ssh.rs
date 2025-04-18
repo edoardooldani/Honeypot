@@ -1,10 +1,14 @@
-use std::{collections::HashMap, io::Read, net::Ipv4Addr, path::Path, sync::Arc};
+use std::{collections::HashMap, fs::File, io::Read, net::Ipv4Addr, path::Path, sync::Arc};
 use pnet::{datalink::DataLinkSender, packet::{tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use rand::Rng;
 use ssh2::Session;
 use tokio::{net::TcpStream, sync::{mpsc, Mutex}};
 use crate::network::sender::send_tcp_stream;
 use lazy_static::lazy_static;
+use openssl::{dh::Dh, pkey::PKey, rsa::Rsa, sign::Signer};
+use openssl::pkey::Params;
+use openssl::bn::BigNum;
+use openssl::error::ErrorStack;
 
 #[derive(Debug, Clone)]
 pub struct SSHSessionContext {
@@ -116,6 +120,7 @@ pub async fn handle_ssh_connection(
     }else if payload_from_client[5] == 0x63 {
         let diffie_msg = create_kexdh_reply();
         println!("Received CHANNEL SUCCESS, payload: {:?}\n Sending diffie hellman: {:?}", tcp_received_packet.payload(), diffie_msg);
+
         send_tcp_stream(
             tx.clone(), 
             virtual_mac, 
@@ -331,40 +336,47 @@ async fn authenticate_with_public_key(session: &mut Session, username: &str, pri
 
 
 fn create_kexdh_reply() -> Vec<u8> {
-    let dh_pubkey = generate_dh_pubkey(); // Genera la tua chiave pubblica DH
-    let signature = sign_dh_pubkey(&dh_pubkey); // Firma la chiave DH con la tua chiave privata
+    let dh_pubkey = generate_dh_pubkey().expect("Failed to generate dh public key!");
+    let signature = sign_dh_pubkey(&dh_pubkey).expect("Failed to sign dh key with private key!");
 
     let mut reply_msg: Vec<u8> = vec![0x0e]; // SSH_MSG_KEXDH_REPLY
 
-    // Aggiungi l'algoritmo della chiave host (esempio 'ssh-rsa')
     reply_msg.extend(vec![0x73, 0x73, 0x68, 0x2d, 0x72, 0x73, 0x61]); // 'ssh-rsa'
-
-    // Aggiungi la chiave host pubblica (RSA o altro)
-    reply_msg.extend(generate_host_key()); // La tua chiave pubblica host (RSA o altro)
-
-    // Aggiungi la chiave pubblica DH
+    reply_msg.extend(generate_host_key().expect("Failed to generate host key")); // La tua chiave pubblica host (RSA o altro)
     reply_msg.extend(dh_pubkey);
-
-    // Aggiungi la firma della chiave pubblica
     reply_msg.extend(signature);
 
     reply_msg
 }
 
-// Funzione per generare la chiave pubblica Diffie-Hellman (un esempio)
-fn generate_dh_pubkey() -> Vec<u8> {
-    // Codice per generare la chiave pubblica DH
-    vec![0x01, 0x02, 0x03] // Esempio di chiave DH
+fn generate_dh_pubkey() -> Result<Vec<u8>, ErrorStack> {
+    let dh_params = Dh::get_2048_256()?;
+
+    let priv_key = dh_params.generate_key()?;
+    let pubkey = priv_key.public_key();
+
+    Ok(pubkey.to_vec()) 
 }
 
-// Funzione per firmare la chiave pubblica DH con la tua chiave privata
-fn sign_dh_pubkey(dh_pubkey: &[u8]) -> Vec<u8> {
-    // Codice per firmare la chiave pubblica DH
-    vec![0x10, 0x20, 0x30] // Esempio di firma
+fn sign_dh_pubkey(dh_pubkey: &[u8]) -> Result<Vec<u8>, ErrorStack> {
+    let mut file = File::open("src/honeypot/proxy/keys/ssh_private_key.pem").expect("Failed to load private key");
+    let mut pem_data = Vec::new();
+    file.read_to_end(&mut pem_data).expect("Failed to read private key");
+
+    let rsa = Rsa::private_key_from_pem(&pem_data)?;
+    let pkey = PKey::from_rsa(rsa)?;
+
+    let mut signer = Signer::new(openssl::hash::MessageDigest::sha256(), &pkey)?;
+    signer.update(dh_pubkey)?;
+    let signature = signer.sign_to_vec()?;
+
+    Ok(signature)
 }
 
-// Funzione per ottenere la chiave pubblica dell'host
-fn generate_host_key() -> Vec<u8> {
-    // Codice per generare la chiave pubblica RSA o altro
-    vec![0x01, 0x02, 0x03] // Esempio di chiave host
+
+fn generate_host_key() -> Result<Vec<u8>, openssl::error::ErrorStack> {
+    let rsa = Rsa::generate(2048)?;
+    let pubkey_der = rsa.public_key_to_der()?;
+
+    Ok(pubkey_der)
 }

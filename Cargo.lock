@@ -1167,6 +1167,7 @@ dependencies = [
  "lazy_static",
  "libproc",
  "once_cell",
+ "openssl",
  "petgraph",
  "pnet",
  "rand 0.9.0",
