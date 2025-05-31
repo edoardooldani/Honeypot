@@ -2,13 +2,15 @@ use std::{collections::HashMap, fs::File, io::Read, net::Ipv4Addr, path::Path, s
 use pnet::{datalink::DataLinkSender, packet::{tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use rand::Rng;
 use ssh2::Session;
-use tokio::{net::TcpStream, sync::{mpsc, Mutex}};
+use tokio::{io::AsyncWriteExt, net::TcpStream, sync::{mpsc, Mutex}};
 use crate::network::sender::send_tcp_stream;
 use lazy_static::lazy_static;
 use openssl::{dh::Dh, pkey::PKey, rsa::Rsa, sign::Signer};
 use openssl::pkey::Params;
 use openssl::bn::BigNum;
 use openssl::error::ErrorStack;
+
+use std::io::Write;
 
 #[derive(Debug, Clone)]
 pub struct SSHSessionContext {
@@ -57,6 +59,17 @@ pub async fn handle_ssh_connection(
 
     let payload_from_client = tcp_received_packet.payload();
 
+    let err = match TcpStream::connect("127.0.0.1:22").await {
+        Ok(mut stream) => {
+            println!("Connesso con successo!");
+            let _ = stream.write(tcp_received_packet.packet()).await;
+        }
+        Err(e) => {
+            eprintln!("Impossibile connettersi: {}", e);
+        }
+    };
+}
+/* 
     let ssh_session_mutex = get_or_create_ssh_session(virtual_ip, destination_ip).await;
     let SSHSession { tx_sshd, rx_sshd, context} = &mut *ssh_session_mutex.lock().await;
 
@@ -345,7 +358,7 @@ fn create_kexdh_reply() -> Vec<u8> {
     reply_msg.extend(dh_pubkey);
     reply_msg.extend(signature);
 
-    let total_length = reply_msg.len() as u32;
+    let total_length = reply_msg.len() as u32 + 4;
 
     let mut full_reply_msg = Vec::new();
     full_reply_msg.extend(&total_length.to_be_bytes());
@@ -386,3 +399,5 @@ fn generate_host_key() -> Result<Vec<u8>, openssl::error::ErrorStack> {
 
     Ok(pubkey_der)
 }
+
+    */
