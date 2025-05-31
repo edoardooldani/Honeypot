@@ -36,9 +36,9 @@ async fn connect_websocket() {
             .join("certs")
             .join("client-cert.pem"),
     );
-
+    
     let connector = Connector::Rustls(Arc::new(config));
-
+    println!("🔗 Connecting to WebSocket at: {}", url);
     let (ws_stream, _) = connect_async_tls_with_config(&url, None, false, Some(connector))
         .await
         .expect("Failed to connect");
