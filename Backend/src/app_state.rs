@@ -20,10 +20,4 @@ pub struct ApiAppState {
 pub struct WssAppState {
     pub connections: Arc<Mutex<HashMap<String, u32>>>,
     pub influx_client: Client,
-    pub kafka: FutureProducer
-}
-
-pub struct KafkaAppState {
-    pub connections: Arc<Mutex<HashMap<String, u32>>>,
-    pub consumer: StreamConsumer 
 }

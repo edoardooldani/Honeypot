@@ -10,7 +10,7 @@ pub mod conn;
 
 use std::sync::Arc;
 
-use app_state::{ApiAppState, KafkaAppState, WssAppState};
+use app_state::{ApiAppState, WssAppState};
 use router::{create_router_api, create_router_wss};
 use serde::{Serialize, Deserialize};
 use tokio::net::TcpListener;
@@ -29,27 +29,6 @@ pub async fn run_ws(wss_state: Arc<WssAppState>) {
     create_router_wss(wss_state).await;
 }
 
-
-pub async fn run_kafka(kafka_state: KafkaAppState){
-    info!("🎧 Listening on Kafka...");
- 
-    while let Some(result) = kafka_state.consumer.stream().next().await {
-        match result {
-            Ok(msg) => {
-                if let Some(payload) = msg.payload() {
-                    match serde_json::from_slice::<AnomalyAlert>(payload) {
-                        Ok(anomaly) => {
-                            info!("🚨 Anomaly received! {:?}", anomaly);
-                            
-                        }
-                        Err(e) => error!("❌ Deserialization error: {}", e),
-                    }
-                }
-            }
-            Err(e) => error!("❌ Kafka message error: {:?}", e),
-        }
-    }
-}
 
 #[derive(Debug, Deserialize, Serialize)]
 struct AnomalyAlert {

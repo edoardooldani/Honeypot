@@ -29,6 +29,7 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
     let graph_clone = Arc::clone(&graph);
     let graph_virtual_clone = Arc::clone(&graph);
 
+    println!("🖥️ WebSocket connection established, session ID: {}", *session_id.lock().await);
 
     tokio::spawn(create_honeypots(graph_virtual_clone));
     tokio::spawn(scan_datalink(stdin_tx_graph, Arc::clone(&session_id), graph_clone));
