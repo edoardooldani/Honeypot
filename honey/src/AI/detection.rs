@@ -1,5 +1,5 @@
 use tract_onnx::prelude::*;
-use pnet::packet::ethernet::EthernetPacket;
+use pnet::packet::{ethernet::EthernetPacket, ip::IpNextHeaderProtocols, ipv4::Ipv4Packet, udp::UdpPacket};
 use std::collections::HashMap;
 use std::sync::Mutex as StdMutex;
 use lazy_static::lazy_static;
@@ -7,13 +7,11 @@ use std::time::{Duration, Instant};
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::Packet;
 
-use crate::trackers::flow::{FlowKey, FlowPacket, FlowStats, FlowTracker, PacketDirection};
+use crate::{trackers::flow::{FlowKey, FlowTracker, PacketDirection}, AI::features::PacketFeatures};
 
 lazy_static! {
     static ref FLOW_TRACKER: StdMutex<FlowTracker> = StdMutex::new(FlowTracker {
         flows: HashMap::new(),
-        timeout: Duration::from_secs(10),
-        max_packets: 30,
     });
 }
 
@@ -22,54 +20,50 @@ pub async fn detect_anomaly<'a>(
     ethernet_packet: EthernetPacket<'a>
 ) -> bool {
 
-    let eth_payload = ethernet_packet.payload();
-    
-    if let Some(ipv4_packet) = pnet::packet::ipv4::Ipv4Packet::new(eth_payload) {
-        let src_ip = ipv4_packet.get_source().to_string();
-        let dst_ip = ipv4_packet.get_destination().to_string();
-        let protocol = ipv4_packet.get_next_level_protocol();
+    let packet_features = get_packet_flow(&ethernet_packet).await.expect("Failed to extract packet features");
+    println!("Packet Features: {:?}", packet_features);
+    false
+}
 
-        let (src_port, dst_port, flags) = if protocol == pnet::packet::ip::IpNextHeaderProtocols::Tcp {
-            if let Some(tcp_packet) = TcpPacket::new(ipv4_packet.payload()) {
-                (
-                    tcp_packet.get_source(),
-                    tcp_packet.get_destination(),
-                    Some(tcp_packet.get_flags())
-                )
-            } else {
-                return false;
+async fn get_packet_flow<'a>(ethernet_packet: &EthernetPacket<'a>) -> Option<PacketFeatures> {
+    if let Some(ip_packet) = Ipv4Packet::new(ethernet_packet.payload()) {
+        let src_ip = ip_packet.get_source().to_string();
+        let dst_ip = ip_packet.get_destination().to_string();
+        let protocol = ip_packet.get_next_level_protocol();
+
+        if protocol == IpNextHeaderProtocols::Tcp {
+            if let Some(tcp_packet) = TcpPacket::new(ip_packet.payload()) {
+                let src_port = tcp_packet.get_source();
+                let dst_port = tcp_packet.get_destination();
+
+                let key = FlowKey {
+                    ip_src: src_ip,
+                    ip_dst: dst_ip,
+                    port_src: src_port,
+                    port_dst: dst_port,
+                    protocol: 6,
+                };
+
+                return Some(FLOW_TRACKER.lock().unwrap().get_flow_or_insert(key).clone());
             }
-        } else {
-            return false; // Ignora i non-TCP per ora
-        };
+        }
+        else if protocol == IpNextHeaderProtocols::Udp {
+            if let Some(udp_packet) = UdpPacket::new(ip_packet.payload()) {
+                let src_port = udp_packet.get_source();
+                let dst_port = udp_packet.get_destination();
 
-        let key = FlowKey {
-            src_ip: src_ip.clone(),
-            dst_ip: dst_ip.clone(),
-            src_port,
-            dst_port,
-            protocol: "TCP".to_string(),
-        };
-
-        // Direzione: assume che la sorgente iniziale sia forward
-        let direction = PacketDirection::Forward;
-
-        let packet = FlowPacket {
-            timestamp: Instant::now(),
-            length: ethernet_packet.packet().len(),
-            direction,
-            flags,
-        };
-
-        let mut tracker = FLOW_TRACKER.lock().unwrap();
-        let maybe_complete = tracker.update_flow(key, packet);
-
-        if let Some(completed_flow) = maybe_complete {
-            // QUI: chiama inferenza con completed_flow
-            println!("📤 Esegui inferenza: {} packets", completed_flow.packets.len());
-            return true;
+                let key = FlowKey {
+                    ip_src: src_ip,
+                    ip_dst: dst_ip,
+                    port_src: src_port,
+                    port_dst: dst_port,
+                    protocol: 17,
+                };
+                
+                return Some(FLOW_TRACKER.lock().unwrap().get_flow_or_insert(key).clone());
+            }
         }
     }
-    
-    false
+
+    None
 }
