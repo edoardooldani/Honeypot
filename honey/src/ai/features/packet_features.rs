@@ -228,14 +228,3 @@ impl Default for PacketFeatures {
         }
     }
 }
-/* 
-impl PacketFeatures {
-    pub fn new(src_port: u16, dst_port: u16) -> Self {
-        Self {
-            src_port,
-            dst_port,
-            ..Default::default()
-        }
-    }
-}
-    */
