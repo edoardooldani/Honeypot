@@ -6,7 +6,7 @@ use common::tls::generate_client_session_id;
 use crate::network::receiver::scan_datalink;
 use crate::honeypot::create_honeypots::create_honeypots;
 use crate::network::graph::NetworkGraph;
-use crate::AI::model::load_model;
+use crate::ai::model::load_model;
 use tokio::sync::Mutex;
 
 

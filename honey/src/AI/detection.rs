@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::Packet;
 
-use crate::{trackers::flow::{FlowKey, FlowTracker, PacketDirection}, AI::features::PacketFeatures};
+use crate::{trackers::flow::{FlowKey, FlowTracker}, ai::features::PacketFeatures};
 
 lazy_static! {
     static ref FLOW_TRACKER: StdMutex<FlowTracker> = StdMutex::new(FlowTracker {
@@ -20,7 +20,12 @@ pub async fn detect_anomaly<'a>(
     ethernet_packet: EthernetPacket<'a>
 ) -> bool {
 
-    let packet_features = get_packet_flow(&ethernet_packet).await.expect("Failed to extract packet features");
+    let packet_features = get_packet_flow(&ethernet_packet).await;
+
+    if packet_features.is_none() {
+        return false; // No tcp/udp found, no anomaly to detect
+    }
+
     println!("Packet Features: {:?}", packet_features);
     false
 }
@@ -64,6 +69,6 @@ async fn get_packet_flow<'a>(ethernet_packet: &EthernetPacket<'a>) -> Option<Pac
             }
         }
     }
-
+    
     None
 }

@@ -15,7 +15,7 @@ use crate::trackers::arp_tracker::{ArpRepliesTracker, ArpRequestTracker};
 use crate::trackers::tcp_tracker::TcpSynDetector;
 use crate::honeypot::handler::handle_virtual_packet;
 use crate::network::graph::{update_graph_from_packet, NetworkGraph};
-use crate::AI::detection::detect_anomaly;
+use crate::ai::detection::detect_anomaly;
 use tract_onnx::prelude::*;
 
 
