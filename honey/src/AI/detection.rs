@@ -1,6 +1,6 @@
 use tract_onnx::prelude::*;
 use pnet::packet::ethernet::EthernetPacket;
-use crate::trackers::flow::get_packet_flow;
+use crate::ai::features::flow::get_packet_flow;
 
 pub async fn detect_anomaly<'a>(
     model: SimplePlan<TypedFact, Box<dyn TypedOp>, tract_onnx::prelude::Graph<TypedFact, Box<dyn TypedOp>>>, 
