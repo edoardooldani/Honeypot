@@ -3,10 +3,8 @@ use pnet::packet::{ethernet::EthernetPacket, ip::IpNextHeaderProtocols, ipv4::Ip
 use std::collections::HashMap;
 use std::sync::Mutex as StdMutex;
 use lazy_static::lazy_static;
-use std::time::{Duration, Instant};
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::Packet;
-
 use crate::{trackers::flow::{FlowKey, FlowTracker}, ai::features::PacketFeatures};
 
 lazy_static! {
@@ -25,7 +23,6 @@ pub async fn detect_anomaly<'a>(
     if packet_features.is_none() {
         return false; // No tcp/udp found, no anomaly to detect
     }
-
     println!("Packet Features: {:?}", packet_features);
     false
 }

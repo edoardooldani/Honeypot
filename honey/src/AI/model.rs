@@ -1,6 +1,5 @@
 use tract_onnx::prelude::*;
 
-
 pub fn load_model() -> SimplePlan<TypedFact, Box<dyn TypedOp>, tract_onnx::prelude::Graph<TypedFact, Box<dyn TypedOp>>>{
     let model = tract_onnx::onnx()
     .model_for_path("src/AI/models/autoencoder.onnx").expect("Failed to load model")
