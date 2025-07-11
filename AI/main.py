@@ -1,31 +1,23 @@
-import time
-from prepare_data import prepare_training_data
-from train_model import train_model
-from kafka_consumer import start_kafka_listener
+from preprocessing import load_and_preprocess
+from model import Autoencoder, export_to_onnx, train_autoencoder
+import matplotlib.pyplot as plt
 
 
+X_scaled, labels = load_and_preprocess('dataset/Normal_data.csv')
 
-def model_train():
-    print("🔄 Inizio pipeline di analisi...\n")
-
-    # **1️⃣ Prepara i dati**
-    print("📌 [1/3] Preparazione dei dati in corso...")
-    start_time = time.time()
-    prepare_training_data()
-    print(f"✅ Dati preparati in {time.time() - start_time:.2f} sec\n")
-
-    # **2️⃣ Addestra il modello**
-    print("📌 [2/3] Addestramento del modello in corso...")
-    start_time = time.time()
-    train_model()
-    print(f"✅ Modello addestrato in {time.time() - start_time:.2f} sec\n")
+print(f"Features are: {X_scaled.shape}")
 
 
+model = Autoencoder(input_dim=X_scaled.shape[1])
+trained_model, train_loss, val_loss = train_autoencoder(model, X_scaled)
+export_to_onnx(trained_model, input_dim=X_scaled.shape[1])
 
-
-if __name__ == "__main__":
-    #model_train()
-    start_kafka_listener()    
-
-
-# source ../../../../honeypot-env/bin/activate
+plt.figure(figsize=(10, 5))
+plt.plot(train_loss, label="Train Loss")
+plt.plot(val_loss, label="Validation Loss")
+plt.xlabel("Epoch")
+plt.ylabel("Loss (MSE)")
+plt.title("Training vs Validation Loss")
+plt.grid(True)
+plt.legend()
+plt.show()

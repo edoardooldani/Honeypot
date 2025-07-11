@@ -8,7 +8,6 @@ use chrono::Utc;
 use futures_util::SinkExt;
 use bincode;
 use common::types::{DataType, Packet, PayloadType, PriorityLevel};
-use rdkafka::producer::FutureRecord;
 use tracing::{info, warn, error};
 use tokio::time::{self, Duration};
 use crate::{app_state::WssAppState, queries::{arp_alert_queries::add_arp_alert_data, network_queries::add_network_data, process_queries::add_process_data, tcp_alert_queries::add_tcp_alert_data}};

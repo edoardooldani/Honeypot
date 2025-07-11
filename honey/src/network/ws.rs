@@ -6,6 +6,7 @@ use common::tls::generate_client_session_id;
 use crate::network::receiver::scan_datalink;
 use crate::honeypot::create_honeypots::create_honeypots;
 use crate::network::graph::NetworkGraph;
+use crate::AI::model::load_model;
 use tokio::sync::Mutex;
 
 
@@ -31,8 +32,10 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
 
     println!("🖥️ WebSocket connection established, session ID: {}", *session_id.lock().await);
 
+    let ai_model = load_model();
+
     tokio::spawn(create_honeypots(graph_virtual_clone));
-    tokio::spawn(scan_datalink(stdin_tx_graph, Arc::clone(&session_id), graph_clone));
+    tokio::spawn(scan_datalink(stdin_tx_graph, Arc::clone(&session_id), graph_clone, ai_model));
 
     let (mut write, read) = ws_stream.split();
     let stdin_to_ws = stdin_rx.map(Ok).forward(&mut write);

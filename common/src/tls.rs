@@ -4,19 +4,19 @@ use std::{
 use rustls::{ServerConnection, ClientConnection};
 use tokio_rustls::{
     rustls::{ServerConfig, ClientConfig},
-    rustls::pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject, CertificateRevocationListDer},
+    rustls::pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject},//, CertificateRevocationListDer},
     rustls::{server::WebPkiClientVerifier, RootCertStore}
 };
-use rustls_pemfile::crls;
+//use rustls_pemfile::crls;
 use sha2::{Sha256, Digest};
 
 
 
 pub fn rustls_client_config(key: impl AsRef<Path>, cert: impl AsRef<Path>) -> ClientConfig {
     let certs = load_cert(cert);
-    
-    let root_ca = load_root("certs/CA.pem");
     let private_key = load_key(key);
+
+    let root_ca = load_root("certs/CA.pem");
     
     let config = ClientConfig::builder()
         .with_root_certificates(root_ca)
@@ -31,18 +31,18 @@ pub fn rustls_client_config(key: impl AsRef<Path>, cert: impl AsRef<Path>) -> Cl
 pub fn rustls_server_config(key: impl AsRef<Path>, cert: impl AsRef<Path>) -> Arc<ServerConfig> {
     
     let certs = load_cert(cert);
-    let key = load_key(key);
-    let client_auth_roots = load_root("CA/CA.pem");  
+    let private_key = load_key(key);
+    let client_auth_roots = load_root("certs/CA.pem");  
 
-    let crls = load_crls();
+    //let crls = load_crls();
     let client_auth_verifier = WebPkiClientVerifier::builder(client_auth_roots.into())
-                    .with_crls(crls)
+                    //.with_crls(crls)
                     .build()
                     .unwrap();
 
     let mut config = ServerConfig::builder()
         .with_client_cert_verifier(client_auth_verifier)
-        .with_single_cert(certs, key)
+        .with_single_cert(certs, private_key)
         .expect("certificato/chiave non validi");
 
     config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
@@ -50,7 +50,7 @@ pub fn rustls_server_config(key: impl AsRef<Path>, cert: impl AsRef<Path>) -> Ar
     Arc::new(config)
 }
 
-
+/* 
 fn load_crls() -> Vec<CertificateRevocationListDer<'static>> {
     let crl_file = File::open("CA/CA.crl").expect("❌ Impossibile aprire la CRL");
     let mut reader = BufReader::new(crl_file);
@@ -61,6 +61,7 @@ fn load_crls() -> Vec<CertificateRevocationListDer<'static>> {
         .map(CertificateRevocationListDer::from)
         .collect()
 }
+        */
 
 
 

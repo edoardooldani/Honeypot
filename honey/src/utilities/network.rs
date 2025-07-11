@@ -29,18 +29,15 @@ pub fn get_src_dest_ip(packet: &EthernetPacket) -> Option<(Ipv4Addr, Ipv4Addr)> 
 
 
 pub fn classify_mac_address(mac: MacAddr) -> NodeType {
-    // Controllo per indirizzo MAC Broadcast (tutti i byte sono 0xFF)
     if mac.octets().iter().all(|&byte| byte == 0xFF) {
         return NodeType::Broadcast;
     }
 
-    // Controllo per indirizzo MAC Multicast (prefix 01:00:5e o 33:33)
     let octets = mac.octets();
     if octets.starts_with(&[0x01, 0x00, 0x5e]) || octets.starts_with(&[0x33, 0x33]) {
         return NodeType::Multicast;
     }
 
-    // Se non è né broadcast né multicast, è un indirizzo MAC "Reale"
     NodeType::Real
 }
 

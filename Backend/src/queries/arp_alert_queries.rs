@@ -2,7 +2,7 @@ use influxdb2::models::DataPoint;
 use influxdb2::Client;
 use chrono::Utc;
 use futures::stream;
-use common::types::{ArpAlertPayload, NetworkPayload};
+use common::types::ArpAlertPayload;
 
 /// Aggiunge un record al bucket `network`
 pub async fn add_arp_alert_data(

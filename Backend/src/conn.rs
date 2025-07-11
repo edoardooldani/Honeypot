@@ -1,5 +1,4 @@
 use dotenvy::dotenv;
-use rdkafka::{consumer::{Consumer, StreamConsumer}, producer::FutureProducer, ClientConfig};
 use sea_orm::{Database, DatabaseConnection};
 use tracing::{error, info};
 use std::env;

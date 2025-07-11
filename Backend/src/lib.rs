@@ -14,9 +14,6 @@ use app_state::{ApiAppState, WssAppState};
 use router::{create_router_api, create_router_wss};
 use serde::{Serialize, Deserialize};
 use tokio::net::TcpListener;
-use tracing::{error, info};
-use futures_util::StreamExt;
-use rdkafka::message::Message; 
 
 
 pub async fn run_api(api_state: ApiAppState) {

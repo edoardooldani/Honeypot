@@ -1,6 +1,7 @@
 use petgraph::graph::{Graph, NodeIndex};
-use pnet::util::MacAddr;
-use std::{collections::HashMap, net::Ipv4Addr};
+use pnet::{packet::ethernet::EthernetPacket, util::MacAddr};
+use tokio::sync::Mutex;
+use std::{collections::HashMap, net::Ipv4Addr, sync::Arc};
 
 use crate::utilities::network::{generate_virtual_ip, generate_virtual_ipv6, generate_virtual_mac};
 
@@ -164,4 +165,45 @@ impl NetworkGraph {
     }
 
 
+}
+
+
+
+pub async fn update_graph_from_packet<'a>(
+    graph: Arc<Mutex<NetworkGraph>>,
+    ethernet_packet: &'a EthernetPacket<'a>,
+    packet_len: usize,
+) -> Ipv4Addr {
+    let src_mac = ethernet_packet.get_source();
+    let dest_mac = ethernet_packet.get_destination();
+    let protocol = ethernet_packet.get_ethertype();
+    let bytes = packet_len as u64;
+
+    let (src_ip, dest_ip) = crate::utilities::network::get_src_dest_ip(ethernet_packet)
+        .unwrap_or((Ipv4Addr::new(0, 0, 0, 0), Ipv4Addr::new(0, 0, 0, 0)));
+
+    let src_type = crate::utilities::network::classify_mac_address(src_mac);
+    let dest_type = crate::utilities::network::classify_mac_address(dest_mac);
+
+    if dest_ip == Ipv4Addr::new(0, 0, 0, 0) {
+        return Ipv4Addr::new(0, 0, 0, 0);
+    }
+
+    let mut graph = graph.lock().await;
+
+    if !graph.nodes.contains_key(&src_mac) {
+        graph.add_node(src_mac, src_ip, src_type).await;
+    }
+
+    if !graph.nodes.contains_key(&dest_mac) {
+        graph.add_node(dest_mac, dest_ip, dest_type).await;
+    }
+
+    if graph.nodes.contains_key(&src_mac) && graph.nodes.contains_key(&dest_mac) {
+        graph
+            .add_connection(src_mac, dest_mac, &protocol.to_string(), bytes)
+            .await;
+    }
+
+    return dest_ip;
 }

@@ -28,3 +28,5 @@ pnet = "0.35"
 etherparse = "0.17"
 ssh2 = "0.9.5"
 openssl = "0.10"
+
+tract-onnx = "0.21.0"
