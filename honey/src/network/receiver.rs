@@ -72,8 +72,8 @@ pub async fn scan_datalink(
                     let graph_guard = graph.lock().await;
                     
                     // Handle virtual node
-                    if let Some(dest_node) = graph_guard.find_virtual_node_by_ip_or_mac(ethernet_packet.get_destination(), dest_ip) {
-                        /*let tx_clone = tx_datalink.clone();
+                    /*if let Some(dest_node) = graph_guard.find_virtual_node_by_ip_or_mac(ethernet_packet.get_destination(), dest_ip) {
+                        let tx_clone = tx_datalink.clone();
                         let ethertype = ethernet_packet.get_ethertype();
                         let payload = ethernet_packet.payload().to_vec();
                         let source = ethernet_packet.get_source();
@@ -90,9 +90,9 @@ pub async fn scan_datalink(
                                 tx_clone
                             ).await;  
                         });
-                                */
+                                
                     }
-                    
+                    */
                     let mut graph_lock = graph.lock().await;
 
                     detect_attacks(
