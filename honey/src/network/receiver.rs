@@ -55,6 +55,8 @@ pub async fn scan_datalink(
             Ok(packet) => {
                 println!("📥 Ricevuto pacchetto: {} bytes", packet.len());
                 if let Some(ethernet_packet) = EthernetPacket::new(packet) {
+                    
+                    /* 
                     let src_mac = ethernet_packet.get_source();
 
                     if src_mac == local_mac {
@@ -105,10 +107,10 @@ pub async fn scan_datalink(
                         Arc::clone(&arp_res_tracker), 
                         tcp_syn_tracker.clone(),
                     ).await;
-
+                    */
                 }
 
-        },
+            },
             Err(e) => {
                 eprintln!("❌ Errore nella lettura del pacchetto: {}", e);
                 continue;
