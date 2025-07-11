@@ -53,7 +53,7 @@ pub async fn scan_datalink(
     loop {
         match rx.next() {
             Ok(packet) => {
-
+                println!("📥 Ricevuto pacchetto: {} bytes", packet.len());
                 if let Some(ethernet_packet) = EthernetPacket::new(packet) {
                     let src_mac = ethernet_packet.get_source();
 
