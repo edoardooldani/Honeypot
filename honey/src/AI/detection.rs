@@ -21,9 +21,10 @@ pub async fn detect_anomaly<'a>(
     model: SimplePlan<TypedFact, Box<dyn TypedOp>, tract_onnx::prelude::Graph<TypedFact, Box<dyn TypedOp>>>, 
     ethernet_packet: EthernetPacket<'a>
 ) -> bool {
-    // Parsing base
-    let eth_payload = ethernet_packet.payload();
 
+    let eth_payload = ethernet_packet.payload();
+    println!("📦 Ricevuto pacchetto Ethernet: {} bytes", eth_payload.len());
+    
     if let Some(ipv4_packet) = pnet::packet::ipv4::Ipv4Packet::new(eth_payload) {
         let src_ip = ipv4_packet.get_source().to_string();
         let dst_ip = ipv4_packet.get_destination().to_string();
