@@ -61,7 +61,7 @@ pub fn get_local_mac() -> MacAddr {
 
 pub fn get_primary_interface() -> Option<NetworkInterface> {
     let interfaces = datalink::interfaces();
-
+    
     interfaces
         .into_iter()
         .filter(|iface| !iface.is_loopback() && !iface.ips.is_empty())
