@@ -69,14 +69,11 @@ pub async fn scan_datalink(
                     
                     let dest_ip: Ipv4Addr = update_graph_from_packet(graph.clone(), &ethernet_packet, packet.len()).await;
 
-                    let (src_ip, dest_ip) = crate::utilities::network::get_src_dest_ip(&ethernet_packet)
-                        .unwrap_or((Ipv4Addr::new(0, 0, 0, 0), Ipv4Addr::new(0, 0, 0, 0)));
-                    /* 
                     let graph_guard = graph.lock().await;
-
+                    
                     // Handle virtual node
                     if let Some(dest_node) = graph_guard.find_virtual_node_by_ip_or_mac(ethernet_packet.get_destination(), dest_ip) {
-                        let tx_clone = tx_datalink.clone();
+                        /*let tx_clone = tx_datalink.clone();
                         let ethertype = ethernet_packet.get_ethertype();
                         let payload = ethernet_packet.payload().to_vec();
                         let source = ethernet_packet.get_source();
@@ -93,9 +90,9 @@ pub async fn scan_datalink(
                                 tx_clone
                             ).await;  
                         });
-                                
+                                */
                     }
-                    */
+                    
                     let mut graph_lock = graph.lock().await;
 
                     detect_attacks(
