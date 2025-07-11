@@ -53,9 +53,7 @@ pub async fn scan_datalink(
     loop {
         match rx.next() {
             Ok(packet) => {
-                println!("📥 Ricevuto pacchetto: {} bytes", packet.len());
                 if let Some(ethernet_packet) = EthernetPacket::new(packet) {
-                    
                     
                     let src_mac = ethernet_packet.get_source();
 
@@ -63,13 +61,11 @@ pub async fn scan_datalink(
                         continue;
                     }
                     
-                    if let Some(ethernet_packet) = EthernetPacket::new(&packet.to_vec()) {
+                    if let Some(ethernet_packet) = EthernetPacket::new(packet) {
                         detect_anomaly(ai_model.clone(), ethernet_packet).await;
                     }
                     
                     let dest_ip: Ipv4Addr = update_graph_from_packet(graph.clone(), &ethernet_packet, packet.len()).await;
-
-                    //let mut graph_guard = graph.lock().await;
                     
                     // Handle virtual node
                     if let Some(dest_node) = graph.lock().await.find_virtual_node_by_ip_or_mac(ethernet_packet.get_destination(), dest_ip) {
