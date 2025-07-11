@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::time::Instant;
 use crate::ai::features::PacketFeatures;
 use lazy_static::lazy_static;
 use pnet::packet::{ethernet::EthernetPacket, ip::IpNextHeaderProtocols, ipv4::Ipv4Packet, udp::UdpPacket};
@@ -29,7 +28,7 @@ pub struct FlowTracker {
 
 impl FlowTracker {
     pub fn get_flow_or_insert(&mut self, key: FlowKey) -> &PacketFeatures {
-        self.flows.entry(key).or_insert_with(PacketFeatures::default)
+        self.flows.entry(key.clone()).or_insert_with(|| PacketFeatures::new(key.port_src, key.port_dst))
     }
 }
 

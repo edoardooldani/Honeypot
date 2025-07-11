@@ -123,7 +123,6 @@ pub struct PacketFeatures {
     pub idle_min: f64,
 }
 
-
 impl Default for PacketFeatures {
     fn default() -> Self {
         Self {
@@ -226,6 +225,16 @@ impl Default for PacketFeatures {
             idle_std: 0.0,
             idle_max: 0.0,
             idle_min: 0.0,
+        }
+    }
+}
+
+impl PacketFeatures {
+    pub fn new(src_port: u16, dst_port: u16) -> Self {
+        Self {
+            src_port,
+            dst_port,
+            ..Default::default()
         }
     }
 }
