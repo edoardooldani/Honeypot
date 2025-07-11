@@ -24,7 +24,7 @@ pub async fn detect_anomaly<'a>(
 
     let eth_payload = ethernet_packet.payload();
     println!("📦 Ricevuto pacchetto Ethernet: {} bytes", eth_payload.len());
-    
+    /* 
     if let Some(ipv4_packet) = pnet::packet::ipv4::Ipv4Packet::new(eth_payload) {
         let src_ip = ipv4_packet.get_source().to_string();
         let dst_ip = ipv4_packet.get_destination().to_string();
@@ -71,6 +71,6 @@ pub async fn detect_anomaly<'a>(
             return true;
         }
     }
-
+    */
     false
 }
