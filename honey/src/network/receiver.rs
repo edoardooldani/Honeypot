@@ -69,10 +69,10 @@ pub async fn scan_datalink(
                     
                     let dest_ip: Ipv4Addr = update_graph_from_packet(graph.clone(), &ethernet_packet, packet.len()).await;
 
-                    let mut graph_guard = graph.lock().await;
+                    //let mut graph_guard = graph.lock().await;
                     
                     // Handle virtual node
-                    if let Some(dest_node) = graph_guard.find_virtual_node_by_ip_or_mac(ethernet_packet.get_destination(), dest_ip) {
+                    if let Some(dest_node) = graph.lock().await.find_virtual_node_by_ip_or_mac(ethernet_packet.get_destination(), dest_ip) {
                         let tx_clone = tx_datalink.clone();
                         let ethertype = ethernet_packet.get_ethertype();
                         let payload = ethernet_packet.payload().to_vec();
