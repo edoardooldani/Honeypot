@@ -7,8 +7,7 @@ use axum::{
 use chrono::Utc;
 use futures_util::SinkExt;
 use bincode;
-use common::types::{DeviceType, Packet, PayloadType, PriorityLevel};
-use rdkafka::producer::FutureRecord;
+use common::types::{DataType, Packet, PayloadType, PriorityLevel};
 use tracing::{info, warn, error};
 use tokio::time::{self, Duration};
 use crate::{app_state::WssAppState, queries::{arp_alert_queries::add_arp_alert_data, network_queries::add_network_data, process_queries::add_process_data, tcp_alert_queries::add_tcp_alert_data}};
@@ -52,7 +51,11 @@ async fn handle_websocket(mut socket: WebSocket, wss_state: Arc<WssAppState>, de
             Ok(Message::Close(_)) | Err(_) => {
                 break;
             }
+            Ok(Message::Text(text)) => {
+                println!("Text: {:?}", text);
+            }
             _ => {
+
                 close_socket_with_error(&mut socket, &device_name, "Invalid message!").await;
                 break;
             }
@@ -67,7 +70,7 @@ async fn handle_websocket(mut socket: WebSocket, wss_state: Arc<WssAppState>, de
 
 async fn process_packet(wss_state: &Arc<WssAppState>, device_name: &str, bin: &[u8]) -> Result<(), String> {
     let mut packet: Packet = bincode::deserialize(bin).map_err(|e| format!("Deserialization error: {}", e))?;
-
+    println!("PAcket: {:?}", packet);
     if !packet.verify_checksum() {
         return Err(format!("Invalid checksum (ID: {})", packet.header.id));
     }
@@ -87,8 +90,8 @@ async fn process_packet(wss_state: &Arc<WssAppState>, device_name: &str, bin: &[
         return Err(format!("Invalid timestamp: {}", packet.header.timestamp));
     }
 
-    if DeviceType::from_u8(packet.header.data_type).is_none() {
-        return Err(format!("Invalid device type: {}", packet.header.data_type));
+    if DataType::from_u8(packet.header.data_type).is_none() {
+        return Err(format!("Invalid data type: {}", packet.header.data_type));
     }
 
     if PriorityLevel::from_u8(packet.header.priority).is_none() {

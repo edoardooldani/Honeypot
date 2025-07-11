@@ -2,7 +2,7 @@ use influxdb2::models::DataPoint;
 use influxdb2::Client;
 use chrono::Utc;
 use futures::stream;
-use common::types::{ArpAlertPayload, NetworkPayload, TcpAlertPayload};
+use common::types::TcpAlertPayload;
 
 use super::format_mac_address;
 

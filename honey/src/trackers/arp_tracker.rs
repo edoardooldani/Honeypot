@@ -1,24 +1,29 @@
 use std::collections::{HashMap, HashSet};
 use std::net::Ipv4Addr;
-use std::sync::{Arc, Mutex};
+use tokio::sync::Mutex;
+use std::sync::Arc;
 use std::time::{Instant, Duration};
 
 use common::packet::{build_packet, calculate_header};
 use common::types::{ArpAlertPayload, ArpAttackType, DataType, PayloadType};
 use pnet::packet::{arp::{ArpOperations, ArpPacket}, Packet};
 use pnet::packet::ethernet::EthernetPacket;
+use pnet::util::MacAddr;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::warn;
 
-use crate::utilities::network::mac_string_to_bytes;
-use crate::virtual_net::graph::{NetworkGraph, NodeType};
+use crate::utilities::network::mac_to_bytes;
+use crate::network::graph::{NetworkGraph, NodeType};
 
 
-pub type AlertTracker = Arc<Mutex<HashMap<String, Instant>>>;
+pub type ArpReqAlertTracker = Arc<Mutex<HashMap<MacAddr, Instant>>>;
+pub type ArpResAlertTracker = Arc<Mutex<HashMap<MacAddr, Instant>>>;
+pub type ArpAlertTracker = Arc<Mutex<HashMap<MacAddr, Instant>>>;
+
 
 pub struct ArpRequestTracker {
-    requests: HashMap<String, HashSet<String>>, // MAC -> IP richiesti
-    timestamps: HashMap<String, Instant>,       // MAC -> Ultimo timestamp
+    requests: HashMap<MacAddr, HashSet<String>>,  // MAC -> IP richiesti
+    timestamps: HashMap<MacAddr, Instant>,       // MAC -> Ultimo timestamp
 }
 
 
@@ -30,52 +35,53 @@ impl ArpRequestTracker {
         }
     }
 
-    pub fn track_arp(&mut self, src_mac: &str, dest_ip: &str) -> bool {
+    pub fn track_arp(&mut self, src_mac: &MacAddr, dest_ip: &Ipv4Addr) -> bool {
         let now = Instant::now();
         let threshold = Duration::from_secs(5);
 
-        let entry = self.requests.entry(src_mac.to_string()).or_insert_with(HashSet::new);
+        let entry = self.requests.entry(*src_mac).or_insert_with(HashSet::new);
         entry.insert(dest_ip.to_string());
 
-        let last_time = self.timestamps.entry(src_mac.to_string()).or_insert(now);
+        let last_time = self.timestamps.entry(*src_mac).or_insert(now);
         let elapsed = now.duration_since(*last_time);
 
         if elapsed < threshold && entry.len() > 10 {
             return true;
         }
 
-        self.timestamps.insert(src_mac.to_string(), now);
+        self.timestamps.insert(src_mac.clone(), now);
         false
     }
 }
 
 
-pub fn detect_arp_attacks(
+pub async fn detect_arp_attacks<'a>(
     tx: futures_channel::mpsc::UnboundedSender<Message>, 
     session_id: Arc<Mutex<u32>>,
-    ethernet_packet: &EthernetPacket, 
+    ethernet_packet: &'a EthernetPacket<'a>,  // Aggiungi il lifetime 'a qui
     arp_req_tracker: Arc<Mutex<ArpRequestTracker>>, 
     arp_res_tracker: Arc<Mutex<ArpRepliesTracker>>, 
-    alert_tracker: AlertTracker,
+    last_req_alert_tracker: ArpReqAlertTracker,
+    last_res_alert_tracker: ArpResAlertTracker,
     graph: &mut NetworkGraph, 
-    self_mac: String){
+    self_mac: MacAddr){
     
     
     if let Some(arp_packet) = ArpPacket::new(ethernet_packet.payload()) {
 
-        let src_mac = format!("{}", arp_packet.get_sender_hw_addr());
-        let dest_ip = format!("{}", arp_packet.get_target_proto_addr());
+        let src_mac = arp_packet.get_sender_hw_addr();
+        let dest_ip = arp_packet.get_target_proto_addr();
 
         if arp_packet.get_operation() == ArpOperations::Request {
 
-            let mut tracker = arp_req_tracker.lock().unwrap();
+            let mut tracker = arp_req_tracker.lock().await;
             if tracker.track_arp(&src_mac, &dest_ip) {
                 if let Some(node) = graph.nodes.get(&src_mac) {
                     let node = &graph.graph[*node];
                     if node.node_type != NodeType::Router {
 
                         if node.mac_address != self_mac {
-                            let mut alerts = alert_tracker.lock().unwrap();
+                            let mut alerts = last_req_alert_tracker.lock().await;
                             let now = Instant::now();
                             let key = node.mac_address.clone();
                             let timeout = Duration::from_secs(300); // 5 minuti
@@ -84,13 +90,13 @@ pub fn detect_arp_attacks(
                                 warn!("⚠️ Attenzione: potenziale scansione Nmap da {}\n", src_mac);
                         
                                 let arp_alert_payload = PayloadType::ArpAlert(ArpAlertPayload { 
-                                    mac_addresses: vec![mac_string_to_bytes(&node.mac_address)], 
-                                    ip_address: node.ip_address.clone().unwrap_or_else(|| "Unknown".to_string()),
+                                    mac_addresses: vec![mac_to_bytes(&node.mac_address)], 
+                                    ip_address: node.ipv4_address.to_string(),
                                     arp_attack_type: ArpAttackType::ArpScanning.to_u8()
                                 });
                         
-                                let mac_bytes = mac_string_to_bytes(&self_mac);
-                                send_arp_alert(tx.clone(), arp_alert_payload, session_id.clone(), DataType::ArpAlert.to_u8(), mac_bytes);
+                                let mac_bytes = mac_to_bytes(&self_mac);
+                                send_arp_alert(tx.clone(), arp_alert_payload, session_id.clone(), DataType::ArpAlert.to_u8(), mac_bytes).await;
                         
                                 alerts.insert(key, now);
                             }
@@ -104,9 +110,9 @@ pub fn detect_arp_attacks(
         else if arp_packet.get_operation() == ArpOperations::Reply {
             let sender_ip = arp_packet.get_sender_proto_addr();
 
-            let mut monitor = arp_res_tracker.lock().unwrap();
-            monitor.record_arp_poisoning(tx.clone(), session_id.clone(), sender_ip, src_mac.clone(), self_mac.clone());
-            monitor.record_arp_flooding(tx, session_id, src_mac, sender_ip, self_mac);
+            let mut monitor = arp_res_tracker.lock().await;
+            monitor.record_arp_poisoning(tx.clone(), session_id.clone(), sender_ip, src_mac.clone(), self_mac.clone()).await;
+            monitor.record_arp_flooding(tx, session_id, src_mac, sender_ip, self_mac, last_res_alert_tracker).await;
         }
 
     }
@@ -118,7 +124,7 @@ pub fn detect_arp_attacks(
 #[derive(Debug)]
 pub struct ArpRepliesTracker {
     ip_mac_map:  HashMap<Ipv4Addr, HashSet<Box<[u8; 6]>>>,  // IP -> Set di MAC address
-    arp_reply_count: HashMap<String, u64>,  // MAC Address -> Numero di risposte ARP inviate
+    arp_reply_count: HashMap<MacAddr, u64>,  // MAC Address -> Numero di risposte ARP inviate
 }
 
 impl ArpRepliesTracker {
@@ -129,18 +135,20 @@ impl ArpRepliesTracker {
         }
     }
 
-    pub fn record_arp_poisoning(&mut self,
+    pub async fn record_arp_poisoning(&mut self,
         tx: futures_channel::mpsc::UnboundedSender<Message>, 
         session_id: Arc<Mutex<u32>>,
-        ip: Ipv4Addr, mac: String, 
-        self_mac: String) {
+        ip: Ipv4Addr, 
+        mac: MacAddr, 
+        self_mac: MacAddr) {
 
         let mac_set = self.ip_mac_map.entry(ip).or_insert_with(HashSet::new);
 
-        let mac_bytes: Box<[u8; 6]> = Box::new(mac_string_to_bytes(&mac));
+        let mac_bytes: Box<[u8; 6]> = Box::new(mac_to_bytes(&mac));
         mac_set.insert(mac_bytes);
 
         if mac != self_mac && mac_set.len() > 1 {
+            
             warn!("⚠️ Possible ARP poisoning: IP {:?} associated to more than one mac: {:?}", ip, mac_set);
 
             let arp_alert_payload = PayloadType::ArpAlert(ArpAlertPayload { 
@@ -149,40 +157,51 @@ impl ArpRepliesTracker {
                 arp_attack_type: ArpAttackType::ArpScanning.to_u8()
             });
                                                                                         
-            let mac_bytes = mac_string_to_bytes(&self_mac);
-            send_arp_alert(tx, arp_alert_payload, session_id, DataType::ArpAlert.to_u8(), mac_bytes);
+            let mac_bytes = mac_to_bytes(&self_mac);
+            send_arp_alert(tx, arp_alert_payload, session_id, DataType::ArpAlert.to_u8(), mac_bytes).await;
         
         }
     }
 
     /// Registra quante ARP Replies ha inviato un MAC address
-    pub fn record_arp_flooding(&mut self, 
+    pub async fn record_arp_flooding(&mut self, 
         tx: futures_channel::mpsc::UnboundedSender<Message>, 
         session_id: Arc<Mutex<u32>>,
-        mac: String, 
+        mac: MacAddr, 
         ip: Ipv4Addr,
-        self_mac: String) {
+        self_mac: MacAddr,
+        last_res_alert_tracker: ArpResAlertTracker
+    ) {
 
         let count = self.arp_reply_count.entry(mac.clone()).or_insert(0);
         *count += 1;
         
         if mac != self_mac && *count > 50 {
-            warn!("🚨 Possible ARP flooding: Mac {} sent {} ARP Replies!", mac, count);
+            let mut alerts = last_res_alert_tracker.lock().await;
+            let now = Instant::now();
+            let timeout = Duration::from_secs(300); // 5 minuti
+        
+            if alerts.get(&mac).map_or(true, |&last| now.duration_since(last) > timeout) {
+                            
+                warn!("🚨 Possible ARP flooding: Mac {} sent {} ARP Replies!", mac, count);
 
-            let arp_alert_payload = PayloadType::ArpAlert(ArpAlertPayload { 
-                mac_addresses: vec![mac_string_to_bytes(&mac)], 
-                ip_address: ip.to_string(),
-                arp_attack_type: ArpAttackType::ArpFlooding.to_u8()
-            });
-                                                                                        
-            let mac_bytes = mac_string_to_bytes(&self_mac);
-            send_arp_alert(tx, arp_alert_payload, session_id, DataType::ArpAlert.to_u8(), mac_bytes);
+                let arp_alert_payload = PayloadType::ArpAlert(ArpAlertPayload { 
+                    mac_addresses: vec![mac_to_bytes(&mac)], 
+                    ip_address: ip.to_string(),
+                    arp_attack_type: ArpAttackType::ArpFlooding.to_u8()
+                });
+                                                                                            
+                let mac_bytes = mac_to_bytes(&self_mac);
+                send_arp_alert(tx, arp_alert_payload, session_id, DataType::ArpAlert.to_u8(), mac_bytes).await;
+                alerts.insert(mac, now);
+
+            }
         }
     }
 }
 
 
-fn send_arp_alert(
+async fn send_arp_alert(
     tx: futures_channel::mpsc::UnboundedSender<Message>,
     payload: PayloadType,
     session_id: Arc<Mutex<u32>>,
@@ -190,7 +209,7 @@ fn send_arp_alert(
     mac_address: [u8; 6],
 ) {
     let msg = {
-        let mut id = session_id.lock().unwrap();
+        let mut id = session_id.lock().await;
         *id += 1;
 
         let header = calculate_header(*id, data_type, 0, mac_address);

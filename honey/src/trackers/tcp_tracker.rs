@@ -1,5 +1,7 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::net::Ipv4Addr;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use common::packet::{build_packet, calculate_header};
@@ -7,14 +9,18 @@ use common::types::{DataType, PayloadType, TcpAlertPayload, TcpAttackType};
 use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::Packet;
+use pnet::util::MacAddr;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::warn;
 
-use crate::utilities::network::mac_string_to_bytes;
+use crate::utilities::network::mac_to_bytes;
+
+pub type TcpSynAlertTracker = Arc<Mutex<HashMap<MacAddr, Instant>>>;
+
 
 #[derive(Debug)]
 pub struct TcpSynDetector {
-    attempts: HashMap<String, Vec<Instant>>,
+    attempts: HashMap<Ipv4Addr, Vec<Instant>>,
 }
 
 impl TcpSynDetector {
@@ -25,7 +31,7 @@ impl TcpSynDetector {
     }
 
     /// Register syn and check if it is an alert
-    pub fn register_syn(&mut self, src_ip: String) -> bool {
+    pub fn register_syn(&mut self, src_ip: Ipv4Addr) -> bool {
         let now = Instant::now();
         let entry = self.attempts.entry(src_ip.clone()).or_insert(Vec::new());
         entry.push(now);
@@ -33,7 +39,7 @@ impl TcpSynDetector {
         entry.retain(|&time| now.duration_since(time) < Duration::from_secs(10));
 
         // 15 syn in 10 seconds
-        if entry.len() > 15 {
+        if entry.len() > 15 && entry.len() < 18{
             return true;
         }
 
@@ -42,34 +48,35 @@ impl TcpSynDetector {
 }
 
 
-pub fn detect_tcp_syn_attack(
+pub async fn detect_tcp_syn_attack<'a>(
     tx: futures_channel::mpsc::UnboundedSender<Message>, 
     session_id: Arc<Mutex<u32>>,
-    ipv4_packet: Ipv4Packet,
-    src_mac: String,
-    self_mac: String,
-    tcp_syn_tracker: Arc<Mutex<TcpSynDetector>>
+    ipv4_packet: &'a Ipv4Packet<'a>,
+    src_mac: MacAddr,
+    self_mac: MacAddr,
+    tcp_syn_tracker: Arc<Mutex<TcpSynDetector>>,
 ){
     if let Some(tcp_packet) = TcpPacket::new(ipv4_packet.payload()) {
 
         if tcp_packet.get_flags() == 0x02 {
-            let src_ip = ipv4_packet.get_source().to_string();
-            
+            let src_ip = ipv4_packet.get_source();
+
             let dest_port = tcp_packet.get_destination();
 
-            let mut guard = tcp_syn_tracker.lock().unwrap();
+            let mut guard = tcp_syn_tracker.lock().await;
             if guard.register_syn(src_ip.clone()) {
+
                 warn!("🔥 Possible TCP Syn attack from Mac: {} and IP: {}!", src_mac, src_ip);
 
                 let tcp_alert_payload = PayloadType::TcpAlert(TcpAlertPayload { 
-                    mac_address: mac_string_to_bytes(&src_mac), 
-                    ip_address: src_ip,
+                    mac_address: mac_to_bytes(&src_mac), 
+                    ip_address: src_ip.to_string(),
                     dest_port,
                     tcp_attack_type: TcpAttackType::TcpSyn.to_u8()
                 });
                                                                                             
-                let mac_bytes = mac_string_to_bytes(&self_mac);
-                send_tcp_alert(tx, tcp_alert_payload, session_id, DataType::TcpAlert.to_u8(), mac_bytes);
+                let mac_bytes = mac_to_bytes(&self_mac);
+                send_tcp_alert(tx, tcp_alert_payload, session_id, DataType::TcpAlert.to_u8(), mac_bytes).await;
 
             }
         }
@@ -77,7 +84,7 @@ pub fn detect_tcp_syn_attack(
     
 }
 
-fn send_tcp_alert(
+async fn send_tcp_alert(
     tx: futures_channel::mpsc::UnboundedSender<Message>,
     payload: PayloadType,
     session_id: Arc<Mutex<u32>>,
@@ -85,7 +92,7 @@ fn send_tcp_alert(
     mac_address: [u8; 6],
 ) {
     let msg = {
-        let mut id = session_id.lock().unwrap();
+        let mut id = session_id.lock().await;
         *id += 1;
 
         let header = calculate_header(*id, data_type, 0, mac_address);

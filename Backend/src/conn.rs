@@ -1,5 +1,4 @@
 use dotenvy::dotenv;
-use rdkafka::{consumer::{Consumer, StreamConsumer}, producer::FutureProducer, ClientConfig};
 use sea_orm::{Database, DatabaseConnection};
 use tracing::{error, info};
 use std::env;
@@ -10,8 +9,6 @@ use influxdb2::{api::buckets::ListBucketsRequest, models::Buckets, Client as Inf
 pub struct Connections {
     pub db: DatabaseConnection,
     pub influx: InfluxClient,
-    pub kafka_producer: FutureProducer,
-    pub kafka_consumer: StreamConsumer
 }
 
 /// Funzione per inizializzare tutte le connessioni
@@ -38,34 +35,10 @@ pub async fn init_connections() -> Result<Connections, String> {
         }
     }
 
-    // Kafka producer
     
-    let kafka_brokers = env::var("KAFKA_BROKERS").map_err(|_| "Missing KAFKA_BROKERS".to_string())?;
-    let kafka_producer: FutureProducer = ClientConfig::new()
-        .set("bootstrap.servers", &kafka_brokers)
-        .set("message.timeout.ms", "5000")
-        .create()
-        .map_err(|e| format!("Error creating Kafka producer: {:?}", e))?;
-
-    
-    // kafka-topics --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic anomaly_alerts
-    // Kafka consumer
-    let kafka_consumer: StreamConsumer = ClientConfig::new()
-    .set("group.id", "rust_anomaly_group")
-    .set("bootstrap.servers", "127.0.0.1:9092")
-    .set("auto.offset.reset", "earliest")
-    .create()
-    .expect("Errore nella creazione del consumer Kafka");
-
-    kafka_consumer
-        .subscribe(&["anomaly_alerts"])
-        .expect("Errore nella sottoscrizione al topic");
-
     Ok(Connections {
         db,
         influx,
-        kafka_producer,
-        kafka_consumer
     })
 }
 
