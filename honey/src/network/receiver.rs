@@ -56,17 +56,17 @@ pub async fn scan_datalink(
                 println!("📥 Ricevuto pacchetto: {} bytes", packet.len());
                 if let Some(ethernet_packet) = EthernetPacket::new(packet) {
                     
-                    /* 
+                    
                     let src_mac = ethernet_packet.get_source();
 
                     if src_mac == local_mac {
                         continue;
                     }
-
+                    /* 
                     if let Some(ethernet_packet) = EthernetPacket::new(&packet.to_vec()) {
                         detect_anomaly(ai_model.clone(), ethernet_packet).await;
                     }
-
+                    */
                     let dest_ip: Ipv4Addr = update_graph_from_packet(graph.clone(), &ethernet_packet, packet.len()).await;
                     
                     let graph_guard = graph.lock().await;
@@ -107,7 +107,7 @@ pub async fn scan_datalink(
                         Arc::clone(&arp_res_tracker), 
                         tcp_syn_tracker.clone(),
                     ).await;
-                    */
+                    
                 }
 
             },
