@@ -28,7 +28,7 @@ pub struct FlowTracker {
 
 impl FlowTracker {
     pub fn get_flow_or_insert(&mut self, key: FlowKey) -> &PacketFeatures {
-        self.flows.entry(key.clone()).or_insert_with(|| PacketFeatures::new(key.port_src, key.port_dst))
+        self.flows.entry(key.clone()).or_insert_with(PacketFeatures::default)
     }
 }
 
