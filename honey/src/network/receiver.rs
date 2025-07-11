@@ -67,7 +67,7 @@ pub async fn scan_datalink(
                         detect_anomaly(ai_model.clone(), ethernet_packet).await;
                     }
                     
-                    /*let dest_ip: Ipv4Addr = update_graph_from_packet(graph.clone(), &ethernet_packet, packet.len()).await;
+                    //let dest_ip: Ipv4Addr = update_graph_from_packet(graph.clone(), &ethernet_packet, packet.len()).await;
                     
                     let graph_guard = graph.lock().await;
 
@@ -91,7 +91,7 @@ pub async fn scan_datalink(
                             ).await;  
                         });
                                 
-                    }*/
+                    }
 
                     let mut graph_lock = graph.lock().await;
 
