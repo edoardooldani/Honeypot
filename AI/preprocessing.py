@@ -9,10 +9,10 @@ def load_and_preprocess(csv_path):
     df = df.drop(columns=['Flow ID', 'Src IP', 'Dst IP', 'Timestamp', 'Label'], errors='ignore')
     df = pd.get_dummies(df, columns=['Protocol'])
 
-    df_numeric = df.select_dtypes(include=['int64', 'float64', 'uint8'])
+    df_numeric = df.select_dtypes(include=['int64', 'float64', 'uint8', 'bool'])
 
     print(df_numeric.columns.tolist())
-
+    
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(df_numeric)
 

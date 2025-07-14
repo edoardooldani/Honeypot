@@ -60,7 +60,6 @@ pub async fn scan_datalink(
                     if src_mac == local_mac {
                         continue;
                     }
-                    
                     if let Some(ethernet_packet) = EthernetPacket::new(packet) {
                         detect_anomaly(ai_model.clone(), ethernet_packet).await;
                     }

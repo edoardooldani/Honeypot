@@ -9,11 +9,9 @@ pub fn load_model() -> SimplePlan<TypedFact, Box<dyn TypedOp>, tract_onnx::prelu
 }
 
 
-pub fn run_inference(model: &SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>, input_data: Vec<f32>){// -> TractResult<Tensor> {
+pub fn run_inference(model: &SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>, input_tensor: Tensor) -> TractResult<Tensor> {
+    let result = model.run(tvec!(input_tensor.into())).expect("Failed to run inference");
+    let output_tensor = result[0].to_scalar_tensor().expect("Failed to convert output tensor to scalar");
 
-    let input_tensor = Tensor::from_shape(&[1, 100], &input_data);
-
-    //let result = model.run(tvec!(input_tensor))?;
-    //Ok(result[0].clone())
-}
+    Ok(output_tensor)}
 
