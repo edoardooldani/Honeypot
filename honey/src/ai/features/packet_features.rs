@@ -339,7 +339,7 @@ impl PacketFeatures {
 
     fn update_flow_rates(&mut self) {
         let duration_secs = self.flow_duration / 1000.0;
-        if duration_secs > 0.0 {
+        if duration_secs > 0.0001 {
             let total_bytes = self.totlen_fwd_pkts + self.totlen_bwd_pkts;
             let total_pkts = self.tot_fwd_pkts + self.tot_bwd_pkts;
             self.flow_byts_per_s = total_bytes as f64 / duration_secs;
