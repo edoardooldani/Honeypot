@@ -2,11 +2,7 @@ from preprocessing import load_and_preprocess
 from model import Autoencoder, export_to_onnx, train_autoencoder
 import matplotlib.pyplot as plt
 
-
 X_scaled, labels = load_and_preprocess('dataset/Normal_data.csv')
-
-print(f"Tensor normalized: {X_scaled}")
-
 
 model = Autoencoder(input_dim=X_scaled.shape[1])
 trained_model, train_loss, val_loss = train_autoencoder(model, X_scaled)

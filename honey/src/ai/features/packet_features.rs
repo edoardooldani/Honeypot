@@ -627,7 +627,7 @@ impl PacketFeatures {
             0 => (0.0, 0.0, 1.0),
             _ => (0.0, 0.0, 0.0),
         };
-        // Inserire le feature nello stesso ordine del training
+
         let input_data: Vec<f32> = vec![
             self.src_port as f32,           
             self.dst_port as f32, 

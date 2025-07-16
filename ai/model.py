@@ -36,8 +36,8 @@ def train_autoencoder(model, X, epochs=100, batch_size=256, patience=5, learning
     X_train, X_val = train_test_split(X, test_size=0.2, random_state=42)
 
     # Dataset e dataloader
-    train_tensor = torch.tensor(X_train, dtype=torch.float32)
-    val_tensor = torch.tensor(X_val, dtype=torch.float32)
+    train_tensor = torch.tensor(X_train.astype('float32'))
+    val_tensor = torch.tensor(X_val.astype('float32'))
     train_loader = DataLoader(TensorDataset(train_tensor), batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(TensorDataset(val_tensor), batch_size=batch_size)
 
@@ -98,7 +98,7 @@ def train_autoencoder(model, X, epochs=100, batch_size=256, patience=5, learning
 
 def export_to_onnx(model, X_scaled, path="models/autoencoder.onnx"):
     model.eval()
-    example_input = torch.tensor(X_scaled[:1], dtype=torch.float32)
+    example_input = torch.tensor(X_scaled[:1].astype('float32'))
 
     torch.onnx.export(
         model,
@@ -109,4 +109,4 @@ def export_to_onnx(model, X_scaled, path="models/autoencoder.onnx"):
         dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}},
         opset_version=11
     )
-    print(f"Modello esportato in ONNX: {path}")
+    print(f"✅ Modello esportato in ONNX: {path}")
