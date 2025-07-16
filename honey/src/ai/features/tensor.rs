@@ -6,7 +6,6 @@ use serde::Deserialize;
 
 pub fn print_tensor(tensor: &Tensor) {
     let array: ArrayView2<f32> = tensor.to_array_view::<f32>().unwrap().into_dimensionality::<tract_ndarray::Ix2>().unwrap();
-    println!("\nTensor before inference: ");
     for row in array.rows() {
         println!("{:?}", row);
     }
