@@ -711,7 +711,7 @@ impl PacketFeatures {
             proto_udp,
         ];
         
-        debug_assert_eq!(input_data.len(), 84);
+        debug_assert_eq!(input_data.len(), 81);
         tract_ndarray::Array2::from_shape_vec((1, input_data.len()), input_data)
             .unwrap()
             .into()
