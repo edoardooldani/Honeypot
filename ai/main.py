@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 X_scaled, labels = load_and_preprocess('dataset/Normal_data.csv')
 
-print(f"Features are: {X_scaled.shape}")
+print(f"Tensor normalized: {X_scaled}")
 
 
 model = Autoencoder(input_dim=X_scaled.shape[1])
