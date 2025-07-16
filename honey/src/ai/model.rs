@@ -9,14 +9,25 @@ pub fn load_model() -> SimplePlan<TypedFact, Box<dyn TypedOp>, tract_onnx::prelu
 }
 
 
-pub fn run_inference(model: &SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>, input_tensor: Tensor) -> TractResult<Tensor> {
-    print_tensor(&input_tensor);
-    let result = model.run(tvec!(input_tensor.into())).expect("Failed to run inference");
-    let output_tensor = result[0].clone();
-    Ok(output_tensor.into_tensor())
+pub fn run_inference(model: &SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>, input_tensor: Tensor) -> TractResult<f32> {
+    let input = input_tensor.clone();
+
+    let result = model.run(tvec!(input_tensor.into()))?;
+    let output_tensor = result[0].to_array_view::<f32>()?;
+
+    let input_array = input.to_array_view::<f32>()?;
+
+    let mse = input_array
+        .iter()
+        .zip(output_tensor.iter())
+        .map(|(x, y)| (x - y).powi(2))
+        .sum::<f32>() / input_array.len() as f32;
+
+    println!("MSE: {}", mse);
+    Ok(mse)
 }
 
-
+/* 
 fn print_tensor(tensor: &Tensor) {
     let array: ArrayView2<f32> = tensor.to_array_view::<f32>().unwrap().into_dimensionality::<tract_ndarray::Ix2>().unwrap();
 
@@ -24,4 +35,5 @@ fn print_tensor(tensor: &Tensor) {
         println!("{:?}", row);
     }
 }
+    */
 
