@@ -56,7 +56,7 @@ pub fn normalize_tensor(tensor: Tensor, scaler_path: &str) -> TractResult<Tensor
 
     let array = tensor.to_array_view::<f32>()?;
     let shape = array.shape();
-    assert_eq!(shape.len(), 2); // deve essere (1, N)
+    assert_eq!(shape, &[1, scaler.mean.len()]);
 
     let input_vec: Vec<f32> = array
         .iter()
@@ -65,7 +65,7 @@ pub fn normalize_tensor(tensor: Tensor, scaler_path: &str) -> TractResult<Tensor
             let mean = scaler.mean[i];
             let scale = scaler.scale[i];
             if scale.abs() < 1e-8 {
-                0.0 // Evita divisione per zero
+                0.0
             } else {
                 ((v as f64 - mean) / scale) as f32
             }

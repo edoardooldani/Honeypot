@@ -96,12 +96,13 @@ def train_autoencoder(model, X, epochs=100, batch_size=256, patience=5, learning
     return model, train_loss_history, val_loss_history
 
 
-def export_to_onnx(model, input_dim, path="models/autoencoder.onnx"):
+def export_to_onnx(model, X_scaled, path="models/autoencoder.onnx"):
     model.eval()
-    dummy_input = torch.randn(1, input_dim)  # Un esempio fittizio
+    example_input = torch.tensor(X_scaled[:1], dtype=torch.float32)
+
     torch.onnx.export(
         model,
-        dummy_input,
+        example_input,
         path,
         input_names=["input"],
         output_names=["output"],
