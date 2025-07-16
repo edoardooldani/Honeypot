@@ -16,4 +16,14 @@ def load_and_preprocess(csv_path):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(df_numeric)
 
+    scaler_params = {
+        "mean": scaler.mean_.tolist(),
+        "scale": scaler.scale_.tolist()
+    }
+
+    import json
+    with open("models/scaler_params.json", "w") as f:
+        json.dump(scaler_params, f, indent=4)
+        
+
     return X_scaled, labels
