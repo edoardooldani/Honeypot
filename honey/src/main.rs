@@ -1,10 +1,10 @@
-use tracing::info;
-use tracing_subscriber::EnvFilter;
 pub mod utilities;
 pub mod trackers;
 pub mod network;
 pub mod honeypot;
 pub mod ai;
+use tracing::info;
+use tracing_subscriber::EnvFilter;
 use std::env;
 use tokio_tungstenite::{connect_async_tls_with_config, Connector};
 use std::sync::Arc;

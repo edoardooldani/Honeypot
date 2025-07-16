@@ -33,9 +33,11 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
     println!("🖥️ WebSocket connection established, session ID: {}", *session_id.lock().await);
 
     let ai_model = load_model();
+    let model = Arc::new(ai_model);
+
 
     tokio::spawn(create_honeypots(graph_virtual_clone));
-    tokio::spawn(scan_datalink(stdin_tx_graph, Arc::clone(&session_id), graph_clone, ai_model));
+    tokio::spawn(scan_datalink(stdin_tx_graph, Arc::clone(&session_id), graph_clone, model.clone()));
 
     let (mut write, read) = ws_stream.split();
     let stdin_to_ws = stdin_rx.map(Ok).forward(&mut write);

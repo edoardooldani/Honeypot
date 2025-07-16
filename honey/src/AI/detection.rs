@@ -5,25 +5,27 @@ use crate::ai::features::flow::get_packet_flow_and_update;
 use crate::ai::model::run_inference;
 
 pub fn detect_anomaly<'a>(
-    model: SimplePlan<TypedFact, Box<dyn TypedOp>, tract_onnx::prelude::Graph<TypedFact, Box<dyn TypedOp>>>, 
+    model: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
     ethernet_packet: EthernetPacket<'a>
 ) -> bool {
-    
+    let model = Arc::clone(&model);
+
     let raw_bytes = ethernet_packet.packet().to_vec();
 
     tokio::spawn(async move {
         if let Some(packet) = EthernetPacket::owned(raw_bytes) {
-            let packet_features = get_packet_flow_and_update(&packet).await;
-
-            if packet_features.is_none() {
-                return false;
+            if let Some(packet_features) = get_packet_flow_and_update(&packet).await {
+                let feature_tensors = packet_features.to_tensor();
+                match run_inference(&model, feature_tensors) {
+                    Ok(result) => {
+                        println!("✅ Inference result: {:?}", result);
+                    }
+                    Err(e) => {
+                        eprintln!("❌ Errore nell'inferenza: {}", e);
+                    }
+                }
             }
-
-            let feature_tensors: Tensor = packet_features.expect("Failed to extract packet features!").to_tensor();
-            let result = run_inference(&model, feature_tensors).expect("Failed to run inference");
-            println!("Inference result: {:?}", result);
         }
-        false
     });
 
     false

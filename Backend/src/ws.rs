@@ -51,7 +51,7 @@ async fn handle_websocket(mut socket: WebSocket, wss_state: Arc<WssAppState>, de
             Ok(Message::Close(_)) | Err(_) => {
                 break;
             }
-            Ok(Message::Text(text)) => {
+            Ok(Message::Text(_text)) => {
             }
             _ => {
 

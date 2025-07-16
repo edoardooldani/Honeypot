@@ -23,7 +23,7 @@ pub async fn scan_datalink(
     tx: futures_channel::mpsc::UnboundedSender<Message>, 
     session_id: Arc<Mutex<u32>>, 
     graph: Arc<Mutex<NetworkGraph>>,
-    ai_model: SimplePlan<TypedFact, Box<dyn TypedOp>, tract_onnx::prelude::Graph<TypedFact, Box<dyn TypedOp>>>
+    ai_model: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>
 ) {
 
     let interface = get_primary_interface().expect("No valid interface found");
@@ -70,7 +70,7 @@ pub async fn scan_datalink(
                         continue;
                     }
                     if let Some(ethernet_packet) = EthernetPacket::new(packet) {
-                        detect_anomaly(ai_model.clone(), ethernet_packet);
+                        detect_anomaly(Arc::clone(&ai_model), ethernet_packet);
                     }
                     
                     let dest_ip: Ipv4Addr = update_graph_from_packet(graph.clone(), &ethernet_packet, packet.len()).await;
