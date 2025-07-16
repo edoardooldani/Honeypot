@@ -344,9 +344,13 @@ impl PacketFeatures {
             let total_pkts = self.tot_fwd_pkts + self.tot_bwd_pkts;
             self.flow_byts_per_s = total_bytes as f64 / duration_secs;
             self.flow_pkts_per_s = total_pkts as f64 / duration_secs;
-
             self.fwd_pkts_per_s = self.tot_fwd_pkts as f64 / duration_secs;
             self.bwd_pkts_per_s = self.tot_bwd_pkts as f64 / duration_secs;
+        } else {
+            self.flow_byts_per_s = 0.0;
+            self.flow_pkts_per_s = 0.0;
+            self.fwd_pkts_per_s = 0.0;
+            self.bwd_pkts_per_s = 0.0;
         }
     }
 
