@@ -15,7 +15,7 @@ async fn main() {
     };
 
     let api_state = ApiAppState {
-        db: connections.db,
+        db: connections.mysql_db,
         jwt_secret: TokenWrapper(std::env::var("JWT_SECRET").expect("Missing JWT_SECRET")),
     };
 

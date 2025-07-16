@@ -3,21 +3,17 @@ use sea_orm::{Database, DatabaseConnection};
 use tracing::{error, info};
 use std::env;
 use influxdb2::{api::buckets::ListBucketsRequest, models::Buckets, Client as InfluxClient, RequestError};
-
-
-/// Struttura per contenere tutte le connessioni
 pub struct Connections {
-    pub db: DatabaseConnection,
+    pub mysql_db: DatabaseConnection,
     pub influx: InfluxClient,
 }
 
-/// Funzione per inizializzare tutte le connessioni
 pub async fn init_connections() -> Result<Connections, String> {
     dotenv().ok();
 
     // MySQL
-    let database_url = env::var("DATABASE_URL").map_err(|_| "Missing DATABASE_URL".to_string())?;
-    let db = Database::connect(database_url)
+    let mysql_url = env::var("DATABASE_URL").map_err(|_| "Missing DATABASE_URL".to_string())?;
+    let mysql_db = Database::connect(mysql_url)
         .await
         .map_err(|e| format!("Error connecting to MySQL: {:?}", e))?;
 
@@ -35,15 +31,11 @@ pub async fn init_connections() -> Result<Connections, String> {
         }
     }
 
-    
     Ok(Connections {
-        db,
+        mysql_db,
         influx,
     })
 }
-
-
-
 
 async fn ensure_buckets_exists(client: &InfluxClient) -> Result<(), String> {
     let request = ListBucketsRequest {

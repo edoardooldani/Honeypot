@@ -13,5 +13,6 @@ pub fn run_inference(model: &SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<Typed
     let result = model.run(tvec!(input_tensor.into())).expect("Failed to run inference");
     let output_tensor = result[0].to_scalar_tensor().expect("Failed to convert output tensor to scalar");
 
-    Ok(output_tensor)}
+    Ok(output_tensor)
+}
 

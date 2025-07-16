@@ -4,7 +4,7 @@ use pnet::packet::Packet;
 use crate::ai::features::flow::get_packet_flow_and_update;
 use crate::ai::model::run_inference;
 
-pub async fn detect_anomaly<'a>(
+pub fn detect_anomaly<'a>(
     model: SimplePlan<TypedFact, Box<dyn TypedOp>, tract_onnx::prelude::Graph<TypedFact, Box<dyn TypedOp>>>, 
     ethernet_packet: EthernetPacket<'a>
 ) -> bool {

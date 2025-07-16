@@ -52,7 +52,6 @@ async fn handle_websocket(mut socket: WebSocket, wss_state: Arc<WssAppState>, de
                 break;
             }
             Ok(Message::Text(text)) => {
-                println!("Text: {:?}", text);
             }
             _ => {
 
@@ -64,13 +63,12 @@ async fn handle_websocket(mut socket: WebSocket, wss_state: Arc<WssAppState>, de
 
     let mut connections = wss_state.connections.lock().await;
     connections.remove(&device_name);
-    warn!("❌ Connessione chiusa: `{}`", device_name);
+    warn!("❌ Connection closed with: `{}`", device_name);
 }
 
 
 async fn process_packet(wss_state: &Arc<WssAppState>, device_name: &str, bin: &[u8]) -> Result<(), String> {
     let mut packet: Packet = bincode::deserialize(bin).map_err(|e| format!("Deserialization error: {}", e))?;
-    println!("PAcket: {:?}", packet);
     if !packet.verify_checksum() {
         return Err(format!("Invalid checksum (ID: {})", packet.header.id));
     }
@@ -141,6 +139,6 @@ async fn process_packet(wss_state: &Arc<WssAppState>, device_name: &str, bin: &[
 async fn close_socket_with_error(socket: &mut WebSocket, device_name: &str, reason: &str) {
     error!("🛑 [{}] {}", device_name, reason);
     let _ = socket.close().await;
-    warn!("❌ Connessione chiusa: `{}`", device_name);
+    warn!("❌ Connection closed with: `{}`", device_name);
 }
 

@@ -1,3 +1,4 @@
+use tracing::info;
 use tracing_subscriber::EnvFilter;
 pub mod utilities;
 pub mod trackers;
@@ -32,19 +33,19 @@ async fn connect_websocket() {
     let config = rustls_client_config(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("certs")
-            .join("client-key.pem"),
+            .join("localhost-key.pem"),
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("certs")
-            .join("client-cert.pem"),
+            .join("localhost-cert.pem"),
     );
     
     let connector = Connector::Rustls(Arc::new(config));
-    println!("🔗 Connecting to WebSocket at: {}", url);
+    info!("🔗 Connecting to WebSocket at: {}", url);
     let (ws_stream, _) = connect_async_tls_with_config(&url, None, false, Some(connector))
         .await
         .expect("Failed to connect");
 
-    println!("✅ WebSocket handshake completed");
+    info!("✅ WebSocket handshake completed");
 
     handle_websocket(ws_stream).await;
 

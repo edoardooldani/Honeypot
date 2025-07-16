@@ -43,7 +43,6 @@ pub fn create_router_api(api_state: ApiAppState) -> Router {
 
 pub async fn create_router_wss(wss_state: Arc<WssAppState>) {
 
-    
     let rustls_config = rustls_server_config(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("certs")

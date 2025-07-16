@@ -1,4 +1,4 @@
-use pnet::datalink::{self, Channel, Config, DataLinkSender};
+use pnet::datalink::{self, Channel, Config, DataLinkSender};//, NetworkInterface};
 use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::Packet;
 use pnet::util::MacAddr;
@@ -26,7 +26,16 @@ pub async fn scan_datalink(
     ai_model: SimplePlan<TypedFact, Box<dyn TypedOp>, tract_onnx::prelude::Graph<TypedFact, Box<dyn TypedOp>>>
 ) {
 
-    let interface = get_primary_interface().expect("Nessuna interfaccia valida trovata");
+    let interface = get_primary_interface().expect("No valid interface found");
+
+    /*  For localhost testing, we can use a specific interface
+    let interface = get_active_interface().expect("Nessuna interfaccia valida trovata");
+    fn get_active_interface() -> Option<NetworkInterface> {
+        datalink::interfaces()
+        .into_iter()
+        .find(|iface| iface.is_up() && iface.is_running() && !iface.is_loopback() && !iface.ips.is_empty())
+    }
+    */
 
     let mut config = Config::default();
     config.promiscuous = true;
@@ -36,8 +45,8 @@ pub async fn scan_datalink(
             Arc::new(tokio::sync::Mutex::new(tx as Box<dyn DataLinkSender + Send>)),
             rx
         ),
-        Ok(_) => panic!("Tipo di canale non supportato"),
-        Err(e) => panic!("Errore nell'apertura del canale: {}", e),
+        Ok(_) => panic!("Channel not supported"),
+        Err(e) => panic!("Error opening channel: {}", e),
     };
     
     let arp_req_alert_tracker: Arc<Mutex<HashMap<MacAddr, Instant>>> = Arc::new(Mutex::new(HashMap::new()));
@@ -47,7 +56,7 @@ pub async fn scan_datalink(
     let arp_res_tracker = Arc::new(Mutex::new(ArpRepliesTracker::new()));
     let tcp_syn_tracker = Arc::new(Mutex::new(TcpSynDetector::new()));
 
-    println!("📡 In ascolto del traffico di rete...");
+    println!("📡 Listening to the network traffic...");
     let local_mac = get_local_mac();
 
     loop {
@@ -61,7 +70,7 @@ pub async fn scan_datalink(
                         continue;
                     }
                     if let Some(ethernet_packet) = EthernetPacket::new(packet) {
-                        detect_anomaly(ai_model.clone(), ethernet_packet).await;
+                        detect_anomaly(ai_model.clone(), ethernet_packet);
                     }
                     
                     let dest_ip: Ipv4Addr = update_graph_from_packet(graph.clone(), &ethernet_packet, packet.len()).await;
@@ -107,7 +116,7 @@ pub async fn scan_datalink(
 
             },
             Err(e) => {
-                eprintln!("❌ Errore nella lettura del pacchetto: {}", e);
+                eprintln!("❌ Error reading packet: {}", e);
                 continue;
             }
         };
