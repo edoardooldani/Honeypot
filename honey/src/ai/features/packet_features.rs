@@ -188,13 +188,13 @@ impl Default for PacketFeatures {
             fwd_iat_mean: 0.0,
             fwd_iat_std: 0.0,
             fwd_iat_max: 0.0,
-            fwd_iat_min: f64::MAX,
+            fwd_iat_min: 10.0,
 
             bwd_iat_tot: 0.0,
             bwd_iat_mean: 0.0,
             bwd_iat_std: 0.0,
             bwd_iat_max: 0.0,
-            bwd_iat_min: f64::MAX,
+            bwd_iat_min: 10.0,
 
             fwd_psh_flags: 0,
             bwd_psh_flags: 0,
@@ -339,8 +339,6 @@ impl PacketFeatures {
 
     fn update_flow_rates(&mut self) {
         let duration_secs = self.flow_duration / 1000.0;
-        println!(">>> flow_duration: {}, seconds: {}", self.flow_duration, duration_secs);
-
         if duration_secs > 0.01 {
             let total_bytes = self.totlen_fwd_pkts + self.totlen_bwd_pkts;
             let total_pkts = self.tot_fwd_pkts + self.tot_bwd_pkts;
@@ -349,7 +347,6 @@ impl PacketFeatures {
             self.fwd_pkts_per_s = self.tot_fwd_pkts as f64 / duration_secs;
             self.bwd_pkts_per_s = self.tot_bwd_pkts as f64 / duration_secs;
         } else {
-            println!(">>> Duration too short, resetting flow rates");
             self.flow_byts_per_s = 0.0;
             self.flow_pkts_per_s = 0.0;
             self.fwd_pkts_per_s = 0.0;
