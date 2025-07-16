@@ -322,9 +322,6 @@ impl PacketFeatures {
 
         self.update_bulk_stats();
         self.update_active_idle(1000.0);
-
-        println!("Updated features: {:?}", self);
-
     }
 
     fn update_timestamps_and_duration(&mut self, now: Instant) {
