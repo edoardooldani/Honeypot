@@ -71,7 +71,7 @@ pub async fn scan_datalink(
                     }
                     if let Some(ethernet_packet) = EthernetPacket::new(packet) {
                         println!("source: {}, destination: {}", ethernet_packet.get_source(), ethernet_packet.get_destination());
-                        detect_anomaly(Arc::clone(&ai_model), ethernet_packet);
+                        detect_anomaly(Arc::clone(&ai_model), ethernet_packet).await;
                     }
                     
                     let dest_ip: Ipv4Addr = update_graph_from_packet(graph.clone(), &ethernet_packet, packet.len()).await;

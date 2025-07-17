@@ -4,7 +4,7 @@ use pnet::packet::Packet;
 use crate::ai::features::{flow::get_packet_flow_and_update, tensor::normalize_tensor};
 use crate::ai::model::run_inference;
 
-pub fn detect_anomaly<'a>(
+pub async fn detect_anomaly<'a>(
     model: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
     ethernet_packet: EthernetPacket<'a>
 ) -> bool {
@@ -12,7 +12,7 @@ pub fn detect_anomaly<'a>(
 
     let raw_bytes = ethernet_packet.packet().to_vec();
 
-    tokio::spawn(async move {
+    //tokio::spawn(async move {
         if let Some(packet) = EthernetPacket::owned(raw_bytes) {
             if let Some(packet_features) = get_packet_flow_and_update(&packet).await {
 
@@ -35,7 +35,7 @@ pub fn detect_anomaly<'a>(
                 }
             }
         }
-    });
+    //});
 
     false
 }
