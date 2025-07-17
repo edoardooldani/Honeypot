@@ -14,7 +14,7 @@ pub fn run_inference(model: &SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<Typed
     let input = input_tensor.clone();
     println!("\nTensor input inference: ");
 
-    print_tensor(&input_tensor.clone());
+    //print_tensor(&input_tensor.clone());
 
     let result = model.run(tvec!(input_tensor.into()))?;
     let output_tensor = result[0].to_array_view::<f32>()?;
@@ -29,7 +29,7 @@ pub fn run_inference(model: &SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<Typed
 
     println!("\nTensor output inference: ");
 
-    print_tensor(&result[0]);
+    //print_tensor(&result[0]);
     Ok(mae)
 }
 
