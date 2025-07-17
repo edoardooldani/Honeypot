@@ -244,7 +244,7 @@ impl Default for PacketFeatures {
             init_bwd_win_byts: 0,
 
             fwd_act_data_pkts: 0,
-            fwd_seg_size_min: u16::MAX,
+            fwd_seg_size_min: 0,
 
             active_mean: 0.0,
             active_std: 0.0,
@@ -405,7 +405,11 @@ impl PacketFeatures {
                         self.fwd_act_data_pkts += 1;
                     }
 
-                    self.fwd_seg_size_min = self.fwd_seg_size_min.min(tcp_packet.payload().len() as u16);
+                    self.fwd_seg_size_min = if self.fwd_seg_size_min == 0 {
+                        tcp_packet.payload().len() as u16
+                    } else {
+                        self.fwd_seg_size_min.min(tcp_packet.payload().len() as u16)
+                    };
                 }
                 PacketDirection::Backward => {
                     if (flags & 0x08) != 0 { self.bwd_psh_flags += 1; }
