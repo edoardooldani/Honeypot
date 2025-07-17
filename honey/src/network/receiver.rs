@@ -91,7 +91,7 @@ pub async fn scan_datalink(
                                 
                     }
                     
-                    let mut graph_lock = graph.lock().await;
+                    /*let mut graph_lock = graph.lock().await;
 
                     detect_attacks(
                         tx.clone(), 
@@ -104,7 +104,7 @@ pub async fn scan_datalink(
                         Arc::clone(&arp_req_tracker), 
                         Arc::clone(&arp_res_tracker), 
                         tcp_syn_tracker.clone(),
-                    ).await;
+                    ).await;*/
                     
                 }
 
