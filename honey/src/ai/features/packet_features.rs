@@ -641,7 +641,7 @@ impl PacketFeatures {
             _ => (0.0, 0.0, 0.0),
         };
 
-        println!("\nInput before normalization: {:?}", self);
+        //println!("\nInput before normalization: {:?}", self);
 
         let input_data: Vec<f32> = vec![
             self.src_port as f32,           

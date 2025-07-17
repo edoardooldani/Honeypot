@@ -12,7 +12,7 @@ pub fn load_model() -> SimplePlan<TypedFact, Box<dyn TypedOp>, tract_onnx::prelu
 
 pub fn run_inference(model: &SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>, input_tensor: Tensor) -> TractResult<f32> {
     let input = input_tensor.clone();
-    println!("\nTensor input inference: ");
+    //println!("\nTensor input inference: ");
 
     //print_tensor(&input_tensor.clone());
 
@@ -27,7 +27,7 @@ pub fn run_inference(model: &SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<Typed
         .map(|(x, y)| (x - y).abs())
         .sum::<f32>() / input_array.len() as f32;
 
-    println!("\nTensor output inference: ");
+    //println!("\nTensor output inference: ");
 
     //print_tensor(&result[0]);
     Ok(mae)
