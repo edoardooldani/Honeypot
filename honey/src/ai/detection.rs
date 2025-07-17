@@ -27,6 +27,7 @@ pub async fn detect_anomaly<'a>(
                         println!("✅ Inference result: {:?}", result);
                         if result > 1.5 {
                             println!("Packet features: {:?}", packet_features);
+                            return true;
                         } 
                     }
                     Err(e) => {
