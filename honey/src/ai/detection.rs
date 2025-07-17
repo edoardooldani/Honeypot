@@ -25,7 +25,7 @@ pub async fn detect_anomaly<'a>(
                 match run_inference(&model, feature_tensors) {
                     Ok(result) => {
                         println!("✅ Inference result: {:?}", result);
-                        if result > 1.5 {
+                        if result > 1 {
                             println!("Packet features: {:?}", packet_features);
                             return true;
                         } 
