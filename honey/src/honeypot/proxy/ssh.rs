@@ -61,7 +61,7 @@ pub async fn handle_ssh_connection(
 
     let err = match TcpStream::connect("127.0.0.1:22").await {
         Ok(mut stream) => {
-            println!("Connesso con successo!");
+            //println!("Connesso con successo!");
             let _ = stream.write(tcp_received_packet.packet()).await;
         }
         Err(e) => {

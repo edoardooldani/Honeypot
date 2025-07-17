@@ -1,7 +1,8 @@
 use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherType, EtherTypes}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
 use tokio::sync::Mutex;
 use tracing::error;
-use crate::{network::sender::send_arp_reply, honeypot::proxy::ssh::handle_ssh_connection};
+//use crate::{network::sender::send_arp_reply, honeypot::proxy::ssh::handle_ssh_connection};
+use crate::network::sender::send_arp_reply;
 use std::{net::Ipv4Addr, sync::Arc};
 
 use super::tcp::handle_tcp_packet;
@@ -41,14 +42,14 @@ pub async fn handle_virtual_packet<'a>(
 
                         if let Some(tcp_packet) = TcpPacket::new(ipv4_packet.payload()) {
                             if tcp_packet.get_destination() == 22 && tcp_packet.get_flags() != TcpFlags::SYN {
-                                handle_ssh_connection(
+                                /*handle_ssh_connection(
                                     tx.clone(), 
                                     *virtual_mac, 
                                     *virtual_ip, 
                                     *source, 
                                     ipv4_packet.get_source(), 
                                     tcp_packet
-                                ).await;
+                                ).await;*/
                             }else {
                                 handle_tcp_packet(
                                     tx.clone(), 

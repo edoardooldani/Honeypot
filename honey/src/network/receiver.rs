@@ -4,7 +4,6 @@ use pnet::packet::Packet;
 use pnet::util::MacAddr;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tract_onnx::prelude::SimplePlan;
-use tract_onnx::tract_core::ops::source;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use tokio::sync::Mutex;
@@ -70,13 +69,14 @@ pub async fn scan_datalink(
                     if src_mac == local_mac {
                         continue;
                     }
-                    if let Some(ethernet_packet) = EthernetPacket::new(packet) {
-                        let source = ethernet_packet.get_source();
-                        let destination = ethernet_packet.get_destination();
-                        if detect_anomaly(Arc::clone(&ai_model), ethernet_packet).await{
-                            println!("source: {}, destination: {}", source, destination);
+                    if let Some(ethernet_packet) = EthernetPacket::new(packet){
+                        if ethernet_packet.get_destination() != local_mac{
+                            let source = ethernet_packet.get_source();
+                            let destination = ethernet_packet.get_destination();
+                            if detect_anomaly(Arc::clone(&ai_model), ethernet_packet).await{
+                                println!("source: {}, destination: {}", source, destination);
+                            }
                         }
-                        
                     }
                     
                     let dest_ip: Ipv4Addr = update_graph_from_packet(graph.clone(), &ethernet_packet, packet.len()).await;

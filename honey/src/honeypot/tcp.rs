@@ -2,7 +2,7 @@ use std::{net::Ipv4Addr, sync::Arc};
 
 use pnet::{datalink::DataLinkSender, packet::tcp::{TcpFlags, TcpPacket}, util::MacAddr};
 use tokio::sync::Mutex;
-use super::proxy::ssh::handle_ssh_connection;
+//use super::proxy::ssh::handle_ssh_connection;
 use crate::network::sender::send_tcp_stream;
 
 pub async fn handle_tcp_packet<'a>(
@@ -45,7 +45,7 @@ pub async fn handle_tcp_packet<'a>(
         flags if flags & TcpFlags::ACK != 0 || TcpFlags::PSH != 0 => {
             match tcp_received_packet.get_destination() {
                 22 => {
-
+                    /* 
                     handle_ssh_connection(
                         tx.clone(),
                         virtual_mac, 
@@ -53,7 +53,7 @@ pub async fn handle_tcp_packet<'a>(
                         source_mac, 
                         source_ip, 
                         tcp_received_packet,
-                    ).await;
+                    ).await;*/
                     
                 
                 }
