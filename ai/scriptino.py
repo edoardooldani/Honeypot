@@ -1,6 +1,25 @@
-array = [-1.6921223, 2.4899461, -0.40553564, -0.087012686, -0.078800105, -0.02082352, -0.053751547, -0.26229128, 0.44181198, -0.17475225, -0.22505547, -0.25666654, -0.6266411, -0.45682636, -0.3680579, -0.22902235, -0.08532671, -0.2870444, -0.34114876, -0.37439117, -0.038899466, -0.39226303, -0.2836183, -0.31453806, -0.36059922, -0.06066079, -0.38745615, -0.29743254, -0.321877, -0.3586269, -0.03711824, 0.0, -0.353565, 0.0, 0.0, -0.07502377, -0.07426654, -0.08310616, -0.08743625, 1.1526766, -0.28130043, -0.4160641, -0.4197244, -0.09221357, -0.19168603, -0.49571222, -0.025366757, -0.353565, 3.7042809, 0.0, 0.0, 0.0, -1.3439635, -0.4530731, -0.17475225, -0.45682636, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.087012686, -0.020829955, -0.078800105, -0.053695053, 2048.0, -0.8905537, -0.068170354, 0.0, -0.13738206, -0.12970415, -0.16124879, -0.083206646, -0.34297392, -0.17329073, -0.34990826, -0.3189463, 0.0, 1.0, 0.0]
+import pandas as pd
 
-for i in range(len(array)):
-    if array[i]>4 or array[i]<-4:
-        print("Value out of range: "+ str(array[i]), i)
-    
+# File path
+original_file = "dataset/Normal_data.csv"
+mdns_file = "dataset/mdns_captured.csv"
+output_file = "dataset/Normal_data_2.csv"
+
+# Carica il dataset originale per capire quante colonne ha
+df_orig = pd.read_csv(original_file, header=None)
+n_cols = df_orig.shape[1]
+
+# Carica mDNS
+df_mdns = pd.read_csv(mdns_file, header=None)
+
+# Se ha meno colonne, aggiungi colonne vuote
+if df_mdns.shape[1] < n_cols:
+    diff = n_cols - df_mdns.shape[1]
+    for _ in range(diff):
+        df_mdns[df_mdns.shape[1]] = None  # Aggiunge colonna vuota
+
+# Ora unisci
+df_final = pd.concat([df_orig, df_mdns], ignore_index=True)
+df_final.to_csv(output_file, index=False, header=False)
+
+print(f"✅ Dataset finale salvato come: {output_file}")
