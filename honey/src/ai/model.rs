@@ -1,5 +1,4 @@
 use tract_onnx::prelude::*;
-use crate::ai::features::tensor::print_tensor;
 
 pub fn load_model() -> SimplePlan<TypedFact, Box<dyn TypedOp>, tract_onnx::prelude::Graph<TypedFact, Box<dyn TypedOp>>>{
     let model = tract_onnx::onnx()
@@ -12,9 +11,6 @@ pub fn load_model() -> SimplePlan<TypedFact, Box<dyn TypedOp>, tract_onnx::prelu
 
 pub fn run_inference(model: &SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>, input_tensor: Tensor) -> TractResult<f32> {
     let input = input_tensor.clone();
-    //println!("\nTensor input inference: ");
-
-    //print_tensor(&input_tensor.clone());
 
     let result = model.run(tvec!(input_tensor.into()))?;
     let output_tensor = result[0].to_array_view::<f32>()?;
@@ -27,9 +23,6 @@ pub fn run_inference(model: &SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<Typed
         .map(|(x, y)| (x - y).abs())
         .sum::<f32>() / input_array.len() as f32;
 
-    //println!("\nTensor output inference: ");
-
-    //print_tensor(&result[0]);
     Ok(mae)
 }
 

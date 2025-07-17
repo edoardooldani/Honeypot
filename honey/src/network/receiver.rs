@@ -1,18 +1,12 @@
 use pnet::datalink::{self, Channel, Config, DataLinkSender};
 use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::Packet;
-use pnet::util::MacAddr;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tract_onnx::prelude::SimplePlan;
-use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use tokio::sync::Mutex;
 use std::sync::Arc;
-use std::time::Instant;
-use crate::trackers::tracker::detect_attacks;
 use crate::utilities::network::{get_local_mac, get_primary_interface};
-use crate::trackers::arp_tracker::{ArpRepliesTracker, ArpRequestTracker};
-use crate::trackers::tcp_tracker::TcpSynDetector;
 use crate::honeypot::handler::handle_virtual_packet;
 use crate::network::graph::{update_graph_from_packet, NetworkGraph};
 use crate::ai::detection::detect_anomaly;
@@ -20,8 +14,8 @@ use tract_onnx::prelude::*;
 
 
 pub async fn scan_datalink(
-    tx: futures_channel::mpsc::UnboundedSender<Message>, 
-    session_id: Arc<Mutex<u32>>, 
+    _tx: futures_channel::mpsc::UnboundedSender<Message>, 
+    _session_id: Arc<Mutex<u32>>, 
     graph: Arc<Mutex<NetworkGraph>>,
     ai_model: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>
 ) {
@@ -39,13 +33,6 @@ pub async fn scan_datalink(
         Ok(_) => panic!("Channel not supported"),
         Err(e) => panic!("Error opening channel: {}", e),
     };
-    
-    let arp_req_alert_tracker: Arc<Mutex<HashMap<MacAddr, Instant>>> = Arc::new(Mutex::new(HashMap::new()));
-    let arp_res_alert_tracker: Arc<Mutex<HashMap<MacAddr, Instant>>> = Arc::new(Mutex::new(HashMap::new()));
-
-    let arp_req_tracker = Arc::new(Mutex::new(ArpRequestTracker::new()));
-    let arp_res_tracker = Arc::new(Mutex::new(ArpRepliesTracker::new()));
-    let tcp_syn_tracker = Arc::new(Mutex::new(TcpSynDetector::new()));
 
     println!("📡 Listening to the network traffic...");
     let local_mac = get_local_mac();
@@ -90,22 +77,6 @@ pub async fn scan_datalink(
                         });
                                 
                     }
-                    
-                    /*let mut graph_lock = graph.lock().await;
-
-                    detect_attacks(
-                        tx.clone(), 
-                        session_id.clone(), 
-                        &ethernet_packet, 
-                        &mut graph_lock, 
-                        local_mac.clone(), 
-                        arp_req_alert_tracker.clone(),
-                        arp_res_alert_tracker.clone(),
-                        Arc::clone(&arp_req_tracker), 
-                        Arc::clone(&arp_res_tracker), 
-                        tcp_syn_tracker.clone(),
-                    ).await;*/
-                    
                 }
 
             },

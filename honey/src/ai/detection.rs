@@ -45,7 +45,7 @@ pub async fn detect_anomaly<'a>(
 }
 
 
-async fn send_anomaly_alert(
+async fn _send_anomaly_alert(
     tx: futures_channel::mpsc::UnboundedSender<Message>,
     payload: PayloadType,
     session_id: Arc<Mutex<u32>>,
