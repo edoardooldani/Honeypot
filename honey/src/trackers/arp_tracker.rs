@@ -3,7 +3,6 @@ use std::net::Ipv4Addr;
 use tokio::sync::Mutex;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
-
 use common::packet::{build_packet, calculate_header};
 use common::types::{ArpAlertPayload, ArpAttackType, DataType, PayloadType};
 use pnet::packet::{arp::{ArpOperations, ArpPacket}, Packet};

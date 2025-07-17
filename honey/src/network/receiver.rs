@@ -1,4 +1,4 @@
-use pnet::datalink::{self, Channel, Config, DataLinkSender};//, NetworkInterface};
+use pnet::datalink::{self, Channel, Config, DataLinkSender};
 use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::Packet;
 use pnet::util::MacAddr;
@@ -27,15 +27,6 @@ pub async fn scan_datalink(
 ) {
 
     let interface = get_primary_interface().expect("No valid interface found");
-
-    /*  For localhost testing, we can use a specific interface
-    let interface = get_active_interface().expect("Nessuna interfaccia valida trovata");
-    fn get_active_interface() -> Option<NetworkInterface> {
-        datalink::interfaces()
-        .into_iter()
-        .find(|iface| iface.is_up() && iface.is_running() && !iface.is_loopback() && !iface.ips.is_empty())
-    }
-    */
 
     let mut config = Config::default();
     config.promiscuous = true;
@@ -70,11 +61,8 @@ pub async fn scan_datalink(
                         continue;
                     }
                     if let Some(ethernet_packet) = EthernetPacket::new(packet){
-                        if ethernet_packet.get_destination() != local_mac{
-                            let source = ethernet_packet.get_source();
-                            let destination = ethernet_packet.get_destination();
+                        if ethernet_packet.get_destination() != local_mac {
                             if detect_anomaly(Arc::clone(&ai_model), ethernet_packet).await{
-                                println!("source: {}, destination: {}", source, destination);
                             }
                         }
                     }
