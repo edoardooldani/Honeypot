@@ -1,7 +1,7 @@
 use tract_onnx::prelude::*;
 use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::Packet;
-use crate::ai::features::{flow::get_packet_flow_and_update, tensor::normalize_tensor};
+use crate::ai::features::{flow::get_packet_flow_and_update, tensor::normalize_tensor, packet_features::PacketFeatures};
 use crate::ai::model::run_inference;
 
 pub async fn detect_anomaly<'a>(
@@ -26,6 +26,10 @@ pub async fn detect_anomaly<'a>(
                     Ok(result) => {
                         println!("✅ Inference result: {:?}", result);
                         if result > 1.0 {
+
+                            if let Err(e) = append_packet_to_csv("mdns_anomalies.csv", &packet_features) {
+                                eprintln!("❌ Errore nel salvataggio CSV: {}", e);
+                            }
                             println!("Packet features: {:?}", packet_features);
                             return true;
                         } 
@@ -39,4 +43,21 @@ pub async fn detect_anomaly<'a>(
     //});
 
     false
+}
+
+
+use std::fs::OpenOptions;
+use std::io::Write;
+
+pub fn append_packet_to_csv(path: &str, pf: &PacketFeatures) -> std::io::Result<()> {
+    let mut file = OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(path)?;
+
+    // Se il file è vuoto, scrivi header (puoi fare meglio controllando il file una volta)
+    // writeln!(file, "src_port,dst_port,flow_duration,...")?;
+
+    writeln!(file, "{}", pf.to_csv_row())?;
+    Ok(())
 }
