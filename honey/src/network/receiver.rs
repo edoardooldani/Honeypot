@@ -70,6 +70,7 @@ pub async fn scan_datalink(
                         continue;
                     }
                     if let Some(ethernet_packet) = EthernetPacket::new(packet) {
+                        println!("source: {}, destination: {}", ethernet_packet.get_source(), ethernet_packet.get_destination());
                         detect_anomaly(Arc::clone(&ai_model), ethernet_packet);
                     }
                     
