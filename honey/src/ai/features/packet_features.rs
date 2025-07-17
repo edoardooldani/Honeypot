@@ -182,7 +182,7 @@ impl Default for PacketFeatures {
             flow_iat_mean: 0.0,
             flow_iat_std: 0.0,
             flow_iat_max: 0.0,
-            flow_iat_min: f64::MAX,
+            flow_iat_min: 0.0,
 
             fwd_iat_tot: 0.0,
             fwd_iat_mean: 0.0,
@@ -441,7 +441,7 @@ impl PacketFeatures {
             }
 
             self.flow_iat_max = self.flow_iat_max.max(iat);
-            self.flow_iat_min = self.flow_iat_min.min(iat);
+            self.flow_iat_min = if self.flow_iat_min == 0.0 { iat } else { self.flow_iat_min.min(iat) };
         }
     }
 
