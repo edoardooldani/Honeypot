@@ -167,12 +167,12 @@ impl Default for PacketFeatures {
             totlen_bwd_pkts: 0,
 
             fwd_pkt_len_max: 0,
-            fwd_pkt_len_min: u16::MAX,
+            fwd_pkt_len_min: 0,
             fwd_pkt_len_mean: 0.0,
             fwd_pkt_len_std: 0.0,
 
             bwd_pkt_len_max: 0,
-            bwd_pkt_len_min: u16::MAX,
+            bwd_pkt_len_min: 0,
             bwd_pkt_len_mean: 0.0,
             bwd_pkt_len_std: 0.0,
 
@@ -520,8 +520,13 @@ impl PacketFeatures {
         self.totlen_fwd_pkts += pkt_len as u32;
         self.fwd_pkt_len_sq_sum += (pkt_len as f64).powi(2);
 
-        self.fwd_pkt_len_max = self.fwd_pkt_len_max.max(pkt_len);
-        self.fwd_pkt_len_min = self.fwd_pkt_len_min.min(pkt_len);
+        if pkt_len > self.fwd_pkt_len_max {
+            self.fwd_pkt_len_max = pkt_len;
+        }
+        if self.fwd_pkt_len_min == 0 || pkt_len < self.fwd_pkt_len_min {
+            self.fwd_pkt_len_min = pkt_len;
+        }
+
         self.fwd_pkt_len_mean = self.totlen_fwd_pkts as f64 / self.tot_fwd_pkts as f64;
         self.fwd_pkt_len_std = ((self.fwd_pkt_len_sq_sum / self.tot_fwd_pkts as f64) - self.fwd_pkt_len_mean.powi(2)).sqrt();
 
@@ -574,8 +579,12 @@ impl PacketFeatures {
         self.totlen_bwd_pkts += pkt_len as u32;
         self.bwd_pkt_len_sq_sum += (pkt_len as f64).powi(2);
 
-        self.bwd_pkt_len_max = self.bwd_pkt_len_max.max(pkt_len);
-        self.bwd_pkt_len_min = self.bwd_pkt_len_min.min(pkt_len);
+        if pkt_len > self.bwd_pkt_len_max {
+            self.bwd_pkt_len_max = pkt_len;
+        }
+        if self.bwd_pkt_len_min == 0 || pkt_len < self.bwd_pkt_len_min {
+            self.bwd_pkt_len_min = pkt_len;
+        }
         self.bwd_pkt_len_mean = self.totlen_bwd_pkts as f64 / self.tot_bwd_pkts as f64;
         self.bwd_pkt_len_std = ((self.bwd_pkt_len_sq_sum / self.tot_bwd_pkts as f64) - self.bwd_pkt_len_mean.powi(2)).sqrt();
 
