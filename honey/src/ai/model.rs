@@ -21,15 +21,15 @@ pub fn run_inference(model: &SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<Typed
 
     let input_array = input.to_array_view::<f32>()?;
 
-    let mse = input_array
+    let mae = input_array
         .iter()
         .zip(output_tensor.iter())
-        .map(|(x, y)| (x - y).powi(2))
+        .map(|(x, y)| (x - y).abs())
         .sum::<f32>() / input_array.len() as f32;
 
     println!("\nTensor output inference: ");
 
     print_tensor(&result[0]);
-    Ok(mse)
+    Ok(mae)
 }
 

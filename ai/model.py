@@ -41,7 +41,7 @@ def train_autoencoder(model, X, epochs=100, batch_size=256, patience=5, learning
     train_loader = DataLoader(TensorDataset(train_tensor), batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(TensorDataset(val_tensor), batch_size=batch_size)
 
-    criterion = nn.MSELoss()
+    criterion = nn.L1Loss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     best_val_loss = float('inf')
