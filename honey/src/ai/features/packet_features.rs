@@ -207,7 +207,7 @@ impl Default for PacketFeatures {
             fwd_pkts_per_s: 0.0,
             bwd_pkts_per_s: 0.0,
 
-            pkt_len_min: u16::MAX,
+            pkt_len_min: 0,
             pkt_len_max: 0,
             pkt_len_mean: 0.0,
             pkt_len_std: 0.0,
@@ -300,7 +300,12 @@ impl PacketFeatures {
 
         let pkt_len = ip_packet.get_total_length() as u16;
 
-        self.pkt_len_min = self.pkt_len_min.min(pkt_len);
+        self.pkt_len_min = if self.pkt_len_min == 0 {
+            pkt_len
+        } else {
+            self.pkt_len_min.min(pkt_len)
+        };
+        
         self.pkt_len_max = self.pkt_len_max.max(pkt_len);
         self.pkt_len_sq_sum += (pkt_len as f64).powi(2);
 

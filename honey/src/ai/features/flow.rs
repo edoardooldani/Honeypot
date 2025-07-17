@@ -47,13 +47,12 @@ impl FlowTracker {
         if let Some(ip_packet) = Ipv4Packet::new(ethernet_packet.payload()) {
             let packet_src_ip = ip_packet.get_source().to_string();
 
-            // TO DO: Better handling direction
-            if packet_src_ip == key.ip_src {
-                features.update_directional(&ip_packet, PacketDirection::Forward);
-            } else if packet_src_ip == key.ip_dst {
-                features.update_directional(&ip_packet, PacketDirection::Backward);
-            } else {
-                error!("IP not present in hash map");
+            match is_forward(&packet_src_ip, &key.ip_src, &key.ip_dst) {
+                Some(PacketDirection::Forward) => features.update_directional(&ip_packet, PacketDirection::Forward),
+                Some(PacketDirection::Backward) => features.update_directional(&ip_packet, PacketDirection::Backward),
+                None => {
+                    error!("IP {} not in flow key {:?}", packet_src_ip, key);
+                }
             }
         }
 
@@ -65,6 +64,16 @@ lazy_static! {
     static ref FLOW_TRACKER: Mutex<FlowTracker> = Mutex::new(FlowTracker {
         flows: HashMap::new(),
     });
+}
+
+fn is_forward(packet_src: &str, flow_src: &str, flow_dst: &str) -> Option<PacketDirection> {
+    if packet_src == flow_src {
+        Some(PacketDirection::Forward)
+    } else if packet_src == flow_dst {
+        Some(PacketDirection::Backward)
+    } else {
+        None
+    }
 }
 
 pub async fn get_packet_flow_and_update<'a>(ethernet_packet: &EthernetPacket<'a>) -> Option<PacketFeatures> {
