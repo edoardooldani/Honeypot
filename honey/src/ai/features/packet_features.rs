@@ -338,7 +338,7 @@ impl PacketFeatures {
     }
 
     fn update_flow_rates(&mut self) {
-        let duration_secs = self.flow_duration / 1000.0;
+        let duration_secs = self.flow_duration.max(1.0) / 1000.0;
         if duration_secs > 0.0001 {
             let total_bytes = self.totlen_fwd_pkts + self.totlen_bwd_pkts;
             let total_pkts = self.tot_fwd_pkts + self.tot_bwd_pkts;
@@ -404,12 +404,6 @@ impl PacketFeatures {
                     if tcp_packet.payload().len() > 0 {
                         self.fwd_act_data_pkts += 1;
                     }
-
-                    self.fwd_seg_size_min = if self.fwd_seg_size_min == 0 {
-                        tcp_packet.payload().len() as u16
-                    } else {
-                        self.fwd_seg_size_min.min(tcp_packet.payload().len() as u16)
-                    };
                 }
                 PacketDirection::Backward => {
                     if (flags & 0x08) != 0 { self.bwd_psh_flags += 1; }
