@@ -25,6 +25,9 @@ pub fn detect_anomaly<'a>(
                 match run_inference(&model, feature_tensors) {
                     Ok(result) => {
                         println!("✅ Inference result: {:?}", result);
+                        if result > 1.5 {
+                            println!("Packet features: {:?}", packet_features);
+                        } 
                     }
                     Err(e) => {
                         eprintln!("❌ Errore nell'inferenza: {}", e);
