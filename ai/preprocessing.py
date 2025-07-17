@@ -34,11 +34,13 @@ def load_and_preprocess(csv_path):
     print("🚨 Ordine delle feature usate:")
     print(df_final.columns.tolist()) 
 
-    # Salvataggio parametri dello scaler
+    def normalize_column_name(col):
+        return col.lower().replace(' ', '_')
+
     scaler_params = {
         "mean": scaler.mean_.tolist(),
         "scale": scaler.scale_.tolist(),
-        "columns": cols_to_scale  # 💡 importante per match futuro
+        "columns": [normalize_column_name(c) for c in cols_to_scale]
     }
 
     with open("models/scaler_params.json", "w") as f:
