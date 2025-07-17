@@ -2,7 +2,7 @@ use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, e
 use tokio::sync::Mutex;
 use tracing::error;
 //use crate::{network::sender::send_arp_reply, honeypot::proxy::ssh::handle_ssh_connection};
-use crate::network::sender::send_arp_reply;
+use crate::interfaces::sender::send_arp_reply;
 use std::{net::Ipv4Addr, sync::Arc};
 
 use super::tcp::handle_tcp_packet;

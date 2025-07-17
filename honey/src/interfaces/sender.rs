@@ -1,4 +1,4 @@
-use pnet::datalink::{self, DataLinkSender};
+use pnet::datalink::DataLinkSender;
 use pnet::packet::arp::{ArpOperations, MutableArpPacket};
 use pnet::packet::ethernet::{MutableEthernetPacket, EtherTypes};
 use pnet::packet::ip::IpNextHeaderProtocols;
@@ -17,30 +17,6 @@ const ETHERNET_LEN: usize = 54;
 const IPV4_LEN: usize = 40;
 const TCP_LEN: usize = 20;
 
-
-pub fn send_arp_request(tx: &mut dyn datalink::DataLinkSender, my_mac: pnet::util::MacAddr, my_ip: Ipv4Addr, target_ip: Ipv4Addr) {
-    let mut ethernet_buffer = [0u8; 42];
-    let mut ethernet_packet = MutableEthernetPacket::new(&mut ethernet_buffer).unwrap();
-    ethernet_packet.set_destination(pnet::util::MacAddr::broadcast());
-    ethernet_packet.set_source(my_mac);
-    ethernet_packet.set_ethertype(EtherTypes::Arp);
-
-    let mut arp_buffer = [0u8; 28];
-    let mut arp_packet = MutableArpPacket::new(&mut arp_buffer).unwrap();
-    arp_packet.set_hardware_type(pnet::packet::arp::ArpHardwareTypes::Ethernet);
-    arp_packet.set_protocol_type(EtherTypes::Ipv4);
-    arp_packet.set_hw_addr_len(6);
-    arp_packet.set_proto_addr_len(4);
-    arp_packet.set_operation(ArpOperations::Request);
-    arp_packet.set_sender_hw_addr(my_mac);
-    arp_packet.set_sender_proto_addr(my_ip);
-    arp_packet.set_target_hw_addr(pnet::util::MacAddr::zero());
-    arp_packet.set_target_proto_addr(target_ip);
-
-    ethernet_packet.set_payload(&arp_buffer);
-
-    tx.send_to(ethernet_packet.packet(), None).unwrap().unwrap();
-}
 
 lazy_static! {
     static ref SENT_ARP_REPLIES: Mutex<HashSet<String>> = Mutex::new(HashSet::new());

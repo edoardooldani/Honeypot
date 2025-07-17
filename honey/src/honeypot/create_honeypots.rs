@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::network::graph::NetworkGraph;
+use crate::graph::types::NetworkGraph;
 
 const NUMBER_OF_HONEYPOTS: u8 = 10;
 

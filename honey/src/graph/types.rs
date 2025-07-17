@@ -3,7 +3,7 @@ use pnet::{packet::ethernet::EthernetPacket, util::MacAddr};
 use tokio::sync::Mutex;
 use std::{collections::HashMap, net::Ipv4Addr, sync::Arc};
 
-use crate::utilities::network::{generate_virtual_ip, generate_virtual_ipv6, generate_virtual_mac};
+use crate::graph::utils::{generate_virtual_ip, generate_virtual_ipv6, generate_virtual_mac, get_src_dest_ip};
 
 #[derive(Debug, Clone)]
 pub struct Connection {
@@ -25,6 +25,7 @@ pub struct NetworkNode {
     pub ipv4_address: Ipv4Addr,
     pub ipv6_address: Option<String>,
     pub node_type: NodeType,
+    pub anomalies: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -62,6 +63,7 @@ impl NetworkGraph {
             ipv4_address: ip_address.clone(),
             ipv6_address: None,
             node_type,
+            anomalies: 0,
         };
     
         if ip_address.octets()[3] == 254 {
@@ -81,7 +83,6 @@ impl NetworkGraph {
 
         let assigned_ip = generate_virtual_ip(self).await;
         let assigned_ipv6 = generate_virtual_ipv6();
-
         let assigned_mac = generate_virtual_mac();
 
         let node = NetworkNode {
@@ -89,6 +90,7 @@ impl NetworkGraph {
             ipv4_address: assigned_ip.clone(),
             ipv6_address: Some(assigned_ipv6.clone()),
             node_type: NodeType::Virtual,
+            anomalies: 0,
         };
 
         let node_index = self.graph.add_node(node.clone());
@@ -144,16 +146,6 @@ impl NetworkGraph {
         }
     }
 
-    pub fn print_real_nodes(&self) {
-        println!("\n📌 **Report finale dei nodi reali nel grafo:**");
-        for (_, &node_index) in &self.nodes {
-            let node = &self.graph[node_index];
-            if node.node_type == NodeType::Real {
-                println!("🟢 Nodo Reale: MAC={} | IP={:?}", node.mac_address, node.ipv4_address);
-            }
-        }
-    }
-
     pub fn print_virtual_nodes(&self) {
         println!("\n📌 **Report finale dei nodi VIRTUALI nel grafo:**");
         for (_, &node_index) in &self.nodes {
@@ -179,11 +171,11 @@ pub async fn update_graph_from_packet<'a>(
     let protocol = ethernet_packet.get_ethertype();
     let bytes = packet_len as u64;
 
-    let (src_ip, dest_ip) = crate::utilities::network::get_src_dest_ip(ethernet_packet)
+    let (src_ip, dest_ip) = get_src_dest_ip(ethernet_packet)
         .unwrap_or((Ipv4Addr::new(0, 0, 0, 0), Ipv4Addr::new(0, 0, 0, 0)));
 
-    let src_type = crate::utilities::network::classify_mac_address(src_mac);
-    let dest_type = crate::utilities::network::classify_mac_address(dest_mac);
+    let src_type = NodeType::Real;
+    let dest_type = NodeType::Real;
 
     if dest_ip == Ipv4Addr::new(0, 0, 0, 0) {
         return Ipv4Addr::new(0, 0, 0, 0);

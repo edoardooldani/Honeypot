@@ -1,14 +1,15 @@
-use pnet::datalink::{self, Channel, Config, DataLinkSender};
+use pnet::datalink::{self, Channel, Config, DataLinkSender, NetworkInterface};
 use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::Packet;
 use tokio_tungstenite::tungstenite::protocol::Message;
+use tracing::{info, error};
 use tract_onnx::prelude::SimplePlan;
 use std::net::Ipv4Addr;
 use tokio::sync::Mutex;
 use std::sync::Arc;
-use crate::utilities::network::{get_local_mac, get_primary_interface};
+use crate::graph::utils::{get_primary_interface};
 use crate::honeypot::handler::handle_virtual_packet;
-use crate::network::graph::{update_graph_from_packet, NetworkGraph};
+use crate::graph::types::{update_graph_from_packet, NetworkGraph};
 use crate::ai::detection::detect_anomaly;
 use tract_onnx::prelude::*;
 
@@ -20,12 +21,9 @@ pub async fn scan_datalink(
     ai_model: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>
 ) {
 
-    let interface = get_primary_interface().expect("No valid interface found");
-
-    let mut config = Config::default();
-    config.promiscuous = true;
+    let interface: NetworkInterface = get_primary_interface().expect("No valid interface found");
     
-    let (tx_datalink, mut rx) = match datalink::channel(&interface, config) {
+    let (tx_datalink, mut rx) = match datalink::channel(&interface, Config::default()) {
         Ok(Channel::Ethernet(tx, rx)) => (
             Arc::new(tokio::sync::Mutex::new(tx as Box<dyn DataLinkSender + Send>)),
             rx
@@ -34,24 +32,16 @@ pub async fn scan_datalink(
         Err(e) => panic!("Error opening channel: {}", e),
     };
 
-    println!("📡 Listening to the network traffic...");
-    let local_mac = get_local_mac();
+    info!("📡 Listening to the network traffic...");
+    let local_mac = interface.mac.expect("Couldn't get local mac address");
 
     loop {
         match rx.next() {
             Ok(packet) => {
                 if let Some(ethernet_packet) = EthernetPacket::new(packet) {
                     
-                    let src_mac = ethernet_packet.get_source();
-
-                    if src_mac == local_mac {
+                    if ethernet_packet.get_source() == local_mac {
                         continue;
-                    }
-                    if let Some(ethernet_packet) = EthernetPacket::new(packet){
-                        if ethernet_packet.get_destination() != local_mac {
-                            if detect_anomaly(Arc::clone(&ai_model), ethernet_packet).await{
-                            }
-                        }
                     }
                     
                     let dest_ip: Ipv4Addr = update_graph_from_packet(graph.clone(), &ethernet_packet, packet.len()).await;
@@ -74,14 +64,21 @@ pub async fn scan_datalink(
                                 &virtual_ip, 
                                 tx_clone
                             ).await;  
-                        });
-                                
+                        });        
+                    }
+
+                    if let Some(ethernet_packet) = EthernetPacket::new(packet){
+                        if ethernet_packet.get_destination() != local_mac {
+                            if detect_anomaly(Arc::clone(&ai_model), ethernet_packet).await{
+
+                            }
+                        }
                     }
                 }
 
             },
             Err(e) => {
-                eprintln!("❌ Error reading packet: {}", e);
+                error!("❌ Error reading packet: {}", e);
                 continue;
             }
         };

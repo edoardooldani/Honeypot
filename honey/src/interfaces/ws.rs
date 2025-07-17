@@ -3,9 +3,9 @@ use futures_util::{pin_mut, future, StreamExt};
 use tracing::{error, info, warn};
 use std::sync::Arc;
 use common::tls::generate_client_session_id;
-use crate::network::receiver::scan_datalink;
+use crate::interfaces::receiver::scan_datalink;
 use crate::honeypot::create_honeypots::create_honeypots;
-use crate::network::graph::NetworkGraph;
+use crate::graph::types::NetworkGraph;
 use crate::ai::model::load_model;
 use tokio::sync::Mutex;
 
