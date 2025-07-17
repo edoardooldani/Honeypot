@@ -110,7 +110,7 @@ pub struct PacketFeatures {
     pub subflow_bwd_byts: u32,
 
     // Init window sizes
-    pub init_fwd_win_byts: u16,
+    pub init_fwd_win_byts: i16,
     pub init_bwd_win_byts: u16,
 
     // TCP data segments
@@ -394,9 +394,12 @@ impl PacketFeatures {
                     self.fwd_header_len = ip_packet.get_header_length() as u32
                         + (tcp_packet.get_data_offset() * 4) as u32;
 
+                    /* 
                     if self.init_fwd_win_byts == 0 {
                         self.init_fwd_win_byts = tcp_packet.get_window();
                     }
+                    */
+                    self.init_fwd_win_byts = -1;
 
                     if tcp_packet.payload().len() > 0 {
                         self.fwd_act_data_pkts += 1;
@@ -410,10 +413,13 @@ impl PacketFeatures {
 
                     self.bwd_header_len = ip_packet.get_header_length() as u32
                         + (tcp_packet.get_data_offset() * 4) as u32;
-
+                    /* 
                     if self.init_bwd_win_byts == 0 {
                         self.init_bwd_win_byts = tcp_packet.get_window();
                     }
+                    */
+                    self.init_bwd_win_byts = 64240;
+
                 }
             }
         }
