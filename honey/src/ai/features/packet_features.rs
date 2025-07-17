@@ -305,7 +305,7 @@ impl PacketFeatures {
         } else {
             self.pkt_len_min.min(pkt_len)
         };
-        
+
         self.pkt_len_max = self.pkt_len_max.max(pkt_len);
         self.pkt_len_sq_sum += (pkt_len as f64).powi(2);
 
@@ -317,7 +317,10 @@ impl PacketFeatures {
         }
 
         self.update_packet_length_stats();
-        self.update_tcp_flags(ip_packet, dir);
+
+        if self.protocol == 6 { 
+            self.update_tcp_flags(ip_packet, dir);
+        }
 
         if self.tot_fwd_pkts > 0 {
             self.down_up_ratio = self.tot_bwd_pkts as f64 / self.tot_fwd_pkts as f64;
