@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::ai::features::packet_features::PacketFeatures;
 use lazy_static::lazy_static;
 use pnet::packet::{ethernet::EthernetPacket, ip::IpNextHeaderProtocols, ipv4::Ipv4Packet, udp::UdpPacket};
+use std::net::Ipv4Addr;
 use std::sync::Mutex;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::Packet;
@@ -87,10 +88,11 @@ pub async fn get_packet_flow_and_update<'a>(ethernet_packet: &EthernetPacket<'a>
                 let src_port = tcp_packet.get_source();
                 let dst_port = tcp_packet.get_destination();
 
+                // Ignoring mDNS packets
                 if src_port == 5353 && dst_port == 5353 {
                     return None;
                 }
-                
+
                 let key = FlowKey {
                     ip_src: src_ip,
                     ip_dst: dst_ip,
@@ -105,15 +107,18 @@ pub async fn get_packet_flow_and_update<'a>(ethernet_packet: &EthernetPacket<'a>
             }
         }
         else if protocol == IpNextHeaderProtocols::Udp {
-            if let Some(udp_packet) = UdpPacket::new(ip_packet.payload()) {
-                let src_port = udp_packet.get_source();
-                let dst_port = udp_packet.get_destination();
+            if let Some(_udp_packet) = UdpPacket::new(ip_packet.payload()) {
+
+                // Ignore mDNS packets for Apple devices
+                if dst_ip == Ipv4Addr::new(224, 0, 0, 251).to_string() {
+                    return None; 
+                }
 
                 let key = FlowKey {
                     ip_src: src_ip,
                     ip_dst: dst_ip,
-                    port_src: src_port,
-                    port_dst: dst_port,
+                    port_src: 0,
+                    port_dst: 0,
                     protocol: 17,
                 };
                 
