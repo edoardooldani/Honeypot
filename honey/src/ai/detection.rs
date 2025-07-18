@@ -3,7 +3,7 @@ use pnet::packet::ethernet::EthernetPacket;
 use crate::ai::features::{flow::get_packet_flow_and_update, tensor::normalize_tensor};
 use crate::ai::features::packet_features::PacketFeatures;
 use crate::ai::model::{run_autoencoder_inference, run_classifier_inference};
-use tracing::{info, warn};
+use tracing::warn;
 
 
 pub async fn detect_anomaly<'a>(
@@ -19,7 +19,7 @@ pub async fn detect_anomaly<'a>(
         return false;
     }
     let packet_features = packet_features.expect("Packet features should not be None");
-    
+
     let raw_tensor = packet_features.to_autoencoder_tensor();
     let feature_tensors = normalize_tensor(raw_tensor, "src/ai/models/autoencoder_scaler_params.json")
         .expect("Errore nella normalizzazione");
@@ -27,11 +27,10 @@ pub async fn detect_anomaly<'a>(
     match run_autoencoder_inference(&autoencoder, feature_tensors) {
         Ok(result) => {
             if result > 1.0 {
-                warn!("🚨 Anomaly detected: {:?}", result);
                 classify_anomaly(Arc::clone(&classifier), packet_features.clone());
                 return true;
             } 
-            info!("No anomaly detected: {:?}", result);
+            //info!("No anomaly detected: {:?}", result);
             return false;
         }
         Err(e) => {
@@ -53,7 +52,7 @@ pub fn classify_anomaly(
 
     match run_classifier_inference(&model_clone, feature_tensors) {
         Ok(score) => {
-            info!("Anomaly classified as normal with score: {}", score);
+            warn!("Anomaly score: {}", score);
         }
         Err(e) => warn!("❌ Error in classifier inference: {}", e),
     }
