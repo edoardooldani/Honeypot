@@ -3,7 +3,7 @@ from sklearn.preprocessing import StandardScaler
 import json
 
 def load_and_preprocess(csv_path):
-    df = pd.read_csv(csv_path, sep=';')
+    df = pd.read_csv(csv_path)
     df.drop_duplicates(inplace=True)
 
     labels = df["Label"]
