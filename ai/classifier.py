@@ -75,13 +75,12 @@ def train_classifier(model, X, y, epochs=50, batch_size=256, lr=1e-3):
 
 def export_classifier_to_onnx(model, X_sample, path="models/classifier.onnx"):
     model.eval()
-
-    export_model = nn.Sequential(model, nn.Softmax(dim=1))
+    exportable = ExportableClassifier(model)
 
     example_input = torch.tensor(X_sample[:1], dtype=torch.float32)
 
     torch.onnx.export(
-        export_model,
+        exportable,
         example_input,
         path,
         input_names=["input"],
@@ -90,3 +89,13 @@ def export_classifier_to_onnx(model, X_sample, path="models/classifier.onnx"):
         opset_version=11
     )
     print(f"✅ Classificatore esportato in ONNX: {path}")
+
+
+class ExportableClassifier(nn.Module):
+    def __init__(self, trained_model):
+        super().__init__()
+        self.model = trained_model.model  # Usa solo la rete interna
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, x):
+        return self.softmax(self.model(x))

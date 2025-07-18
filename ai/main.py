@@ -3,6 +3,7 @@ from autoencoder import Autoencoder, export_to_onnx, train_autoencoder
 from preprocessing import load_and_preprocess_classifier
 from classifier import Classifier, train_classifier, export_classifier_to_onnx
 import matplotlib.pyplot as plt
+import onnxruntime as ort
 
 
 def autoencoder_pipeline():
@@ -23,7 +24,7 @@ def autoencoder_pipeline():
     plt.show()
 
 
-autoencoder_pipeline()
+#autoencoder_pipeline()
 X_scaled, y_encoded, label_encoder = load_and_preprocess_classifier("dataset/CICIDS2017/")
 
 model = Classifier(input_dim=X_scaled.shape[1], num_classes=len(label_encoder.classes_))
@@ -39,3 +40,22 @@ plt.title("Train vs Validation Accuracy")
 plt.grid(True)
 plt.legend()
 plt.show()
+
+
+# Sample input dal dataset
+X_sample = X_scaled[:1].astype("float32")
+
+# Carica il modello esportato
+session = ort.InferenceSession("models/classifier.onnx")
+input_name = session.get_inputs()[0].name
+output_name = session.get_outputs()[0].name
+
+# Fai inferenza
+output = session.run([output_name], {input_name: X_sample})
+predicted_probabilities = output[0]
+predicted_class_idx = predicted_probabilities.argmax()
+predicted_label = label_encoder.inverse_transform([predicted_class_idx])[0]
+
+print("🔮 Predicted class probabilities:", predicted_probabilities)
+print("🏷️ Predicted class index:", predicted_class_idx)
+print("🧠 Predicted label:", predicted_label)
