@@ -120,7 +120,7 @@ impl NetworkGraph {
 }
 
 impl NetworkNode {
-    pub fn add_anomaly(&mut self, ethernet_packet: &EthernetPacket) {
+    pub fn add_anomaly(&mut self, ethernet_packet: &EthernetPacket) -> Anomaly {
         let (src_ip, dst_ip) = get_src_and_dest_ip(ethernet_packet)
             .map(|(s, d)| (Some(s), Some(d)))
             .unwrap_or((None, None));
@@ -135,6 +135,8 @@ impl NetworkNode {
             protocol,
             timestamp: SystemTime::now(),
         };
-        self.anomalies.push(anomaly);
+        self.anomalies.push(anomaly.clone());
+
+        anomaly
     }
 }

@@ -66,9 +66,9 @@ pub async fn scan_datalink(
                         let packet_ethernet = EthernetPacket::new(&packet_data).unwrap();
                         
                         let src_node = graph_lock.get_node_by_mac(packet_ethernet.get_source()).expect("Node not found");
-                        src_node.add_anomaly(&packet_ethernet);
+                        let anomaly = src_node.add_anomaly(&packet_ethernet);
 
-                        println!("\nAnomaly detected and logged: {:?}", src_node);
+                        println!("\nAnomaly detected and logged from {:?} to {:?} with prot {:?} ports: {:?} and {:?}", anomaly.src_ip, anomaly.dst_ip, anomaly.protocol, anomaly.src_port, anomaly.dst_port);
                     }
                     
                     
