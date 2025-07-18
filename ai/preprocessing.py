@@ -26,9 +26,6 @@ def load_and_preprocess_autoencoder(csv_path):
     df_final = pd.concat([scaled_part, df[cols_to_keep]], axis=1)
     df_final = df_final[df.columns]
 
-    print("🚨 Ordine delle feature usate:")
-    print(df_final.columns.tolist()) 
-
     def normalize_column_name(col):
         return col.lower().replace(' ', '_')
 

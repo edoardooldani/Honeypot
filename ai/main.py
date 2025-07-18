@@ -23,7 +23,7 @@ def autoencoder_pipeline():
     plt.show()
 
 
-
+autoencoder_pipeline()
 X_scaled, y_encoded, label_encoder = load_and_preprocess_classifier("dataset/CICIDS2017/")
 
 model = Classifier(input_dim=X_scaled.shape[1], num_classes=len(label_encoder.classes_))
