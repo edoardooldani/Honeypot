@@ -62,10 +62,11 @@ pub async fn scan_datalink(
                     let packet_ethernet = EthernetPacket::new(&packet_data).unwrap();
 
                     if detect_anomaly(Arc::clone(&ai_model), packet_ethernet).await{
+                        
                         let packet_data = ethernet_packet.packet().to_vec();
                         let packet_ethernet = EthernetPacket::new(&packet_data).unwrap();
                         dest_node.add_anomaly(&packet_ethernet);
-                        
+
                         println!("Anomaly detected and logged: {:?}", dest_node);
                     }
                     

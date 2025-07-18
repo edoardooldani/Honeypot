@@ -14,8 +14,8 @@ use std::time::SystemTime;
 
 #[derive(Debug, Clone)]
 pub struct Anomaly {
-    pub src_ip: Ipv4Addr,
-    pub dst_ip: Ipv4Addr,
+    pub src_ip: Option<Ipv4Addr>,
+    pub dst_ip: Option<Ipv4Addr>,
     pub src_port: u16,
     pub dst_port: u16,
     pub protocol: u8,
@@ -25,7 +25,7 @@ pub struct Anomaly {
 #[derive(Debug, Clone)]
 pub struct NetworkNode {
     pub mac_address: MacAddr,
-    pub ipv4_address: Ipv4Addr,
+    pub ipv4_address: Option<Ipv4Addr>,
     pub ipv6_address: Option<String>,
     pub node_type: NodeType,
     pub anomalies: Vec<Anomaly>,
@@ -48,7 +48,7 @@ impl NetworkGraph {
     }
 
     pub fn find_by_ip(&self, ip: Ipv4Addr) -> Option<&NetworkNode> {
-        self.nodes.values().find(|n| n.ipv4_address == ip)
+        self.nodes.values().find(|n| n.ipv4_address == Some(ip))
     }
 
     pub fn get_node_by_mac(&mut self, mac: MacAddr) -> Option<&mut NetworkNode> {
@@ -60,8 +60,9 @@ impl NetworkGraph {
         ethernet_packet: &'a EthernetPacket<'a>,
         local_mac: MacAddr,
     ) {
-        let (src_ip, dest_ip) = get_src_and_dest_ip(ethernet_packet)
-            .expect("Failed to extract source and destination IPs");
+        let (src_ip, dst_ip) = get_src_and_dest_ip(ethernet_packet)
+        .map(|(s, d)| (Some(s), Some(d)))
+        .unwrap_or((None, None));
 
         let src_mac = ethernet_packet.get_source();
         let dst_mac = ethernet_packet.get_destination();
@@ -79,7 +80,7 @@ impl NetworkGraph {
         if self.get_node_by_mac(dst_mac).is_none() {
             self.add_node(NetworkNode {
                 mac_address: dst_mac,
-                ipv4_address: dest_ip,
+                ipv4_address: dst_ip,
                 ipv6_address: None,
                 node_type: if dst_mac == local_mac { NodeType::Device } else { NodeType::Physical },
                 anomalies: Vec::new(),
@@ -97,7 +98,7 @@ impl NetworkGraph {
 
         let node = NetworkNode {
             mac_address: assigned_mac,
-            ipv4_address: assigned_ip,
+            ipv4_address: Some(assigned_ip),
             ipv6_address: Some(assigned_ipv6),
             node_type: NodeType::Virtual,
             anomalies: Vec::new(),
@@ -121,7 +122,8 @@ impl NetworkGraph {
 impl NetworkNode {
     pub fn add_anomaly(&mut self, ethernet_packet: &EthernetPacket) {
         let (src_ip, dst_ip) = get_src_and_dest_ip(ethernet_packet)
-            .expect("Failed to extract source and destination IPs");
+            .map(|(s, d)| (Some(s), Some(d)))
+            .unwrap_or((None, None));
 
         let (src_port, dst_port, protocol) = get_src_and_dest_transport(ethernet_packet);
         

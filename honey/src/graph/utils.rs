@@ -8,18 +8,12 @@ use crate::graph::types::NetworkGraph;
 pub fn get_src_and_dest_ip(packet: &EthernetPacket) -> Option<(Ipv4Addr, Ipv4Addr)> {
     match packet.get_ethertype() {
         EtherTypes::Arp => {
-            if let Some(arp_packet) = ArpPacket::new(packet.payload()) {
-                let src_ip = arp_packet.get_sender_proto_addr();
-                let dst_ip = arp_packet.get_target_proto_addr();
-                return Some((src_ip, dst_ip)); 
-            }
+            let arp_packet = ArpPacket::new(packet.payload())?;
+            return Some((arp_packet.get_sender_proto_addr(), arp_packet.get_target_proto_addr()))
         }
         EtherTypes::Ipv4 => {
-            if let Some(ipv4_packet) = Ipv4Packet::new(packet.payload()) {
-                let src_ip = ipv4_packet.get_source();
-                let dst_ip = ipv4_packet.get_destination();
-                return Some((src_ip, dst_ip));
-            }
+            let ipv4_packet = Ipv4Packet::new(packet.payload())?;
+            return Some((ipv4_packet.get_source(), ipv4_packet.get_destination()))
         }
         _ => {}
     }
@@ -78,7 +72,7 @@ pub fn generate_virtual_ip(graph: &NetworkGraph) -> Ipv4Addr {
     loop {
         let new_ip = Ipv4Addr::new(base_ip[0], base_ip[1], base_ip[2], last_octet);
 
-        if !graph.nodes.values().any(|node| node.ipv4_address == new_ip) {
+        if !graph.nodes.values().any(|node| node.ipv4_address == Some(new_ip)) {
             return new_ip;
         }
 
