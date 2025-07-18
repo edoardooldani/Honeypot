@@ -7,6 +7,7 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio::sync::Mutex;
 use common::types::PayloadType;
 use common::packet::{build_packet, calculate_header};
+use tracing::{info, warn};
 
 
 pub async fn detect_anomaly<'a>(
@@ -26,11 +27,12 @@ pub async fn detect_anomaly<'a>(
             
             match run_inference(&model, feature_tensors) {
                 Ok(result) => {
-                    println!("✅ Inference result: {:?}", result);
                     if result > 1.0 {
-                        println!("Packet features: {:?}", packet_features);
+                        warn!("🚨 Anomaly detected: {:?}", result);
+                        //println!("Packet features: {:?}", packet_features);
                         return true;
                     } 
+                    info!("No anomaly detected: {:?}", result);
                 }
                 Err(e) => {
                     eprintln!("❌ Errore nell'inferenza: {}", e);
