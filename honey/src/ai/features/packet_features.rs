@@ -822,7 +822,7 @@ impl PacketFeatures {
             self.idle_min as f32,
         ];
         
-        debug_assert_eq!(input_data.len(), 81);
+        debug_assert_eq!(input_data.len(), 78);
         tract_ndarray::Array2::from_shape_vec((1, input_data.len()), input_data)
             .unwrap()
             .into()
