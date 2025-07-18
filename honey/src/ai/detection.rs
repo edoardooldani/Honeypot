@@ -14,8 +14,12 @@ pub async fn detect_anomaly<'a>(
     let autoencoder = Arc::clone(&autoencoder);
     let classifier = Arc::clone(&classifier);
 
-    let packet_features = get_packet_flow_and_update(&ethernet_packet).await.expect("Failed to get packet features");
-
+    let packet_features = get_packet_flow_and_update(&ethernet_packet).await;
+    if packet_features.is_none() {
+        return false;
+    }
+    let packet_features = packet_features.expect("Packet features should not be None");
+    
     let raw_tensor = packet_features.to_autoencoder_tensor();
     let feature_tensors = normalize_tensor(raw_tensor, "src/ai/models/autoencoder_scaler_params.json")
         .expect("Errore nella normalizzazione");
