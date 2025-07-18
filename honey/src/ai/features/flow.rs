@@ -87,6 +87,10 @@ pub async fn get_packet_flow_and_update<'a>(ethernet_packet: &EthernetPacket<'a>
                 let src_port = tcp_packet.get_source();
                 let dst_port = tcp_packet.get_destination();
 
+                if src_port == 5353 && dst_port == 5353 {
+                    return None;
+                }
+                
                 let key = FlowKey {
                     ip_src: src_ip,
                     ip_dst: dst_ip,
