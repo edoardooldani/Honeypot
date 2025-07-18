@@ -23,8 +23,6 @@ pub async fn detect_anomaly<'a>(
             let raw_tensor = packet_features.to_tensor();
             let feature_tensors = normalize_tensor(raw_tensor, "src/ai/models/scaler_params.json")
                 .expect("Errore nella normalizzazione");
-
-            //println!("\nFeature tensor after norm: {:?}", feature_tensors);
             
             match run_inference(&model, feature_tensors) {
                 Ok(result) => {

@@ -5,7 +5,7 @@ use pnet::datalink;
 use rand::Rng;
 use crate::graph::types::NetworkGraph;
 
-pub fn get_src_dest_ip(packet: &EthernetPacket) -> Option<(Ipv4Addr, Ipv4Addr)> {
+pub fn get_src_and_dest_ip(packet: &EthernetPacket) -> Option<(Ipv4Addr, Ipv4Addr)> {
     match packet.get_ethertype() {
         EtherTypes::Arp => {
             if let Some(arp_packet) = ArpPacket::new(packet.payload()) {
@@ -26,6 +26,38 @@ pub fn get_src_dest_ip(packet: &EthernetPacket) -> Option<(Ipv4Addr, Ipv4Addr)> 
     None
 }
 
+pub fn get_src_and_dest_transport(packet: &EthernetPacket) -> (u16, u16, u8) {
+    match packet.get_ethertype() {
+        EtherTypes::Ipv4 => {
+            if let Some(ipv4_packet) = Ipv4Packet::new(packet.payload()) {
+                let next_protocol = ipv4_packet.get_next_level_protocol();
+                match next_protocol {
+                    pnet::packet::ip::IpNextHeaderProtocols::Tcp => {
+                        if let Some(transport_packet) = pnet::packet::tcp::TcpPacket::new(ipv4_packet.payload()) {
+                            let src_port = transport_packet.get_source();
+                            let dst_port = transport_packet.get_destination();
+                            return (src_port, dst_port, 6);
+                        }
+                    }
+                    pnet::packet::ip::IpNextHeaderProtocols::Udp => {
+                        if let Some(_transport_packet) = pnet::packet::udp::UdpPacket::new(ipv4_packet.payload()) {
+                            return (0, 0, 17);
+                        }
+                    }
+                    pnet::packet::ip::IpNextHeaderProtocols::Icmp => {
+                        return (0, 0, 0);
+                    }
+                    _ => {}
+                }
+                
+            }
+        }
+        _ => {}
+    }
+    return (0, 0, 0);
+}
+
+
 
 pub fn get_primary_interface() -> Option<NetworkInterface> {
     let interfaces = datalink::interfaces();
@@ -37,7 +69,7 @@ pub fn get_primary_interface() -> Option<NetworkInterface> {
 }
 
 
-pub async fn generate_virtual_ip(graph: &mut NetworkGraph) -> Ipv4Addr {
+pub fn generate_virtual_ip(graph: &NetworkGraph) -> Ipv4Addr {
     let mut rng = rand::rng();
     let mut last_octet = rng.random_range(100..115);
 
@@ -46,7 +78,7 @@ pub async fn generate_virtual_ip(graph: &mut NetworkGraph) -> Ipv4Addr {
     loop {
         let new_ip = Ipv4Addr::new(base_ip[0], base_ip[1], base_ip[2], last_octet);
 
-        if !graph.graph.node_weights().any(|node| node.ipv4_address == new_ip) {
+        if !graph.nodes.values().any(|node| node.ipv4_address == new_ip) {
             return new_ip;
         }
 

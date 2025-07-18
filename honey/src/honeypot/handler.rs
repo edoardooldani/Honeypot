@@ -1,30 +1,26 @@
-use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherType, EtherTypes}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}, util::MacAddr};
+use pnet::{datalink::DataLinkSender, packet::{arp::{ArpOperations, ArpPacket}, ethernet::{EtherTypes, EthernetPacket}, ip::IpNextHeaderProtocols, tcp::{TcpFlags, TcpPacket}, Packet}};
 use tokio::sync::Mutex;
 use tracing::error;
 //use crate::{network::sender::send_arp_reply, honeypot::proxy::ssh::handle_ssh_connection};
 use crate::interfaces::sender::send_arp_reply;
-use std::{net::Ipv4Addr, sync::Arc};
+use std::sync::Arc;
 
 use super::tcp::handle_tcp_packet;
 
 
 pub async fn handle_virtual_packet<'a>(
-    ethertype: EtherType,
-    payload: Vec<u8>,
-    source: &MacAddr,
-    virtual_mac: &MacAddr,
-    virtual_ip: &Ipv4Addr,
+    ethernet_packet: EthernetPacket<'a>,
     tx: Arc<Mutex<Box<dyn DataLinkSender + Send>>>
 ) {
 
-    match ethertype {
+    match ethernet_packet.get_ethertype() {
         EtherTypes::Arp => {
-            if let Some(arp_packet) = ArpPacket::new(payload.as_slice()) {
+            if let Some(arp_packet) = ArpPacket::new(ethernet_packet.payload()) {
                 if arp_packet.get_operation() == ArpOperations::Request{
 
                     let _ = send_arp_reply(
-                        *virtual_mac, 
-                        *virtual_ip, 
+                        ethernet_packet.get_destination(), 
+                        arp_packet.get_target_proto_addr(), 
                         arp_packet.get_sender_hw_addr(),
                         arp_packet.get_sender_proto_addr(),
                         tx.clone()
@@ -35,7 +31,7 @@ pub async fn handle_virtual_packet<'a>(
         }
 
         EtherTypes::Ipv4 => {
-            if let Some(ipv4_packet) = pnet::packet::ipv4::Ipv4Packet::new(payload.as_slice()) {
+            if let Some(ipv4_packet) = pnet::packet::ipv4::Ipv4Packet::new(ethernet_packet.payload()) {
                 let next_protocol = ipv4_packet.get_next_level_protocol();
                 match next_protocol {
                     IpNextHeaderProtocols::Tcp => {
@@ -54,23 +50,23 @@ pub async fn handle_virtual_packet<'a>(
                                 handle_tcp_packet(
                                     tx.clone(), 
                                     tcp_packet, 
-                                    *virtual_mac, 
+                                    ethernet_packet.get_destination(), 
                                     ipv4_packet.get_destination(),
                                     ipv4_packet.get_source(), 
-                                    *source,
+                                    ethernet_packet.get_source(),
                                 ).await;
                             }   
                         }
                     }
                     _ => {
-                        println!("Protocollo IP non supportato: {:?}", next_protocol);
+                        error!("Protocollo IP non supportato: {:?}", next_protocol);
                     }
                 }
             }
         }
 
         _ => {
-            error!("EtherType not supported: {:?}", ethertype);
+            error!("EtherType not supported: {:?}", ethernet_packet.get_ethertype());
         }
     }
 }

@@ -26,11 +26,11 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
     let stdin_tx_pong = stdin_tx.clone();
     let stdin_tx_graph = stdin_tx.clone();
 
-    let graph = Arc::new(Mutex::new(NetworkGraph::new()));
+    let graph = Arc::new(Mutex::new(NetworkGraph::default()));
     let graph_clone = Arc::clone(&graph);
     let graph_virtual_clone = Arc::clone(&graph);
 
-    println!("🖥️ WebSocket connection established, session ID: {}", *session_id.lock().await);
+    info!("🖥️ WebSocket connection established, session ID: {}", *session_id.lock().await);
 
     let ai_model = load_model();
     let model = Arc::new(ai_model);
