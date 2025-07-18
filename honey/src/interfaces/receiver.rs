@@ -1,7 +1,7 @@
 use pnet::datalink::{self, Channel, Config, DataLinkSender, NetworkInterface};
 use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::Packet;
-use tokio_tungstenite::tungstenite::protocol::Message;
+//use tokio_tungstenite::tungstenite::protocol::Message;
 use tracing::{info, error};
 use tract_onnx::prelude::SimplePlan;
 use tokio::sync::Mutex;
@@ -14,10 +14,11 @@ use tract_onnx::prelude::*;
 
 
 pub async fn scan_datalink(
-    _tx_ws: futures_channel::mpsc::UnboundedSender<Message>, 
-    _session_id: Arc<Mutex<u32>>, 
+    //_tx_ws: futures_channel::mpsc::UnboundedSender<Message>, 
+    //_session_id: Arc<Mutex<u32>>, 
     graph: Arc<Mutex<NetworkGraph>>,
-    ai_model: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>
+    autoencoder_model: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
+    classifier_model: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>
 ) {
 
     let interface: NetworkInterface = get_primary_interface().expect("No valid interface found");
@@ -61,14 +62,12 @@ pub async fn scan_datalink(
                     let packet_data = ethernet_packet.packet().to_vec();
                     let packet_ethernet = EthernetPacket::new(&packet_data).unwrap();
 
-                    if detect_anomaly(Arc::clone(&ai_model), packet_ethernet).await{
+                    if detect_anomaly(Arc::clone(&autoencoder_model), Arc::clone(&classifier_model), packet_ethernet).await {    
                         let packet_data = ethernet_packet.packet().to_vec();
                         let packet_ethernet = EthernetPacket::new(&packet_data).unwrap();
                         
                         let src_node = graph_lock.get_node_by_mac(packet_ethernet.get_source()).expect("Node not found");
-                        let anomaly = src_node.add_anomaly(&packet_ethernet);
-
-                        println!("\nAnomaly detected and logged from {:?} to {:?} with prot {:?} ports: {:?} and {:?}", anomaly.src_ip, anomaly.dst_ip, anomaly.protocol, anomaly.src_port, anomaly.dst_port);
+                        src_node.add_anomaly(&packet_ethernet);
                     }
                     
                     

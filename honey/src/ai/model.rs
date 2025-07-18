@@ -1,15 +1,15 @@
 use tract_onnx::prelude::*;
 
-pub fn load_model() -> SimplePlan<TypedFact, Box<dyn TypedOp>, tract_onnx::prelude::Graph<TypedFact, Box<dyn TypedOp>>>{
+pub fn load_autoencoder_model() -> SimplePlan<TypedFact, Box<dyn TypedOp>, tract_onnx::prelude::Graph<TypedFact, Box<dyn TypedOp>>>{
     let model = tract_onnx::onnx()
-    .model_for_path("src/ai/models/autoencoder.onnx").expect("Failed to load model")
-    .into_optimized().expect("Failed to optimize model")
-    .into_runnable().expect("Failed to create runnable model");
+    .model_for_path("src/ai/models/autoencoder.onnx").expect("Failed to load autoencoder model")
+    .into_optimized().expect("Failed to optimize autoencoder model")
+    .into_runnable().expect("Failed to create runnable autoencoder model");
     return model;
 }
 
 
-pub fn run_inference(model: &SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>, input_tensor: Tensor) -> TractResult<f32> {
+pub fn run_autoencoder_inference(model: &SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>, input_tensor: Tensor) -> TractResult<f32> {
     let input = input_tensor.clone();
 
     let result = model.run(tvec!(input_tensor.into()))?;
@@ -26,3 +26,30 @@ pub fn run_inference(model: &SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<Typed
     Ok(mae)
 }
 
+
+pub fn load_classifier_model() -> SimplePlan<TypedFact, Box<dyn TypedOp>, tract_onnx::prelude::Graph<TypedFact, Box<dyn TypedOp>>>{
+    let model = tract_onnx::onnx()
+    .model_for_path("src/ai/models/classifier.onnx").expect("Failed to load classifier model")
+    .into_optimized().expect("Failed to optimize classifier model")
+    .into_runnable().expect("Failed to create runnable classifier model");
+    return model;
+}
+
+
+pub fn run_classifier_inference(
+    model: &SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>,
+    input_tensor: Tensor,
+) -> TractResult<usize> {
+    let result = model.run(tvec!(input_tensor.into()))?;
+    let output_tensor = result[0].to_array_view::<f32>()?;
+
+    // Assumiamo output di forma [1, num_classes]
+    let class_index = output_tensor
+        .iter()
+        .enumerate()
+        .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+        .map(|(idx, _)| idx)
+        .unwrap();
+
+    Ok(class_index)
+}

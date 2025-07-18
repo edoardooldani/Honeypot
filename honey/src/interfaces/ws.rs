@@ -6,7 +6,7 @@ use common::tls::generate_client_session_id;
 use crate::interfaces::receiver::scan_datalink;
 use crate::honeypot::create_honeypots::create_honeypots;
 use crate::graph::types::NetworkGraph;
-use crate::ai::model::load_model;
+use crate::ai::model::{load_autoencoder_model, load_classifier_model};
 use tokio::sync::Mutex;
 
 
@@ -24,7 +24,7 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
 
     let (stdin_tx, stdin_rx) = futures_channel::mpsc::unbounded();
     let stdin_tx_pong = stdin_tx.clone();
-    let stdin_tx_graph = stdin_tx.clone();
+    //let stdin_tx_graph = stdin_tx.clone();
 
     let graph = Arc::new(Mutex::new(NetworkGraph::default()));
     let graph_clone = Arc::clone(&graph);
@@ -32,12 +32,15 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
 
     info!("🖥️ WebSocket connection established, session ID: {}", *session_id.lock().await);
 
-    let ai_model = load_model();
-    let model = Arc::new(ai_model);
+    let autoencoder_model = load_autoencoder_model();
+    let autoencoder = Arc::new(autoencoder_model);
 
+    let classifier_model = load_classifier_model();
+    let classifier = Arc::new(classifier_model);
 
     tokio::spawn(create_honeypots(graph_virtual_clone));
-    tokio::spawn(scan_datalink(stdin_tx_graph, Arc::clone(&session_id), graph_clone, model.clone()));
+    //tokio::spawn(scan_datalink(stdin_tx_graph, Arc::clone(&session_id), graph_clone, autoencoder.clone()));
+    tokio::spawn(scan_datalink(graph_clone, autoencoder.clone(), classifier.clone()));
 
     let (mut write, read) = ws_stream.split();
     let stdin_to_ws = stdin_rx.map(Ok).forward(&mut write);
