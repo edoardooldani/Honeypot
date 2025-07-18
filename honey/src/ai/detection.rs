@@ -50,6 +50,20 @@ pub fn classify_anomaly(
     let feature_tensors = normalize_tensor(raw_tensor, "src/ai/models/classifier_scaler_params.json", false)
         .expect("Errore nella normalizzazione");
 
+    fn print_tensor(tensor: &Tensor) {
+        match tensor.to_array_view::<f32>() {
+            Ok(array) => {
+                println!("✅ Tensor shape: {:?}", array.shape());
+                for (i, val) in array.iter().enumerate() {
+                    println!("  [{}] {:.6}", i, val);
+                }
+            }
+            Err(e) => {
+                eprintln!("❌ Errore nella visualizzazione tensor: {:?}", e);
+            }
+        }        
+    }
+    print_tensor(&feature_tensors);
     match run_classifier_inference(&model_clone, feature_tensors) {
         Ok(score) => {
             warn!("Anomaly score: {}", score);
