@@ -62,15 +62,14 @@ def load_and_preprocess_classifier(folder_path: str):
     benign_sampled = benign_df.sample(n=target_benign, random_state=42)
     # Ricombina
     df = pd.concat([benign_sampled, attack_df], ignore_index=True).sample(frac=1.0, random_state=42)
-    
-    rare_classes = [
+
+    classes_to_remove = [
         "Infiltration",
         "Web Attack � Sql Injection",
         "Heartbleed",
         "Web Attack � XSS"
     ]
-
-    df["Label"] = df["Label"].replace({cls: "Other" for cls in rare_classes})
+    df = df[~df["Label"].isin(classes_to_remove)]
 
     rename_map = {
         "Destination Port": "dst_port",

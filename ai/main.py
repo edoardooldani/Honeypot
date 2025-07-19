@@ -35,8 +35,8 @@ def classifier_pipeline():
 
     smote_target = {
         1: 3000,   # Bot
-        10: 4500,  # SSH-Patator
-        11: 2000,   # Brute Force
+        9: 4500,  # SSH-Patator
+        10: 2000,   # Brute Force
     }
 
     smote = SMOTE(sampling_strategy=smote_target, random_state=42)
