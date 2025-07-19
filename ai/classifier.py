@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split
+from sklearn.utils.class_weight import compute_class_weight
+import numpy as np
 
 
 class Classifier(nn.Module):
@@ -33,7 +35,14 @@ def train_classifier(model, X, y, epochs=50, batch_size=256, lr=1e-3):
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=batch_size)
 
-    criterion = nn.CrossEntropyLoss()
+    class_weights = compute_class_weight(
+        class_weight='balanced',
+        classes=np.unique(y),
+        y=y
+    )
+    class_weights_tensor = torch.tensor(class_weights, dtype=torch.float32).to(device)
+
+    criterion = nn.CrossEntropyLoss(weight=class_weights_tensor)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     train_acc, val_acc = [], []

@@ -40,9 +40,9 @@ pub async fn scan_datalink(
             Ok(packet) => {
                 if let Some(ethernet_packet) = EthernetPacket::new(packet) {
                     
-                    if ethernet_packet.get_source() == local_mac {
-                        continue;
-                    }
+                    //if ethernet_packet.get_source() == local_mac {
+                    //    continue;
+                    //}
                     
                     let mut graph_lock = graph.lock().await;
                     

@@ -2,6 +2,7 @@ pub mod graph;
 pub mod honeypot;
 pub mod interfaces;
 pub mod ai;
+use tokio::sync::Mutex;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 use std::env;
@@ -9,6 +10,9 @@ use tokio_tungstenite::{connect_async_tls_with_config, Connector};
 use std::sync::Arc;
 use std::path::PathBuf;
 use common::tls::rustls_client_config;
+use crate::ai::model::{load_autoencoder_model, load_classifier_model};
+use crate::graph::types::NetworkGraph;
+use crate::interfaces::receiver::scan_datalink;
 use crate::interfaces::ws::handle_websocket;
 
 #[tokio::main]
@@ -20,7 +24,17 @@ async fn main() {
     .with_line_number(true)
     .init();
 
-    connect_websocket().await;
+    //connect_websocket().await;
+    let graph = Arc::new(Mutex::new(NetworkGraph::default()));
+    let graph_clone = Arc::clone(&graph);
+
+
+    let autoencoder_model = load_autoencoder_model();
+    let autoencoder = Arc::new(autoencoder_model);
+
+    let classifier_model = load_classifier_model();
+    let classifier = Arc::new(classifier_model);
+    scan_datalink(graph_clone, autoencoder.clone(), classifier.clone()).await;
 }
 
 

@@ -53,12 +53,13 @@ def load_and_preprocess_classifier(folder_path: str):
     df = df.drop_duplicates()
 
     df.columns = df.columns.str.strip()
-    print(df.columns.tolist())
 
     # Rimuovi colonne inutili o ridondanti
     if "Label" not in df.columns:
         raise ValueError("Colonna 'Label' non trovata nel dataset.")
     
+    print(df["Label"].value_counts())
+
     y_raw = df["Label"]
     X_raw = df.select_dtypes(include=[np.number]).drop(columns=["Flow ID", "Timestamp"], errors="ignore")
 
