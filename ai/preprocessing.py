@@ -36,11 +36,16 @@ def load_and_preprocess_autoencoder(csv_path):
     # ✅ Verifica che le dimensioni coincidano
     assert df_final.shape[1] == len(ordered_columns), "Mismatch tra DataFrame e colonne scaler"
 
+    def normalize_column_name(col):
+        return col.strip().lower().replace(' ', '_').replace('/', '_').replace('-', '_')
+
+    normalized_columns = [normalize_column_name(c) for c in ordered_columns]
+
     # Salva scaler params
     scaler_params = {
         "mean": scaler.mean_.tolist(),
         "scale": scaler.scale_.tolist(),
-        "columns": ordered_columns  # usa l’ordine corretto
+        "columns": normalized_columns
     }
 
     with open("models/autoencoder_scaler_params.json", "w") as f:
