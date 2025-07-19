@@ -3,7 +3,7 @@ use pnet::packet::ethernet::EthernetPacket;
 use crate::ai::features::{flow::get_packet_flow_and_update, tensor::{get_scaler, normalize_tensor}};
 use crate::ai::features::packet_features::PacketFeatures;
 use crate::ai::model::{run_autoencoder_inference, run_classifier_inference};
-use tracing::warn;
+use tracing::{info, warn};
 
 
 pub async fn detect_anomaly<'a>(
@@ -32,7 +32,7 @@ pub async fn detect_anomaly<'a>(
                 classify_anomaly(Arc::clone(&classifier), packet_features.clone());
                 return true;
             } 
-            //info!("No anomaly detected: {:?}", result);
+            info!("No anomaly detected: {:?}", result);
             return false;
         }
         Err(e) => {
