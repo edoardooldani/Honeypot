@@ -88,6 +88,9 @@ def export_classifier_to_onnx(model, X_sample, path="models/classifier.onnx"):
 
     example_input = torch.tensor(X_sample[:1], dtype=torch.float32)
 
+    sample = torch.tensor(X_sample[:1], dtype=torch.float32)
+    print("Raw logits:", model(sample))
+    print("Softmax:", nn.Softmax(dim=1)(model(sample)))
     torch.onnx.export(
         exportable,
         example_input,
