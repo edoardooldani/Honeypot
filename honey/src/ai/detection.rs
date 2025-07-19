@@ -5,6 +5,13 @@ use crate::ai::features::packet_features::PacketFeatures;
 use crate::ai::model::{run_autoencoder_inference, run_classifier_inference};
 use tracing::{info, warn};
 
+pub fn should_evaluate(flow: &PacketFeatures) -> bool {
+    let enough_pkts = flow.tot_fwd_pkts >= 5 && flow.tot_bwd_pkts >= 3;
+    let long_enough = flow.flow_duration > 2000.0;
+    let likely_finished = flow.fin_flag_cnt > 0 || flow.rst_flag_cnt > 0;
+
+    enough_pkts || long_enough || likely_finished
+}
 
 pub async fn detect_anomaly<'a>(
     autoencoder: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
@@ -26,19 +33,22 @@ pub async fn detect_anomaly<'a>(
     let feature_tensors = normalize_tensor(raw_tensor, scaler)
         .expect("Errore nella normalizzazione");
     
-    match run_autoencoder_inference(&autoencoder, feature_tensors) {
-        Ok(result) => {
-            if result > 1.0 {
-                classify_anomaly(Arc::clone(&classifier), packet_features.clone());
-                return true;
-            } 
-            info!("No anomaly detected: {:?}", result);
-            return false;
-        }
-        Err(e) => {
-            eprintln!("❌ Errore nell'inferenza: {}", e);
+    if should_evaluate(&packet_features.clone()){
+        match run_autoencoder_inference(&autoencoder, feature_tensors) {
+            Ok(result) => {
+                if result > 1.0 {
+                    classify_anomaly(Arc::clone(&classifier), packet_features.clone());
+                    return true;
+                } 
+                info!("No anomaly detected: {:?}", result);
+                return false;
+            }
+            Err(e) => {
+                eprintln!("❌ Errore nell'inferenza: {}", e);
+            }
         }
     }
+    
     false
 }
 
