@@ -747,7 +747,7 @@ impl PacketFeatures {
             self.flow_duration as f32,
             self.tot_fwd_pkts as f32,
             self.tot_bwd_pkts as f32,
-            self.totlen_fwd_pkts as f32,
+            self.totlen_fwd_pkts as f32,    // Error
             self.totlen_bwd_pkts as f32,
             self.fwd_pkt_len_max as f32,
             self.fwd_pkt_len_min as f32,
@@ -781,7 +781,7 @@ impl PacketFeatures {
             self.bwd_header_len as f32,
             self.fwd_pkts_per_s as f32,
             self.bwd_pkts_per_s as f32,
-            self.pkt_len_min as f32,
+            self.pkt_len_min as f32,        // Error
             self.pkt_len_max as f32,
             self.pkt_len_mean as f32,
             self.pkt_len_std as f32,
@@ -806,7 +806,7 @@ impl PacketFeatures {
             self.bwd_pkts_b_avg as f32,
             self.bwd_blk_rate_avg as f32,
             self.subflow_fwd_pkts as f32,
-            self.subflow_fwd_byts as f32,
+            self.subflow_fwd_byts as f32,           // Error
             self.subflow_bwd_pkts as f32,
             self.subflow_bwd_byts as f32,
             self.init_fwd_win_byts as f32,

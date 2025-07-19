@@ -81,6 +81,16 @@ pub fn normalize_tensor(tensor: Tensor, scaler_path: &str, model: bool) -> Tract
         feature_index_map = get_feature_index_map_classifier();
     }
     
+    for (i, feature) in scaler.columns.iter().enumerate() {
+        if let Some(&idx) = feature_index_map.get(feature) {
+            if idx != i {
+                println!("⚠️ Feature '{}' is at index {} in tensor but {} in scaler JSON!", feature, idx, i);
+            }
+        } else {
+            println!("❗ Feature '{}' missing from feature_index_map!", feature);
+        }
+    }
+
     let mut normalized = input.clone();
 
     for (i, feature_name) in scaler.columns.iter().enumerate() {
