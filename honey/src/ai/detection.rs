@@ -1,6 +1,6 @@
 use tract_onnx::prelude::*;
 use pnet::packet::ethernet::EthernetPacket;
-use crate::ai::features::{flow::get_packet_flow_and_update, tensor::normalize_tensor};
+use crate::ai::features::{flow::get_packet_flow_and_update, tensor::{get_scaler, normalize_tensor}};
 use crate::ai::features::packet_features::PacketFeatures;
 use crate::ai::model::{run_autoencoder_inference, run_classifier_inference};
 use tracing::warn;
@@ -20,7 +20,10 @@ pub async fn detect_anomaly<'a>(
     }
     let packet_features = packet_features.expect("Packet features should not be None");
 
-    let feature_tensors = normalize_tensor(packet_features.clone(), "src/ai/models/autoencoder_scaler_params.json")
+    let scaler = get_scaler("src/ai/models/autoencoder_scaler_params.json");
+    let raw_tensor = packet_features.to_autoencoder_tensor(&scaler.columns);
+
+    let feature_tensors = normalize_tensor(raw_tensor, scaler)
         .expect("Errore nella normalizzazione");
     
     match run_autoencoder_inference(&autoencoder, feature_tensors) {
@@ -45,7 +48,10 @@ pub fn classify_anomaly(
 ) {//-> impl Future<Output = ()> {
     let model_clone = Arc::clone(&model);
 
-    let feature_tensors = normalize_tensor(features, "src/ai/models/classifier_scaler_params.json")
+    let scaler = get_scaler("src/ai/models/classifier_scaler_params.json");
+    let raw_tensor = features.to_classifier_tensor(&scaler.columns);
+
+    let feature_tensors = normalize_tensor(raw_tensor, scaler)
         .expect("Errore nella normalizzazione");
 
     let array = feature_tensors.to_array_view::<f32>().unwrap();
