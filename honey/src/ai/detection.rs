@@ -45,7 +45,7 @@ pub fn classify_anomaly(
     features: PacketFeatures
 ) {//-> impl Future<Output = ()> {
     let model_clone = Arc::clone(&model);
-    println!("Classifying anomaly with features: {:?}", features);
+
     let raw_tensor = features.to_classifier_tensor();
     let feature_tensors = normalize_tensor(raw_tensor, "src/ai/models/classifier_scaler_params.json", false)
         .expect("Errore nella normalizzazione");

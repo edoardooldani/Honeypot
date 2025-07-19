@@ -215,7 +215,7 @@
         "pkt_size_avg",
         "fwd_seg_size_avg",
         "bwd_seg_size_avg",
-        "fwd_header_len",
+        "fwd_header_len_1",
         "fwd_byts_b_avg",
         "fwd_pkts_b_avg",
         "fwd_blk_rate_avg",

@@ -741,6 +741,7 @@ impl PacketFeatures {
     }
 
     pub fn to_classifier_tensor(&self) -> Tensor {
+        let fwd_header_len_1 = self.fwd_header_len;
         let input_data: Vec<f32> = vec![
             self.dst_port as f32, 
             self.flow_duration as f32,
@@ -803,12 +804,12 @@ impl PacketFeatures {
             self.urg_flag_cnt as f32,
             self.cwe_flag_cnt as f32,
             self.ece_flag_cnt as f32,
-            
+
             self.down_up_ratio as f32,
             self.pkt_size_avg as f32,
             self.fwd_seg_size_avg as f32,
             self.bwd_seg_size_avg as f32,
-            self.fwd_header_len as f32,
+            fwd_header_len_1 as f32,
             self.fwd_byts_b_avg as f32,
             self.fwd_pkts_b_avg as f32,
             self.fwd_blk_rate_avg as f32,

@@ -110,7 +110,7 @@ def load_and_preprocess_classifier(folder_path: str):
         "Average Packet Size": "pkt_size_avg",
         "Avg Fwd Segment Size": "fwd_seg_size_avg",
         "Avg Bwd Segment Size": "bwd_seg_size_avg",
-        "Fwd Header Length.1": "fwd_header_len",
+        "Fwd Header Length.1": "fwd_header_len_1",
         "Fwd Avg Bytes/Bulk": "fwd_byts_b_avg",
         "Fwd Avg Packets/Bulk": "fwd_pkts_b_avg",
         "Fwd Avg Bulk Rate": "fwd_blk_rate_avg",
@@ -152,6 +152,7 @@ def load_and_preprocess_classifier(folder_path: str):
     X_raw.dropna(inplace=True)
     y_raw = y_raw.loc[X_raw.index]
 
+
     # Normalizza
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X_raw)
@@ -159,6 +160,8 @@ def load_and_preprocess_classifier(folder_path: str):
     # Codifica le label
     label_encoder = LabelEncoder()
     y_encoded = label_encoder.fit_transform(y_raw)
+
+    print(label_encoder.classes_)
 
     scaler_params = {
         "mean": scaler.mean_.tolist(),

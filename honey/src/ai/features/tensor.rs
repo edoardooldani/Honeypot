@@ -69,6 +69,7 @@ pub fn normalize_tensor(tensor: Tensor, scaler_path: &str, model: bool) -> Tract
     let scaler: ScalerParams = serde_json::from_reader(reader).expect("Errore nel parsing JSON");
 
     let array: ArrayView2<f32> = tensor.to_array_view::<f32>()?.into_dimensionality()?;
+
     let shape = array.shape();
     assert_eq!(shape.len(), 2);
     let input = array.row(0).to_vec(); // 1D: len == 81
