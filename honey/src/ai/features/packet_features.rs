@@ -749,7 +749,6 @@ impl PacketFeatures {
             self.tot_bwd_pkts as f32,
             self.totlen_fwd_pkts as f32,
             self.totlen_bwd_pkts as f32,
-
             self.fwd_pkt_len_max as f32,
             self.fwd_pkt_len_min as f32,
             self.fwd_pkt_len_mean as f32,
@@ -758,44 +757,35 @@ impl PacketFeatures {
             self.bwd_pkt_len_min as f32,
             self.bwd_pkt_len_mean as f32,
             self.bwd_pkt_len_std as f32,
-
             self.flow_byts_per_s as f32,
             self.flow_pkts_per_s as f32,
-
             self.flow_iat_mean as f32,
             self.flow_iat_std as f32,
             self.flow_iat_max as f32,
             self.flow_iat_min as f32,
-
             self.fwd_iat_tot as f32,
             self.fwd_iat_mean as f32,
             self.fwd_iat_std as f32,
             self.fwd_iat_max as f32,
             self.fwd_iat_min as f32,
-
             self.bwd_iat_tot as f32,
             self.bwd_iat_mean as f32,
             self.bwd_iat_std as f32,
             self.bwd_iat_max as f32,
             self.bwd_iat_min as f32,
-
             self.fwd_psh_flags as f32,
             self.bwd_psh_flags as f32,
             self.fwd_urg_flags as f32,
             self.bwd_urg_flags as f32,
-
             self.fwd_header_len as f32,
             self.bwd_header_len as f32,
-
             self.fwd_pkts_per_s as f32,
             self.bwd_pkts_per_s as f32,
-
             self.pkt_len_min as f32,
             self.pkt_len_max as f32,
             self.pkt_len_mean as f32,
             self.pkt_len_std as f32,
             self.pkt_len_var as f32,
-
             self.fin_flag_cnt as f32,
             self.syn_flag_cnt as f32,
             self.rst_flag_cnt as f32,
@@ -804,7 +794,6 @@ impl PacketFeatures {
             self.urg_flag_cnt as f32,
             self.cwe_flag_cnt as f32,
             self.ece_flag_cnt as f32,
-
             self.down_up_ratio as f32,
             self.pkt_size_avg as f32,
             self.fwd_seg_size_avg as f32,

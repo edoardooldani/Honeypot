@@ -51,8 +51,26 @@ def load_and_preprocess_classifier(folder_path: str):
     df = pd.concat(dfs, ignore_index=True)
     df = df.dropna()
     df = df.drop_duplicates()
-
     df.columns = df.columns.str.strip()
+
+
+    target_benign = 500_000
+    # Separazione BENIGN vs attacchi
+    benign_df = df[df["Label"] == "BENIGN"]
+    attack_df = df[df["Label"] != "BENIGN"]
+    # Sottocampionamento BENIGN
+    benign_sampled = benign_df.sample(n=target_benign, random_state=42)
+    # Ricombina
+    df = pd.concat([benign_sampled, attack_df], ignore_index=True).sample(frac=1.0, random_state=42)
+    
+    rare_classes = [
+        "Infiltration",
+        "Web Attack � Sql Injection",
+        "Heartbleed",
+        "Web Attack � XSS"
+    ]
+
+    df["Label"] = df["Label"].replace({cls: "Other" for cls in rare_classes})
 
     rename_map = {
         "Destination Port": "dst_port",
