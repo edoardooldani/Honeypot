@@ -43,6 +43,9 @@ pub fn run_classifier_inference(
     let result = model.run(tvec!(input_tensor.into()))?;
     let output_tensor = result[0].to_array_view::<f32>()?;
 
+    
+    println!("🔮 Class probabilities: {:?}", output_tensor);
+
     // Assumiamo output di forma [1, num_classes]
     let class_index = output_tensor
         .iter()
