@@ -6,11 +6,12 @@ use crate::ai::model::{run_autoencoder_inference, run_classifier_inference};
 use tracing::{info, warn};
 
 pub fn should_evaluate(flow: &PacketFeatures) -> bool {
-    let enough_pkts = flow.tot_fwd_pkts >= 5 && flow.tot_bwd_pkts >= 3;
-    let long_enough = flow.flow_duration > 2000.0;
+    //let enough_pkts = flow.tot_fwd_pkts >= 5 && flow.tot_bwd_pkts >= 3;
+    //let long_enough = flow.flow_duration > 2000.0;
     let likely_finished = flow.fin_flag_cnt > 0 || flow.rst_flag_cnt > 0;
 
-    enough_pkts || long_enough || likely_finished
+    //enough_pkts || long_enough || 
+    likely_finished
 }
 
 pub async fn detect_anomaly<'a>(
