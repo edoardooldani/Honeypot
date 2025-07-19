@@ -20,8 +20,7 @@ pub async fn detect_anomaly<'a>(
     }
     let packet_features = packet_features.expect("Packet features should not be None");
 
-    let raw_tensor = packet_features.to_autoencoder_tensor();
-    let feature_tensors = normalize_tensor(raw_tensor, "src/ai/models/autoencoder_scaler_params.json", true)
+    let feature_tensors = normalize_tensor(packet_features.clone(), "src/ai/models/autoencoder_scaler_params.json")
         .expect("Errore nella normalizzazione");
     
     match run_autoencoder_inference(&autoencoder, feature_tensors) {
@@ -46,8 +45,7 @@ pub fn classify_anomaly(
 ) {//-> impl Future<Output = ()> {
     let model_clone = Arc::clone(&model);
 
-    let raw_tensor = features.to_classifier_tensor();
-    let feature_tensors = normalize_tensor(raw_tensor, "src/ai/models/classifier_scaler_params.json", false)
+    let feature_tensors = normalize_tensor(features, "src/ai/models/classifier_scaler_params.json")
         .expect("Errore nella normalizzazione");
 
     let array = feature_tensors.to_array_view::<f32>().unwrap();

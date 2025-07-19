@@ -5,6 +5,8 @@ use std::fs::File;
 use std::io::BufReader;
 use serde::Deserialize;
 
+use crate::ai::features::packet_features::PacketFeatures;
+
 #[derive(Debug, Deserialize)]
 struct ScalerParams {
     mean: Vec<f64>,
@@ -63,49 +65,30 @@ fn get_feature_index_map_classifier() -> HashMap<String, usize> {
     columns.iter().enumerate().map(|(i, name)| (name.to_string(), i)).collect()
 }
 
-pub fn normalize_tensor(tensor: Tensor, scaler_path: &str, model: bool) -> TractResult<Tensor> {
-    let file = File::open(scaler_path).expect("Impossibile aprire scaler_params.json");
+
+pub fn normalize_tensor(features: PacketFeatures, scaler_path: &str) -> Option<Tensor> {
+    let file = File::open(scaler_path)
+        .expect("Impossibile aprire scaler JSON");
     let reader = BufReader::new(file);
-    let scaler: ScalerParams = serde_json::from_reader(reader).expect("Errore nel parsing JSON");
+    let scaler: ScalerParams = serde_json::from_reader(reader)
+        .expect("Errore nel parsing dello scaler JSON");
 
-    let array: ArrayView2<f32> = tensor.to_array_view::<f32>()?.into_dimensionality()?;
+    let raw_tensor = features.to_classifier_tensor(&scaler.columns);
+        let array: ArrayView2<f32> = raw_tensor.to_array_view::<f32>().ok()?.into_dimensionality().ok()?;
 
-    let shape = array.shape();
-    assert_eq!(shape.len(), 2);
-    let input = array.row(0).to_vec(); // 1D: len == 81
-
-    let feature_index_map: HashMap<String, usize>;
-    if model {
-        feature_index_map = get_feature_index_map_autoencoder();
-    }else {
-        feature_index_map = get_feature_index_map_classifier();
-    }
-    
-    for (i, feature) in scaler.columns.iter().enumerate() {
-        if let Some(&idx) = feature_index_map.get(feature) {
-            if idx != i {
-                println!("⚠️ Feature '{}' is at index {} in tensor but {} in scaler JSON!", feature, idx, i);
-            }
-        } else {
-            println!("❗ Feature '{}' missing from feature_index_map!", feature);
-        }
-    }
-
+    let input = array.row(0).to_vec();
     let mut normalized = input.clone();
 
-    for (i, feature_name) in scaler.columns.iter().enumerate() {
-        if let Some(&idx) = feature_index_map.get(feature_name) {
-            let mean = scaler.mean[i];
-            let scale = scaler.scale[i];
-            let val = input[idx] as f64;
-            normalized[idx] = if scale.abs() < 1e-8 {
-                0.0
-            } else {
-                ((val - mean) / scale) as f32
-            };
-        }
+    for (i, val) in input.iter().enumerate() {
+        let mean = scaler.mean.get(i)?;
+        let scale = scaler.scale.get(i)?;
+        normalized[i] = if scale.abs() < 1e-8 {
+            0.0
+        } else {
+            ((*val as f64 - mean) / scale) as f32
+        };
     }
 
-    let norm_array = Array2::from_shape_vec((1, normalized.len()), normalized).unwrap();
-    Ok(norm_array.into())
+    let norm_array = Array2::from_shape_vec((1, normalized.len()), normalized).ok()?;
+    Some(norm_array.into())
 }
