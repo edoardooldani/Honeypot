@@ -735,7 +735,7 @@ impl PacketFeatures {
                 "protocol_6" => proto_tcp,
                 "protocol_17" => proto_udp,
                 _ => {
-                    println!("❗ Feature '{}' non trovata in PacketFeatures!", name);
+                    println!("❗ Feature '{}' non trovata in PacketFeatures for autoencoder!", name);
                     0.0
                 }
             };
@@ -828,7 +828,7 @@ impl PacketFeatures {
                 "idle_max" => self.idle_max as f32,
                 "idle_min" => self.idle_min as f32,
                 _ => {
-                    println!("❗ Feature '{}' non trovata in PacketFeatures!", name);
+                    println!("❗ Feature '{}' non trovata in PacketFeatures for classifier!", name);
                     0.0
                 }
             };
