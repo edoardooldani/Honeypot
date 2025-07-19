@@ -43,8 +43,8 @@ def load_and_preprocess_autoencoder(csv_path):
 
     # Salva scaler params
     scaler_params = {
-        "mean": scaler.mean_.tolist(),
-        "scale": scaler.scale_.tolist(),
+        "mean": scaler.mean_.tolist()  + [0.0] * len(cols_to_keep),
+        "scale": scaler.scale_.tolist()  + [1.0] * len(cols_to_keep),
         "columns": normalized_columns
     }
 
