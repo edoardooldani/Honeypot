@@ -27,6 +27,18 @@ pub fn normalize_tensor(raw_tensor: Tensor, scaler: ScalerParams) -> Option<Tens
     let array: ArrayView2<f32> = raw_tensor.to_array_view::<f32>().ok()?.into_dimensionality().ok()?;
 
     let input = array.row(0).to_vec();
+    
+    if scaler.columns.len() != scaler.mean.len() || scaler.mean.len() != scaler.scale.len() {
+        eprintln!("❌ Scaler inconsistency: columns={}, mean={}, scale={}", scaler.columns.len(), scaler.mean.len(), scaler.scale.len());
+        return None;
+    }
+
+    if input.len() != scaler.columns.len() {
+        eprintln!("❌ Input tensor size ({}) doesn't match scaler columns ({})", input.len(), scaler.columns.len());
+        return None;
+    }
+
+
     let mut normalized = input.clone();
 
     for (i, val) in input.iter().enumerate() {
