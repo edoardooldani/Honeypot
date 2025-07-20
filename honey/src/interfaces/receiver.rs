@@ -9,7 +9,7 @@ use std::sync::Arc;
 use crate::graph::utils::{get_primary_interface};
 use crate::honeypot::handler::handle_virtual_packet;
 use crate::graph::types::{NetworkGraph, NodeType};
-use crate::ai::detection::detect_anomaly;
+use crate::ai::anomaly::detection::detect_anomaly;
 use tract_onnx::prelude::*;
 
 

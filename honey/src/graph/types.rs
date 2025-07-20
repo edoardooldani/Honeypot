@@ -1,25 +1,13 @@
 use pnet::{packet::ethernet::EthernetPacket, util::MacAddr};
-use std::{collections::{HashMap, HashSet}, net::Ipv4Addr};
+use std::{collections::{HashMap, HashSet}, net::Ipv4Addr, time::SystemTime};
 
-use crate::graph::utils::{generate_virtual_ip, generate_virtual_ipv6, generate_virtual_mac, get_src_and_dest_ip, get_src_and_dest_transport};
+use crate::{ai::anomaly::anomalies::{Anomaly, AnomalyClassification}, graph::utils::{generate_virtual_ip, generate_virtual_ipv6, generate_virtual_mac, get_src_and_dest_ip, get_src_and_dest_transport}};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NodeType {
     Virtual,
     Physical,
     Device,
-}
-
-use std::time::SystemTime;
-
-#[derive(Debug, Clone)]
-pub struct Anomaly {
-    pub src_ip: Option<Ipv4Addr>,
-    pub dst_ip: Option<Ipv4Addr>,
-    pub src_port: u16,
-    pub dst_port: u16,
-    pub protocol: u8,
-    pub timestamp: SystemTime,
 }
 
 #[derive(Debug, Clone)]
@@ -124,8 +112,8 @@ impl NetworkNode {
     pub fn get_anomaly_count(&self) -> usize {
         self.anomalies.len()
     }
-    
-    pub fn add_anomaly(&mut self, ethernet_packet: &EthernetPacket) -> Anomaly {
+
+    pub fn add_anomaly(&mut self, ethernet_packet: &EthernetPacket, classification: AnomalyClassification) -> Anomaly {
         let (src_ip, dst_ip) = get_src_and_dest_ip(ethernet_packet)
             .map(|(s, d)| (Some(s), Some(d)))
             .unwrap_or((None, None));
@@ -139,6 +127,7 @@ impl NetworkNode {
             dst_port,
             protocol,
             timestamp: SystemTime::now(),
+            classification
         };
         self.anomalies.push(anomaly.clone());
 
