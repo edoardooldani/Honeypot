@@ -30,6 +30,10 @@ pub async fn detect_anomaly<'a>(
     }
     let packet_features = packet_features.expect("Packet features should not be None");
 
+    if packet_features.dst_port == 22 || packet_features.src_port == 22 {
+        return false;
+    }
+
     let scaler = get_scaler("src/ai/models/autoencoder_scaler_params.json");
     let raw_tensor = packet_features.to_classifier_tensor(&scaler.columns);
 
@@ -37,17 +41,17 @@ pub async fn detect_anomaly<'a>(
         .expect("Errore nella normalizzazione");
 
 
-    //let array = feature_tensors.to_array_view::<f32>().unwrap();
-    //let cloned_array = array.to_owned(); // Se ti serve conservarlo
+    let array = feature_tensors.to_array_view::<f32>().unwrap();
+    let cloned_array = array.to_owned(); // Se ti serve conservarlo
 
-    match run_autoencoder_inference(&autoencoder, feature_tensors) {
+    match run_autoencoder_inference(&autoencoder, feature_tensors.clone()) {
         Ok(result) => {
             if result > 0.15 {
-                /*println!("\nNormalized tensor");
+                println!("\nNormalized tensor");
                 for elem in cloned_array {
                     println!("{:?}", elem);
-                }*/
-                let classification = classify_anomaly(Arc::clone(&classifier), packet_features.clone());
+                }
+                let classification = classify_anomaly(Arc::clone(&classifier), feature_tensors);
                 src_node.add_anomaly(&ethernet_packet, classification);
                 
             } else {
@@ -65,21 +69,11 @@ pub async fn detect_anomaly<'a>(
 
 pub fn classify_anomaly(
     model: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
-    features: PacketFeatures
+    tensor: Tensor
 ) -> AnomalyClassification {
     let model_clone = Arc::clone(&model);
 
-    let scaler = get_scaler("src/ai/models/classifier_scaler_params.json");
-    let raw_tensor = features.to_classifier_tensor(&scaler.columns);
-
-    let feature_tensors = normalize_tensor(raw_tensor, scaler)
-        .expect("Errore nella normalizzazione");
-
-    if features.dst_port == 22 || features.src_port == 22 {
-        return AnomalyClassification::Benign;
-    }
-
-    match run_classifier_inference(&model_clone, feature_tensors) {
+    match run_classifier_inference(&model_clone, tensor) {
         Ok(score) => {
             if score != 0 {
                 warn!("Anomaly score: {}", score);
