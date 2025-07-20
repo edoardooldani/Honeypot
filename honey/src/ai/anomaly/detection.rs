@@ -1,6 +1,6 @@
 use tract_onnx::prelude::*;
 use pnet::packet::ethernet::EthernetPacket;
-use crate::ai::{anomaly::anomalies::AnomalyClassification, features::{flow::get_packet_flow_and_update, tensor::{get_scaler, normalize_tensor}}};
+use crate::ai::{anomaly::anomalies::AnomalyClassification, features::{flow::update_features, tensor::{get_scaler, normalize_tensor}}};
 use crate::ai::features::packet_features::PacketFeatures;
 use crate::ai::model::{run_autoencoder_inference, run_classifier_inference};
 use tracing::warn;
@@ -21,21 +21,21 @@ pub async fn detect_anomaly<'a>(
     ethernet_packet: EthernetPacket<'a>,
     src_node: &mut NetworkNode,
 ) -> bool {
-    let autoencoder = Arc::clone(&autoencoder);
-    let classifier = Arc::clone(&classifier);
 
-    let packet_features = get_packet_flow_and_update(&ethernet_packet).await;
+    let packet_features = update_features(&ethernet_packet).await;
     if packet_features.is_none() {
         return false;
     }
-    let packet_features = packet_features.expect("Packet features should not be None");
 
+    let packet_features = packet_features.expect("Packet features should not be None");
     if packet_features.dst_port == 22 || packet_features.src_port == 22 {
         return false;
     }
+    
+    println!("Port: {:?}", packet_features.dst_port);
 
     let scaler = get_scaler("src/ai/models/autoencoder_scaler_params.json");
-    let raw_tensor = packet_features.to_classifier_tensor(&scaler.columns);
+    let raw_tensor = packet_features.to_tensor(&scaler.columns);
 
     let feature_tensors = normalize_tensor(raw_tensor, scaler)
         .expect("Errore nella normalizzazione");
@@ -71,9 +71,8 @@ pub fn classify_anomaly(
     model: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
     tensor: Tensor
 ) -> AnomalyClassification {
-    let model_clone = Arc::clone(&model);
 
-    match run_classifier_inference(&model_clone, tensor) {
+    match run_classifier_inference(&model, tensor) {
         Ok(score) => {
             if score != 0 {
                 warn!("Anomaly score: {}", score);
