@@ -42,7 +42,7 @@ pub async fn detect_anomaly<'a>(
 
     match run_autoencoder_inference(&autoencoder, feature_tensors) {
         Ok(result) => {
-            if result > 0.5 {
+            //if result > 0.5 {
                 /*println!("\nNormalized tensor");
                 for elem in cloned_array {
                     println!("{:?}", elem);
@@ -50,10 +50,10 @@ pub async fn detect_anomaly<'a>(
                 let classification = classify_anomaly(Arc::clone(&classifier), packet_features.clone());
                 src_node.add_anomaly(&ethernet_packet, classification);
                 
-            } else {
-                println!("No anomaly detected: {:?}", result);
-                return false;
-            }
+            //} else {
+            //    println!("No anomaly detected: {:?}", result);
+            //    return false;
+            //}
         }
         Err(e) => {
             eprintln!("❌ Errore nell'inferenza: {}", e);
@@ -78,7 +78,7 @@ pub fn classify_anomaly(
     if features.dst_port == 22 || features.src_port == 22 {
         return AnomalyClassification::Benign;
     }
-    
+
     match run_classifier_inference(&model_clone, feature_tensors) {
         Ok(score) => {
             if score != 0 {
