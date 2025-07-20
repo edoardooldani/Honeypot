@@ -1,6 +1,5 @@
-from preprocessing import load_and_preprocess_autoencoder
 from autoencoder import Autoencoder, export_to_onnx, train_autoencoder
-from preprocessing import load_and_preprocess_classifier
+from preprocessing import preprocess_autoencoder_data, preprocess_classifier_data
 from classifier import Classifier, train_classifier, export_classifier_to_onnx, plot_training_metrics
 import matplotlib.pyplot as plt
 import onnxruntime as ort
@@ -11,7 +10,7 @@ from imblearn.over_sampling import SMOTE
 
 
 def autoencoder_pipeline():
-    X_scaled, labels = load_and_preprocess_autoencoder('dataset/Normal_data.csv')
+    X_scaled = preprocess_autoencoder_data("dataset/CICIDS2017/", "models/autoencoder_scaler_params.json")
 
     model = Autoencoder(input_dim=X_scaled.shape[1])
     trained_model, train_loss, val_loss = train_autoencoder(model, X_scaled)
@@ -29,7 +28,7 @@ def autoencoder_pipeline():
 
 
 def classifier_pipeline():
-    X_scaled, y_encoded, label_encoder = load_and_preprocess_classifier("dataset/CICIDS2017/")
+    X_scaled, y_encoded, label_encoder = preprocess_classifier_data("dataset/CICIDS2017/", "models/classifier_scaler_params.json")
 
     smote_target = {
         1: 3000,   # Bot
@@ -48,6 +47,7 @@ def classifier_pipeline():
     plot_training_metrics(history)
 
 
+
 def classifier_test():
     custom_tensor = np.array([[
         2.648185, -0.470146, 3.726893, -0.010950, 104.703468, -0.007566,
@@ -64,9 +64,6 @@ def classifier_test():
         -0.497715, -0.249734, -0.008911, 0.002681, -0.097771, -0.110882,
         -0.135941, -0.067118, -0.375672, -0.116080, -0.381036, -0.361658
     ]], dtype=np.float32)
-
-
-    onnx_model = onnx.load("models/classifier.onnx")
 
     # Load session
     session = ort.InferenceSession("models/classifier.onnx")
