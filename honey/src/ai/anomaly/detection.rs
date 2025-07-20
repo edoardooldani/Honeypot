@@ -31,7 +31,7 @@ pub async fn detect_anomaly<'a>(
     let packet_features = packet_features.expect("Packet features should not be None");
 
     let scaler = get_scaler("src/ai/models/autoencoder_scaler_params.json");
-    let raw_tensor = packet_features.to_autoencoder_tensor(&scaler.columns);
+    let raw_tensor = packet_features.to_classifier_tensor(&scaler.columns);
 
     let feature_tensors = normalize_tensor(raw_tensor, scaler)
         .expect("Errore nella normalizzazione");
