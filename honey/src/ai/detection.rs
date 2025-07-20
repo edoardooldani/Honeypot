@@ -19,7 +19,7 @@ pub async fn detect_anomaly<'a>(
     autoencoder: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
     classifier: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
     ethernet_packet: EthernetPacket<'a>,
-    //src_node: &mut NetworkNode,
+    src_node: &mut NetworkNode,
 ) -> bool {
     let autoencoder = Arc::clone(&autoencoder);
     let classifier = Arc::clone(&classifier);
@@ -41,7 +41,7 @@ pub async fn detect_anomaly<'a>(
     let cloned_array = array.to_owned(); // Se ti serve conservarlo
 
     
-    if should_evaluate(&packet_features.clone()){
+    //if should_evaluate(&packet_features.clone()){
         match run_autoencoder_inference(&autoencoder, feature_tensors) {
             Ok(result) => {
                 if result > 1.0 {
@@ -50,7 +50,7 @@ pub async fn detect_anomaly<'a>(
                         println!("{:?}", elem);
                     }
                     if classify_anomaly(Arc::clone(&classifier), packet_features.clone()){
-                        //src_node.add_anomaly(&ethernet_packet);
+                        src_node.add_anomaly(&ethernet_packet);
                     }
                 } 
                 println!("No anomaly detected: {:?}", result);
@@ -60,7 +60,7 @@ pub async fn detect_anomaly<'a>(
                 eprintln!("❌ Errore nell'inferenza: {}", e);
             }
         }
-    }
+    //}
     
     false
 }
