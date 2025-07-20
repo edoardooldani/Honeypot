@@ -53,7 +53,7 @@ pub async fn detect_anomaly<'a>(
                         src_node.add_anomaly(&ethernet_packet);
                     }
                 } 
-                println!("No anomaly detected: {:?}", result);
+                //println!("No anomaly detected: {:?}", result);
                 return false;
             }
             Err(e) => {
