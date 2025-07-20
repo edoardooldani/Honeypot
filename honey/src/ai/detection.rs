@@ -37,14 +37,14 @@ pub async fn detect_anomaly<'a>(
         .expect("Errore nella normalizzazione");
 
 
-    //let array = feature_tensors.to_array_view::<f32>().unwrap();
-    //let cloned_array = array.to_owned(); // Se ti serve conservarlo
+    let array = feature_tensors.to_array_view::<f32>().unwrap();
+    let cloned_array = array.to_owned(); // Se ti serve conservarlo
 
     
     if should_evaluate(&packet_features.clone()){
         match run_autoencoder_inference(&autoencoder, feature_tensors) {
             Ok(result) => {
-                if result > 1 {
+                if result > 1.0 {
                     println!("\nNormalized tensor");
                     for elem in cloned_array {
                         println!("{:?}", elem);
