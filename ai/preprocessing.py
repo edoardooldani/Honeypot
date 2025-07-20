@@ -18,11 +18,13 @@ def load_and_preprocess_common(folder_path):
     df = df.dropna()
     df = df.drop_duplicates()
     df.columns = df.columns.str.strip()
+
+    df = df.drop(columns=["Destination Port"], errors="ignore")
+
     return df
 
 def rename(df):
     rename_map = {
-        "Destination Port": "dst_port",
         "Flow Duration": "flow_duration",
         "Total Fwd Packets": "tot_fwd_pkts",
         "Total Backward Packets": "tot_bwd_pkts",

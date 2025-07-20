@@ -17,16 +17,6 @@ def autoencoder_pipeline():
     export_to_onnx(trained_model, X_scaled)
 
 
-    plt.figure(figsize=(10, 5))
-    plt.plot(train_loss, label="Train Loss")
-    plt.plot(val_loss, label="Validation Loss")
-    plt.xlabel("Epoch")
-    plt.ylabel("Loss (MSE)")
-    plt.title("Training vs Validation Loss")
-    plt.grid(True)
-    plt.legend()
-    plt.show()
-
 
 def classifier_pipeline():
     X_scaled, y_encoded, label_encoder = preprocess_classifier_data("dataset/CICIDS2017/", "models/classifier_scaler_params.json")
@@ -40,10 +30,9 @@ def classifier_pipeline():
     smote = SMOTE(sampling_strategy=smote_target, random_state=42)
     X_balanced, y_balanced = smote.fit_resample(X_scaled, y_encoded)
 
-    print("✅ Distribuzione dopo SMOTE:", Counter(y_balanced))
-
     model = Classifier(input_dim=X_balanced.shape[1], num_classes=len(label_encoder.classes_))
     trained_model, history = train_classifier(model, X_balanced, y_balanced)
+
     export_classifier_to_onnx(trained_model, X_balanced)
     plot_training_metrics(history)
 
@@ -107,10 +96,10 @@ def evaluate_autoencoder_onnx(model_path, X_scaled):
 
 
 
-#classifier_pipeline()
-#autoencoder_pipeline()
+autoencoder_pipeline()
+classifier_pipeline()
 
-X_anomalous, labels = preprocess_evaluate("dataset/CICIDS2017/", "models/autoencoder_scaler_params.json")
-losses = evaluate_autoencoder_onnx("models/autoencoder.onnx", X_anomalous)
+#X_anomalous, labels = preprocess_evaluate("dataset/CICIDS2017/", "models/autoencoder_scaler_params.json")
+#losses = evaluate_autoencoder_onnx("models/autoencoder.onnx", X_anomalous)
 
-print(losses)
+#print(losses)

@@ -7,8 +7,6 @@ use std::net::Ipv4Addr;
 use std::sync::Mutex;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::Packet;
-use tracing::error;
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PacketDirection {
