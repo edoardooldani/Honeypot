@@ -139,7 +139,7 @@ def preprocess_autoencoder_data(folder_path, output_scaler_path):
 def preprocess_classifier_data(folder_path, output_scaler_path):
     df = load_and_preprocess_common(folder_path)
 
-    target_benign = 500_000
+    target_benign = 500000
     benign_df = df[df["Label"] == "BENIGN"]
     attack_df = df[df["Label"] != "BENIGN"]
     benign_sampled = benign_df.sample(n=target_benign, random_state=42)
@@ -181,3 +181,49 @@ def preprocess_classifier_data(folder_path, output_scaler_path):
         json.dump(scaler_params, f, indent=4)
 
     return X_scaled, y_encoded, label_encoder
+
+
+def preprocess_evaluate(folder_path, scaler_path):
+    dfs = []
+    for filename in os.listdir(folder_path):
+        if filename.endswith(".csv"):
+            df = pd.read_csv(os.path.join(folder_path, filename), low_memory=False)
+            dfs.append(df)
+
+    df = pd.concat(dfs, ignore_index=True)
+    df = df.dropna().drop_duplicates()
+    df.columns = df.columns.str.strip()
+    df = df[df["Label"] != "BENIGN"]
+
+    classes_to_remove = [
+        "Infiltration",
+        "Web Attack � Sql Injection",
+        "Heartbleed",
+        "Web Attack � XSS"
+    ]
+    df = df[~df["Label"].isin(classes_to_remove)]
+
+    df = rename(df)
+    df = df.rename(columns=lambda c: normalize_column_name(c))
+
+    if "label" not in df.columns:
+        raise ValueError("Colonna 'label' non trovata.")
+
+    y_raw = df["label"]
+    X_raw = df.select_dtypes(include=[np.number]).drop(columns=["flow_id", "timestamp"], errors="ignore")
+    X_raw.replace([np.inf, -np.inf], np.nan, inplace=True)
+    X_raw.dropna(inplace=True)
+    y_raw = y_raw.loc[X_raw.index]
+
+    # === Load scaler
+    with open(scaler_path, "r") as f:
+        scaler_params = json.load(f)
+
+    mean = np.array(scaler_params["mean"])
+    scale = np.array(scaler_params["scale"])
+    columns = scaler_params["columns"]
+
+    X_raw = X_raw[columns]
+    X_scaled = (X_raw - mean) / scale
+
+    return X_scaled, y_raw

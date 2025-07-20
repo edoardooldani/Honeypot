@@ -1,3 +1,4 @@
+from preprocessing import normalize_column_name, rename
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
@@ -7,26 +8,48 @@ from sklearn.model_selection import train_test_split
 class Autoencoder(nn.Module):
     def __init__(self, input_dim):
         super(Autoencoder, self).__init__()
+
         self.encoder = nn.Sequential(
-            nn.Linear(input_dim, 32),
+            nn.Linear(input_dim, 128),
             nn.ReLU(),
+            nn.Dropout(0.2),
+
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+
+            nn.Linear(64, 32),
+            nn.ReLU(),
+
             nn.Linear(32, 16),
             nn.ReLU(),
+
             nn.Linear(16, 8),
             nn.ReLU()
         )
+
         self.decoder = nn.Sequential(
             nn.Linear(8, 16),
             nn.ReLU(),
+
             nn.Linear(16, 32),
             nn.ReLU(),
-            nn.Linear(32, input_dim),
+
+            nn.Linear(32, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+
+            nn.Linear(64, 128),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+
+            nn.Linear(128, input_dim),
         )
 
     def forward(self, x):
-        x = self.encoder(x)
-        x = self.decoder(x)
-        return x
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded)
+        return decoded
 
 def train_autoencoder(model, X, epochs=100, batch_size=256, patience=5, learning_rate=1e-3):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -110,3 +133,4 @@ def export_to_onnx(model, X_scaled, path="models/autoencoder.onnx"):
         opset_version=11
     )
     print(f"✅ Modello esportato in ONNX: {path}")
+

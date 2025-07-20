@@ -1,5 +1,5 @@
 from autoencoder import Autoencoder, export_to_onnx, train_autoencoder
-from preprocessing import preprocess_autoencoder_data, preprocess_classifier_data
+from preprocessing import preprocess_autoencoder_data, preprocess_classifier_data, preprocess_evaluate
 from classifier import Classifier, train_classifier, export_classifier_to_onnx, plot_training_metrics
 import matplotlib.pyplot as plt
 import onnxruntime as ort
@@ -15,6 +15,7 @@ def autoencoder_pipeline():
     model = Autoencoder(input_dim=X_scaled.shape[1])
     trained_model, train_loss, val_loss = train_autoencoder(model, X_scaled)
     export_to_onnx(trained_model, X_scaled)
+
 
     plt.figure(figsize=(10, 5))
     plt.plot(train_loss, label="Train Loss")
@@ -83,5 +84,33 @@ def autoencoder_test():
     print("ONNX input shape:", model.graph.input[0].type.tensor_type.shape.dim[-1].dim_value)
 
 
+def evaluate_autoencoder_onnx(model_path, X_scaled):
+    ort_session = ort.InferenceSession(model_path)
+    input_name = ort_session.get_inputs()[0].name
+    print("Input name from ONNX:", input_name)
+
+    preds = []
+    batch_size = 256
+    for i in range(0, len(X_scaled), batch_size):
+        batch = X_scaled[i:i+batch_size].astype(np.float32)
+        batch = np.asarray(batch, dtype=np.float32)  # ✅ forza np.float32
+
+        out = ort_session.run(None, {input_name: batch})[0]
+        preds.append(out)
+
+    preds = np.vstack(preds)
+    losses = np.mean(np.abs(preds - X_scaled), axis=1)
+
+    print(f"📉 MAE media su anomalie: {losses.mean():.6f}")
+    print(f"🔺 MAE max: {losses.max():.6f} | min: {losses.min():.6f}")
+    return losses
+
+
+
 #classifier_pipeline()
-autoencoder_pipeline()
+#autoencoder_pipeline()
+
+X_anomalous, labels = preprocess_evaluate("dataset/CICIDS2017/", "models/autoencoder_scaler_params.json")
+losses = evaluate_autoencoder_onnx("models/autoencoder.onnx", X_anomalous)
+
+print(losses)

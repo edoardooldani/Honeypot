@@ -42,7 +42,7 @@ pub async fn detect_anomaly<'a>(
 
     match run_autoencoder_inference(&autoencoder, feature_tensors) {
         Ok(result) => {
-            if result > 0.3 {
+            if result > 0.15 {
                 /*println!("\nNormalized tensor");
                 for elem in cloned_array {
                     println!("{:?}", elem);
@@ -51,7 +51,7 @@ pub async fn detect_anomaly<'a>(
                 src_node.add_anomaly(&ethernet_packet, classification);
                 
             } else {
-                println!("No anomaly detected: {:?}", result);
+                //println!("No anomaly detected: {:?}", result);
                 return false;
             }
         }
