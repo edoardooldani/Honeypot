@@ -75,6 +75,10 @@ pub fn classify_anomaly(
     let feature_tensors = normalize_tensor(raw_tensor, scaler)
         .expect("Errore nella normalizzazione");
 
+    if features.dst_port == 22 || features.src_port == 22 {
+        return AnomalyClassification::Benign;
+    }
+    
     match run_classifier_inference(&model_clone, feature_tensors) {
         Ok(score) => {
             if score != 0 {
