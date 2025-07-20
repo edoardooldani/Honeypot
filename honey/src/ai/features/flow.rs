@@ -19,9 +19,9 @@ pub enum PacketDirection {
 #[derive(Hash, Eq, PartialEq, Clone, Debug)]
 pub struct FlowKey {
     pub ip_src: String,
-    pub ip_dst: String,
-    pub port_src: u16,
-    pub port_dst: u16,
+    //pub ip_dst: String,
+    //pub port_src: u16,
+    //pub port_dst: u16,
     pub protocol: u8,
 }
 
@@ -48,7 +48,7 @@ impl FlowTracker {
         if let Some(ip_packet) = Ipv4Packet::new(ethernet_packet.payload()) {
             let packet_src_ip = ip_packet.get_source().to_string();
 
-            match is_forward(&packet_src_ip, &key.ip_src, &key.ip_dst) {
+            match is_forward(&packet_src_ip, &key.ip_src) {
                 Some(PacketDirection::Forward) => features.update_directional(&ip_packet, PacketDirection::Forward),
                 Some(PacketDirection::Backward) => features.update_directional(&ip_packet, PacketDirection::Backward),
                 None => {
@@ -67,13 +67,11 @@ lazy_static! {
     });
 }
 
-fn is_forward(packet_src: &str, flow_src: &str, flow_dst: &str) -> Option<PacketDirection> {
+fn is_forward(packet_src: &str, flow_src: &str) -> Option<PacketDirection> {
     if packet_src == flow_src {
         Some(PacketDirection::Forward)
-    } else if packet_src == flow_dst {
-        Some(PacketDirection::Backward)
     } else {
-        None
+        Some(PacketDirection::Backward)
     }
 }
 
@@ -95,9 +93,6 @@ pub async fn update_features<'a>(ethernet_packet: &EthernetPacket<'a>) -> Option
 
                 let key = FlowKey {
                     ip_src: src_ip,
-                    ip_dst: dst_ip,
-                    port_src: src_port,
-                    port_dst: dst_port,
                     protocol: 6,
                 };
                 
@@ -116,9 +111,6 @@ pub async fn update_features<'a>(ethernet_packet: &EthernetPacket<'a>) -> Option
 
                 let key = FlowKey {
                     ip_src: src_ip,
-                    ip_dst: dst_ip,
-                    port_src: 0,
-                    port_dst: 0,
                     protocol: 17,
                 };
                 

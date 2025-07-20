@@ -32,8 +32,6 @@ pub async fn detect_anomaly<'a>(
         return false;
     }
     
-    println!("Port: {:?}", packet_features.dst_port);
-
     let scaler = get_scaler("src/ai/models/autoencoder_scaler_params.json");
     let raw_tensor = packet_features.to_tensor(&scaler.columns);
 
