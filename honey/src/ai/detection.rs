@@ -44,7 +44,7 @@ pub async fn detect_anomaly<'a>(
     if should_evaluate(&packet_features.clone()){
         match run_autoencoder_inference(&autoencoder, feature_tensors) {
             Ok(result) => {
-                if result > 1.0 {
+                if result > 0.7 {
                     println!("\nNormalized tensor");
                     for elem in cloned_array {
                         println!("{:?}", elem);
