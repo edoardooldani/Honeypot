@@ -38,11 +38,11 @@ pub async fn detect_anomaly<'a>(
 
 
     let array = feature_tensors.to_array_view::<f32>().unwrap();
-    let cloned_array = array.to_owned(); // Se ti serve conservarlo
+    //let cloned_array = array.to_owned(); // Se ti serve conservarlo
 
     match run_autoencoder_inference(&autoencoder, feature_tensors) {
         Ok(result) => {
-            if result > 1.0 {
+            if result > 0.7 {
                 /*println!("\nNormalized tensor");
                 for elem in cloned_array {
                     println!("{:?}", elem);
