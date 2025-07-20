@@ -37,12 +37,12 @@ pub async fn detect_anomaly<'a>(
         .expect("Errore nella normalizzazione");
 
 
-    let array = feature_tensors.to_array_view::<f32>().unwrap();
+    //let array = feature_tensors.to_array_view::<f32>().unwrap();
     //let cloned_array = array.to_owned(); // Se ti serve conservarlo
 
     match run_autoencoder_inference(&autoencoder, feature_tensors) {
         Ok(result) => {
-            if result > 0.7 {
+            if result > 0.5 {
                 /*println!("\nNormalized tensor");
                 for elem in cloned_array {
                     println!("{:?}", elem);
@@ -76,8 +76,10 @@ pub fn classify_anomaly(
 
     match run_classifier_inference(&model_clone, feature_tensors) {
         Ok(score) => {
-            warn!("Anomaly score: {}", score);
-            return AnomalyClassification::from_index(score as u8);
+            if score != 0 {
+                warn!("Anomaly score: {}", score);
+                return AnomalyClassification::from_index(score as u8);
+            }
         }
         Err(e) => warn!("❌ Error in classifier inference: {}", e),
     }
