@@ -50,9 +50,10 @@ pub async fn detect_anomaly<'a>(
                 let classification = classify_anomaly(Arc::clone(&classifier), packet_features.clone());
                 src_node.add_anomaly(&ethernet_packet, classification);
                 
-            } 
-            println!("No anomaly detected: {:?}", result);
-            return false;
+            } else {
+                println!("No anomaly detected: {:?}", result);
+                return false;
+            }
         }
         Err(e) => {
             eprintln!("❌ Errore nell'inferenza: {}", e);
@@ -79,6 +80,8 @@ pub fn classify_anomaly(
             if score != 0 {
                 warn!("Anomaly score: {}", score);
                 return AnomalyClassification::from_index(score as u8);
+            }else {
+                println!("Benign classified");
             }
         }
         Err(e) => warn!("❌ Error in classifier inference: {}", e),
