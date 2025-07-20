@@ -85,7 +85,7 @@ pub fn classify_anomaly(
                 warn!("Anomaly score: {}", score);
                 return AnomalyClassification::from_index(score as u8);
             }else {
-                println!("Benign classified: {:?}", features);
+                println!("Benign classified: {:?}", score);
             }
         }
         Err(e) => warn!("❌ Error in classifier inference: {}", e),
