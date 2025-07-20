@@ -54,9 +54,16 @@ pub fn classify_anomaly(
     let feature_tensors = normalize_tensor(raw_tensor, scaler)
         .expect("Errore nella normalizzazione");
 
+    let array = feature_tensors.to_array_view::<f32>().unwrap();
+    let cloned_array = array.to_owned();
+
     match run_classifier_inference(&classifier, feature_tensors) {
         Ok(score) => {
             if score != 0 {
+                println!("\nNormalized tensor");
+                for elem in cloned_array {
+                    println!("{:?}", elem);
+                }
                 warn!("Anomaly score: {:?}", AnomalyClassification::from_index(score as u8));
                 return AnomalyClassification::from_index(score as u8);
             }else {
