@@ -20,26 +20,20 @@ pub fn get_src_and_dest_ip(packet: &EthernetPacket) -> Option<(Ipv4Addr, Ipv4Add
     None
 }
 
-pub fn get_src_and_dest_transport(packet: &EthernetPacket) -> (u16, u16, u8) {
+pub fn get_src_and_dest_protocol(packet: &EthernetPacket) -> u8 {
     match packet.get_ethertype() {
         EtherTypes::Ipv4 => {
             if let Some(ipv4_packet) = Ipv4Packet::new(packet.payload()) {
                 let next_protocol = ipv4_packet.get_next_level_protocol();
                 match next_protocol {
                     pnet::packet::ip::IpNextHeaderProtocols::Tcp => {
-                        if let Some(transport_packet) = pnet::packet::tcp::TcpPacket::new(ipv4_packet.payload()) {
-                            let src_port = transport_packet.get_source();
-                            let dst_port = transport_packet.get_destination();
-                            return (src_port, dst_port, 6);
-                        }
+                        return 6;
                     }
                     pnet::packet::ip::IpNextHeaderProtocols::Udp => {
-                        if let Some(_transport_packet) = pnet::packet::udp::UdpPacket::new(ipv4_packet.payload()) {
-                            return (0, 0, 17);
-                        }
+                        return 17;
                     }
                     pnet::packet::ip::IpNextHeaderProtocols::Icmp => {
-                        return (0, 0, 0);
+                        return 0;
                     }
                     _ => {}
                 }
@@ -48,7 +42,7 @@ pub fn get_src_and_dest_transport(packet: &EthernetPacket) -> (u16, u16, u8) {
         }
         _ => {}
     }
-    return (0, 0, 0);
+    return 0;
 }
 
 

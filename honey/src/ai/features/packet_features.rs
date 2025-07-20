@@ -7,9 +7,6 @@ use tract_onnx::prelude::*;
 
 #[derive(Debug, Clone)]
 pub struct PacketFeatures {
-    // Basic IP/TCP data
-    pub src_port: u16,
-    pub dst_port: u16,
     pub flow_duration: f64,              // in milliseconds
 
     // Packet counts
@@ -156,8 +153,6 @@ pub struct PacketFeatures {
 impl Default for PacketFeatures {
     fn default() -> Self {
         Self {
-            src_port: 0,
-            dst_port: 0,
             flow_duration: 0.0,
 
             tot_fwd_pkts: 0,
@@ -646,7 +641,6 @@ impl PacketFeatures {
 
         for name in scaler_columns {
             let value = match name.as_str() {
-                "dst_port" => self.dst_port as f32,
                 "flow_duration" => self.flow_duration as f32,
                 "tot_fwd_pkts" => self.tot_fwd_pkts as f32,
                 "tot_bwd_pkts" => self.tot_bwd_pkts as f32,

@@ -5,8 +5,6 @@ use std::net::Ipv4Addr;
 pub struct Anomaly {
     pub src_ip: Option<Ipv4Addr>,
     pub dst_ip: Option<Ipv4Addr>,
-    pub src_port: u16,
-    pub dst_port: u16,
     pub protocol: u8,
     pub timestamp: SystemTime,
     pub classification: AnomalyClassification

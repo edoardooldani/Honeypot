@@ -1,6 +1,6 @@
 use tract_onnx::prelude::*;
 use pnet::packet::ethernet::EthernetPacket;
-use crate::ai::{anomaly::anomalies::AnomalyClassification, features::{flow::get_flow, tensor::{get_scaler, normalize_tensor}}};
+use crate::ai::{anomaly::anomalies::AnomalyClassification, features::{flow::get_flow, packet_features::PacketFeatures, tensor::{get_scaler, normalize_tensor}}};
 use crate::ai::model::{run_autoencoder_inference, run_classifier_inference};
 use tracing::warn;
 use crate::graph::types::NetworkNode;
@@ -18,9 +18,6 @@ pub async fn detect_anomaly<'a>(
     }
 
     let packet_features = packet_features.expect("Packet features should not be None");
-    if packet_features.dst_port == 22 || packet_features.src_port == 22 {
-        return false;
-    }
 
     let scaler = get_scaler("src/ai/models/autoencoder_scaler_params.json");
     let raw_tensor = packet_features.to_tensor(&scaler.columns);
@@ -28,24 +25,15 @@ pub async fn detect_anomaly<'a>(
     let feature_tensors = normalize_tensor(raw_tensor, scaler)
         .expect("Errore nella normalizzazione");
 
-
-    let array = feature_tensors.to_array_view::<f32>().unwrap();
-    let cloned_array = array.to_owned();
-
     match run_autoencoder_inference(&autoencoder, feature_tensors.clone()) {
         Ok(result) => {
             if result > 0.15 {
-                //println!("\nNormalized tensor");
-                for elem in cloned_array {
-                    //println!("{:?}", elem);
-                }
-                let classification = classify_anomaly(Arc::clone(&classifier), feature_tensors);
+                let classification = classify_anomaly(Arc::clone(&classifier), packet_features);
                 src_node.add_anomaly(&ethernet_packet, classification);
-                
-            } else {
-                //println!("No anomaly detected: {:?}", result);
-                return false;
+                return classification != AnomalyClassification::Benign;
             }
+            return false;
+            
         }
         Err(e) => {
             eprintln!("❌ Errore nell'inferenza: {}", e);
@@ -56,11 +44,17 @@ pub async fn detect_anomaly<'a>(
 }
 
 pub fn classify_anomaly(
-    model: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
-    tensor: Tensor
+    classifier: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
+    packet_features: PacketFeatures
 ) -> AnomalyClassification {
 
-    match run_classifier_inference(&model, tensor) {
+    let scaler = get_scaler("src/ai/models/classifier_scaler_params.json");
+    let raw_tensor = packet_features.to_tensor(&scaler.columns);
+
+    let feature_tensors = normalize_tensor(raw_tensor, scaler)
+        .expect("Errore nella normalizzazione");
+
+    match run_classifier_inference(&classifier, feature_tensors) {
         Ok(score) => {
             if score != 0 {
                 warn!("Anomaly score: {}", score);

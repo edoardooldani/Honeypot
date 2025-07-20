@@ -1,7 +1,7 @@
 use pnet::{packet::ethernet::EthernetPacket, util::MacAddr};
 use std::{collections::{HashMap, HashSet}, net::Ipv4Addr, time::SystemTime};
 
-use crate::{ai::anomaly::anomalies::{Anomaly, AnomalyClassification}, graph::utils::{generate_virtual_ip, generate_virtual_ipv6, generate_virtual_mac, get_src_and_dest_ip, get_src_and_dest_transport}};
+use crate::{ai::anomaly::anomalies::{Anomaly, AnomalyClassification}, graph::utils::{generate_virtual_ip, generate_virtual_ipv6, generate_virtual_mac, get_src_and_dest_ip, get_src_and_dest_protocol}};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NodeType {
@@ -118,13 +118,11 @@ impl NetworkNode {
             .map(|(s, d)| (Some(s), Some(d)))
             .unwrap_or((None, None));
 
-        let (src_port, dst_port, protocol) = get_src_and_dest_transport(ethernet_packet);
+        let protocol = get_src_and_dest_protocol(ethernet_packet);
         
         let anomaly = Anomaly {
             src_ip,
             dst_ip,
-            src_port,
-            dst_port,
             protocol,
             timestamp: SystemTime::now(),
             classification
