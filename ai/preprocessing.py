@@ -151,7 +151,10 @@ def preprocess_classifier_data(folder_path, output_scaler_path):
         "Infiltration",
         "Web Attack � Sql Injection",
         "Heartbleed",
-        "Web Attack � XSS"
+        "Web Attack � XSS",
+        "Web Attack � Brute Force",
+        "SSH-Patator",
+        "Bot"
     ]
     df = df[~df["Label"].isin(classes_to_remove)]
 

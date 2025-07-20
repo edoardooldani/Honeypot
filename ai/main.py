@@ -22,13 +22,16 @@ def classifier_pipeline():
     X_scaled, y_encoded, label_encoder = preprocess_classifier_data("dataset/CICIDS2017/", "models/classifier_scaler_params.json")
 
     smote_target = {
-        1: 3000,   # Bot
-        9: 4500,  # SSH-Patator
-        10: 2000,   # Brute Force
+        5: 6500,   # DoS slowloris
+        7: 100000, # PortScan
     }
 
     smote = SMOTE(sampling_strategy=smote_target, random_state=42)
     X_balanced, y_balanced = smote.fit_resample(X_scaled, y_encoded)
+
+    print("\n✅ Distribuzione dopo SMOTE:")
+    for idx, count in Counter(y_balanced).items():
+        print(f"  {idx} ({label_encoder.classes_[idx]}): {count}")
 
     model = Classifier(input_dim=X_balanced.shape[1], num_classes=len(label_encoder.classes_))
     trained_model, history = train_classifier(model, X_balanced, y_balanced)
@@ -96,7 +99,7 @@ def evaluate_autoencoder_onnx(model_path, X_scaled):
 
 
 
-autoencoder_pipeline()
+#autoencoder_pipeline()
 classifier_pipeline()
 
 #X_anomalous, labels = preprocess_evaluate("dataset/CICIDS2017/", "models/autoencoder_scaler_params.json")
