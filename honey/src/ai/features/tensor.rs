@@ -52,11 +52,5 @@ pub fn normalize_tensor(raw_tensor: Tensor, scaler: ScalerParams) -> Option<Tens
     }
 
     let norm_array = Array2::from_shape_vec((1, normalized.len()), normalized).ok()?;
-
-    println!("\nNormalized tensor");
-    for elem in norm_array.clone() {
-        println!("{:?}", elem);
-    }
-
     Some(norm_array.into())
 }
