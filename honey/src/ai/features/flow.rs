@@ -37,9 +37,9 @@ impl FlowTracker {
                 features
             }
             Entry::Vacant(entry) => {
-                let mut new_features = PacketFeatures::default();
-                new_features.src_port = key.port_src;
-                new_features.dst_port = key.port_dst;
+                let new_features = PacketFeatures::default();
+                //new_features.src_port = key.port_src;
+                //new_features.dst_port = key.port_dst;
                 entry.insert(new_features)
             }
         };
