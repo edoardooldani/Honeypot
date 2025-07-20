@@ -60,13 +60,14 @@ pub fn classify_anomaly(
     match run_classifier_inference(&classifier, feature_tensors) {
         Ok(score) => {
             if score != 0 {
+                
+                warn!("Anomaly score: {:?}", AnomalyClassification::from_index(score as u8));
+                return AnomalyClassification::from_index(score as u8);
+            }else {
                 println!("\nNormalized tensor");
                 for elem in cloned_array {
                     println!("{:?}", elem);
                 }
-                warn!("Anomaly score: {:?}", AnomalyClassification::from_index(score as u8));
-                return AnomalyClassification::from_index(score as u8);
-            }else {
                 println!("Benign classified: {:?}", score);
             }
         }
