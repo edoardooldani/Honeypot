@@ -3,7 +3,8 @@ use pnet::packet::ethernet::EthernetPacket;
 use crate::ai::features::{flow::get_packet_flow_and_update, tensor::{get_scaler, normalize_tensor}};
 use crate::ai::features::packet_features::PacketFeatures;
 use crate::ai::model::{run_autoencoder_inference, run_classifier_inference};
-use tracing::{info, warn};
+use tracing::warn;
+use crate::graph::types::NetworkNode;
 
 pub fn should_evaluate(flow: &PacketFeatures) -> bool {
     //let enough_pkts = flow.tot_fwd_pkts >= 5 && flow.tot_bwd_pkts >= 3;
@@ -17,7 +18,8 @@ pub fn should_evaluate(flow: &PacketFeatures) -> bool {
 pub async fn detect_anomaly<'a>(
     autoencoder: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
     classifier: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
-    ethernet_packet: EthernetPacket<'a>
+    ethernet_packet: EthernetPacket<'a>,
+    src_node: &mut NetworkNode,
 ) -> bool {
     let autoencoder = Arc::clone(&autoencoder);
     let classifier = Arc::clone(&classifier);
@@ -38,10 +40,11 @@ pub async fn detect_anomaly<'a>(
         match run_autoencoder_inference(&autoencoder, feature_tensors) {
             Ok(result) => {
                 if result > 1.0 {
-                    classify_anomaly(Arc::clone(&classifier), packet_features.clone());
-                    return true;
+                    if classify_anomaly(Arc::clone(&classifier), packet_features.clone()){
+                        src_node.add_anomaly(&ethernet_packet);
+                    }
                 } 
-                info!("No anomaly detected: {:?}", result);
+                //info!("No anomaly detected: {:?}", result);
                 return false;
             }
             Err(e) => {
@@ -56,7 +59,7 @@ pub async fn detect_anomaly<'a>(
 pub fn classify_anomaly(
     model: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
     features: PacketFeatures
-) {//-> impl Future<Output = ()> {
+) -> bool {
     let model_clone = Arc::clone(&model);
 
     let scaler = get_scaler("src/ai/models/classifier_scaler_params.json");
@@ -68,7 +71,9 @@ pub fn classify_anomaly(
     match run_classifier_inference(&model_clone, feature_tensors) {
         Ok(score) => {
             warn!("Anomaly score: {}", score);
+            return score != 0;
         }
         Err(e) => warn!("❌ Error in classifier inference: {}", e),
     }
+    return false;
 }

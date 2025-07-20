@@ -120,6 +120,11 @@ impl NetworkGraph {
 }
 
 impl NetworkNode {
+
+    pub fn get_anomaly_count(&self) -> usize {
+        self.anomalies.len()
+    }
+    
     pub fn add_anomaly(&mut self, ethernet_packet: &EthernetPacket) -> Anomaly {
         let (src_ip, dst_ip) = get_src_and_dest_ip(ethernet_packet)
             .map(|(s, d)| (Some(s), Some(d)))

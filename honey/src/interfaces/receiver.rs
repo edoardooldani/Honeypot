@@ -62,12 +62,9 @@ pub async fn scan_datalink(
                     let packet_data = ethernet_packet.packet().to_vec();
                     let packet_ethernet = EthernetPacket::new(&packet_data).unwrap();
 
-                    if detect_anomaly(Arc::clone(&autoencoder_model), Arc::clone(&classifier_model), packet_ethernet).await {    
-                        let packet_data = ethernet_packet.packet().to_vec();
-                        let packet_ethernet = EthernetPacket::new(&packet_data).unwrap();
-                        
-                        let src_node = graph_lock.get_node_by_mac(packet_ethernet.get_source()).expect("Node not found");
-                        src_node.add_anomaly(&packet_ethernet);
+                    let src_node = graph_lock.get_node_by_mac(packet_ethernet.get_source()).expect("Node not found");
+                    if detect_anomaly(Arc::clone(&autoencoder_model), Arc::clone(&classifier_model), packet_ethernet, src_node).await {    
+            
                     }
                     
                     
