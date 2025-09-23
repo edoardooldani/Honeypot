@@ -25,12 +25,3 @@ pub async fn run_api(api_state: ApiAppState) {
 pub async fn run_ws(wss_state: Arc<WssAppState>) {
     create_router_wss(wss_state).await;
 }
-
-
-#[derive(Debug, Deserialize, Serialize)]
-struct AnomalyAlert {
-    device: String,
-    timestamp: String,
-    anomaly_score: f32,
-    data_type: String,
-}

@@ -26,7 +26,7 @@ pub async fn ws_handler(
 async fn handle_websocket(mut socket: WebSocket, wss_state: Arc<WssAppState>, device_name: String) {
     info!("✅ New WebSocket connection from: `{}`", device_name);
 
-    // Ping per controllare connessioni inattive
+    // Ping active connections every 15 seconds
     let mut interval = time::interval(Duration::from_secs(15));
 
     'ws_loop: while let Some(result) = tokio::select! {
@@ -110,27 +110,8 @@ async fn process_packet(wss_state: &Arc<WssAppState>, device_name: &str, bin: &[
             add_tcp_alert_data(&wss_state.influx_client, device_name, tcp_alert_payload).await?;
         }
     }
-    /* 
-    let topic = "honeypot_packets";
-    let message = serde_json::to_string(&packet).map_err(|e| format!("Serialization error: {}", e))?;
-    
-    let delivery_status = wss_state.kafka
-        .send(
-            FutureRecord::to(topic)
-                .key(device_name)
-                .payload(&message),
-            std::time::Duration::from_secs(5),
-        )
-        .await;
 
-    match delivery_status {
-        Ok(delivery) => info!("📩 Packet sent to Kafka: {:?}", delivery),
-        Err((e, _)) => error!("❌ Failed to send packet to Kafka: {:?}", e),
-    }    
-    */
-    
-
-    info!("📩 Valid message from `{}`: ID={} type={:?}", device_name, packet.header.id, packet.header.data_type);
+    //info!("📩 Valid message from `{}`: ID={} type={:?}", device_name, packet.header.id, packet.header.data_type);
 
     Ok(())
 }

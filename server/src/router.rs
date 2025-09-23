@@ -76,7 +76,7 @@ pub async fn create_router_wss(wss_state: Arc<WssAppState>) {
 
         tokio::spawn(async move {
 
-                //handle_ws_connection(stream, addr).await;
+            //handle_ws_connection(stream, addr).await;
             let Ok(stream) = tls_acceptor.accept(cnx).await else {
                 error!("errore durante l'handshake TLS dalla connessione {}", addr);
                 return;
@@ -96,7 +96,6 @@ pub async fn create_router_wss(wss_state: Arc<WssAppState>) {
 
                 if connections.contains_key(&device_name) {
                     warn!("❌ Device already connected: {}!", device_name);
-                    // Must notify close connection but couldn't do it
                     return
                 }
 
