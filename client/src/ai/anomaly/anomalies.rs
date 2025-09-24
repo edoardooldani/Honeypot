@@ -22,6 +22,7 @@ pub enum AnomalyClassification {
     DoSSlowloris = 5,
     FTPPatator = 6,
     PortScan = 7,
+    Malignant = 255,
 }
 
 impl AnomalyClassification {
@@ -34,6 +35,7 @@ impl AnomalyClassification {
             5 => Self::DoSSlowloris,
             6 => Self::FTPPatator,
             7 => Self::PortScan,
+            255 => Self::Malignant,
             _ => Self::Benign,
         }
     }

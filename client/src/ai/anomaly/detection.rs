@@ -7,7 +7,7 @@ use tracing::warn;
 
 pub async fn detect_anomaly<'a>(
     autoencoder: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
-    classifier: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
+    _classifier: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
     ethernet_packet: EthernetPacket<'a>,
 ) -> AnomalyClassification {
 
@@ -27,7 +27,8 @@ pub async fn detect_anomaly<'a>(
     match run_autoencoder_inference(&autoencoder, feature_tensors.clone()) {
         Ok(result) => {
             if result > 0.15 {
-                return classify_anomaly(Arc::clone(&classifier), packet_features);
+                return AnomalyClassification::Malignant;
+                //return classify_anomaly(Arc::clone(&classifier), packet_features);
             }
             return AnomalyClassification::Benign;
             
