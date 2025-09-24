@@ -1,6 +1,18 @@
 use tract_onnx::prelude::*;
 
-pub fn load_autoencoder_model() -> SimplePlan<TypedFact, Box<dyn TypedOp>, tract_onnx::prelude::Graph<TypedFact, Box<dyn TypedOp>>>{
+
+pub fn load_models() -> (Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>, Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>) {
+    let autoencoder_model = load_autoencoder_model();
+    let autoencoder = Arc::new(autoencoder_model);
+
+    let classifier_model = load_classifier_model();
+    let classifier = Arc::new(classifier_model);
+
+    return (autoencoder, classifier);
+}
+
+
+fn load_autoencoder_model() -> SimplePlan<TypedFact, Box<dyn TypedOp>, tract_onnx::prelude::Graph<TypedFact, Box<dyn TypedOp>>>{
     let model = tract_onnx::onnx()
     .model_for_path("src/ai/models/autoencoder.onnx").expect("Failed to load autoencoder model")
     .into_optimized().expect("Failed to optimize autoencoder model")

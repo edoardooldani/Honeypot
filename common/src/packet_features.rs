@@ -1,11 +1,16 @@
 use std::{time::Instant, u16};
 
 use pnet::packet::{ipv4::Ipv4Packet, tcp::TcpPacket, Packet};
-use crate::ai::features::flow::PacketDirection;
+use serde::{Deserialize, Serialize};
 use tract_onnx::prelude::*;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PacketDirection {
+    Forward,
+    Backward,
+}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PacketFeatures {
     pub flow_duration: f64,              // in milliseconds
 
@@ -132,21 +137,28 @@ pub struct PacketFeatures {
     bwd_pkt_len_sq_sum: f64,            
     pkt_len_sq_sum: f64,
 
+    #[serde(skip)]
     start_time: Option<std::time::Instant>,     
+    #[serde(skip)]
     end_time: Option<std::time::Instant>,     
+    #[serde(skip)]
     last_fwd_time: Option<std::time::Instant>,
+    #[serde(skip)]
     last_bwd_time: Option<std::time::Instant>, 
 
+    #[serde(skip)]
     fwd_bulk_start: Option<Instant>,
     fwd_bulk_bytes: u64,
     fwd_bulk_pkts: u32,
     fwd_bulk_duration: f64,
 
+    #[serde(skip)]
     bwd_bulk_start: Option<Instant>,
     bwd_bulk_bytes: u64,
     bwd_bulk_pkts: u32,
     bwd_bulk_duration: f64,
 
+    #[serde(skip)]
     packet_times: Vec<Instant>,
 }
 

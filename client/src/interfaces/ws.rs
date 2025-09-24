@@ -3,14 +3,13 @@ use futures_util::{pin_mut, future, StreamExt};
 use tracing::{error, info, warn};
 use std::sync::Arc;
 use common::tls::generate_client_session_id;
-use crate::interfaces::receiver::scan_datalink;
-use crate::honeypot::create_honeypots::create_honeypots;
-use crate::graph::types::NetworkGraph;
-use crate::ai::model::{load_autoencoder_model, load_classifier_model};
 use tokio::sync::Mutex;
 
 
-pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>){
+pub async fn handle_websocket(
+    ws_stream: tokio_tungstenite::WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>,
+) -> (futures_channel::mpsc::UnboundedSender<Message>, Arc<Mutex<u32>>) {
+
     let maybe_tls_stream = ws_stream.get_ref();
     let session_id = Arc::new(Mutex::new(0));
     if let MaybeTlsStream::Rustls(tls_stream) = maybe_tls_stream {
@@ -24,23 +23,8 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
 
     let (stdin_tx, stdin_rx) = futures_channel::mpsc::unbounded();
     let stdin_tx_pong = stdin_tx.clone();
-    //let stdin_tx_graph = stdin_tx.clone();
-
-    let graph = Arc::new(Mutex::new(NetworkGraph::default()));
-    let graph_clone = Arc::clone(&graph);
-    let graph_virtual_clone = Arc::clone(&graph);
-
+    
     info!("🖥️ WebSocket connection established, session ID: {}", *session_id.lock().await);
-
-    let autoencoder_model = load_autoencoder_model();
-    let autoencoder = Arc::new(autoencoder_model);
-
-    let classifier_model = load_classifier_model();
-    let classifier = Arc::new(classifier_model);
-
-    tokio::spawn(create_honeypots(graph_virtual_clone));
-    //tokio::spawn(scan_datalink(stdin_tx_graph, Arc::clone(&session_id), graph_clone, autoencoder.clone()));
-    tokio::spawn(scan_datalink(graph_clone, autoencoder.clone(), classifier.clone()));
 
     let (mut write, read) = ws_stream.split();
     let stdin_to_ws = stdin_rx.map(Ok).forward(&mut write);
@@ -64,4 +48,5 @@ pub async fn handle_websocket(ws_stream: tokio_tungstenite::WebSocketStream<Mayb
     pin_mut!(stdin_to_ws, ws_to_stdout);
     future::select(stdin_to_ws, ws_to_stdout).await;
     
+    return (stdin_tx, session_id);
 }

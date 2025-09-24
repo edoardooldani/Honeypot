@@ -47,7 +47,8 @@ impl NetworkGraph {
         &mut self,
         ethernet_packet: &'a EthernetPacket<'a>,
         local_mac: MacAddr,
-    ) {
+    ) -> (&NetworkNode, &NetworkNode) {
+
         let (src_ip, dst_ip) = get_src_and_dest_ip(ethernet_packet)
         .map(|(s, d)| (Some(s), Some(d)))
         .unwrap_or((None, None));
@@ -76,6 +77,8 @@ impl NetworkGraph {
         }
 
         self.add_connection(src_mac, dst_mac);
+
+        return (self.nodes.get(&src_mac).expect("Failed to get source node"), self.nodes.get(&dst_mac).expect("Failed to get destination node"));
     }
 
 
@@ -97,6 +100,26 @@ impl NetworkGraph {
         assigned_mac
     }
 
+    pub fn add_anomaly(&mut self, ethernet_packet: &EthernetPacket, classification: AnomalyClassification) -> usize {
+        let (src_ip, dst_ip) = get_src_and_dest_ip(ethernet_packet)
+            .map(|(s, d)| (Some(s), Some(d)))
+            .unwrap_or((None, None));
+
+        let protocol = get_src_and_dest_protocol(ethernet_packet);
+        
+        let anomaly = Anomaly {
+            src_ip,
+            dst_ip,
+            protocol,
+            timestamp: SystemTime::now(),
+            classification
+        };
+        let node = self.nodes.get_mut(&ethernet_packet.get_source()).unwrap();
+        node.anomalies.push(anomaly.clone());
+
+        node.anomalies.len()
+    }
+
     pub fn print_virtual_nodes(&self) {
         println!("\n📌 **Nodi VIRTUALI nel grafo:**");
         for node in self.nodes.values() {
@@ -111,24 +134,5 @@ impl NetworkNode {
 
     pub fn get_anomaly_count(&self) -> usize {
         self.anomalies.len()
-    }
-
-    pub fn add_anomaly(&mut self, ethernet_packet: &EthernetPacket, classification: AnomalyClassification) -> Anomaly {
-        let (src_ip, dst_ip) = get_src_and_dest_ip(ethernet_packet)
-            .map(|(s, d)| (Some(s), Some(d)))
-            .unwrap_or((None, None));
-
-        let protocol = get_src_and_dest_protocol(ethernet_packet);
-        
-        let anomaly = Anomaly {
-            src_ip,
-            dst_ip,
-            protocol,
-            timestamp: SystemTime::now(),
-            classification
-        };
-        self.anomalies.push(anomaly.clone());
-
-        anomaly
     }
 }

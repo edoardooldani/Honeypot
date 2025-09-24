@@ -1,9 +1,11 @@
 use crate::types::{Header, PayloadType, Packet};
 use std::time::{SystemTime, UNIX_EPOCH};
+use pnet::util::MacAddr;
 use sha2::{Sha256, Digest};
 
 
 impl Packet {
+
     pub fn verify_checksum(&mut self) -> bool {
         let checksum_received = self.header.checksum;
 
@@ -43,7 +45,7 @@ pub fn build_packet(header: Header, payload: PayloadType) -> Packet{
 }
 
 
-pub fn calculate_header(id: u32, data_type: u8, priority: u8, mac_address: [u8; 6]) -> Header {
+pub fn build_header(id: u32, data_type: u8, priority: u8, mac_address: MacAddr) -> Header {
 
     let start = SystemTime::now();
     let since_the_epoch = start.duration_since(UNIX_EPOCH)
@@ -54,7 +56,7 @@ pub fn calculate_header(id: u32, data_type: u8, priority: u8, mac_address: [u8; 
         timestamp: since_the_epoch.as_secs() as u64,
         data_type,
         priority,
-        mac_address,
+        mac_address: mac_address.octets(),
         checksum: None
     };
 

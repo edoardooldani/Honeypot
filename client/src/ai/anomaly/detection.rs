@@ -1,20 +1,19 @@
+use common::packet_features::PacketFeatures;
 use tract_onnx::prelude::*;
 use pnet::packet::ethernet::EthernetPacket;
-use crate::ai::{anomaly::anomalies::AnomalyClassification, features::{flow::get_flow, packet_features::PacketFeatures, tensor::{get_scaler, normalize_tensor}}};
+use crate::ai::{anomaly::anomalies::AnomalyClassification, features::{flow::get_flow, tensor::{get_scaler, normalize_tensor}}};
 use crate::ai::model::{run_autoencoder_inference, run_classifier_inference};
 use tracing::warn;
-use crate::graph::types::NetworkNode;
 
 pub async fn detect_anomaly<'a>(
     autoencoder: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
     classifier: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
     ethernet_packet: EthernetPacket<'a>,
-    src_node: &mut NetworkNode,
-) -> bool {
+) -> AnomalyClassification {
 
     let packet_features = get_flow(&ethernet_packet).await;
     if packet_features.is_none() {
-        return false;
+        return AnomalyClassification::Benign;
     }
 
     let packet_features = packet_features.expect("Packet features should not be None");
@@ -28,11 +27,9 @@ pub async fn detect_anomaly<'a>(
     match run_autoencoder_inference(&autoencoder, feature_tensors.clone()) {
         Ok(result) => {
             if result > 0.15 {
-                let classification = classify_anomaly(Arc::clone(&classifier), packet_features);
-                src_node.add_anomaly(&ethernet_packet, classification);
-                return classification != AnomalyClassification::Benign;
+                return classify_anomaly(Arc::clone(&classifier), packet_features);
             }
-            return false;
+            return AnomalyClassification::Benign;
             
         }
         Err(e) => {
@@ -40,8 +37,9 @@ pub async fn detect_anomaly<'a>(
         }
     }
     
-    false
+    return AnomalyClassification::Benign;
 }
+
 
 pub fn classify_anomaly(
     classifier: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,

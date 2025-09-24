@@ -10,7 +10,7 @@ use bincode;
 use common::types::{DataType, Packet, PayloadType, PriorityLevel};
 use tracing::{info, warn, error};
 use tokio::time::{self, Duration};
-use crate::{app_state::WssAppState, queries::{arp_alert_queries::add_arp_alert_data, network_queries::add_network_data, process_queries::add_process_data, tcp_alert_queries::add_tcp_alert_data}};
+use crate::{app_state::WssAppState, queries::{arp_alert_queries::add_arp_alert_data, alert_queries::add_alert_data, tcp_alert_queries::add_tcp_alert_data}};
 
 
 pub async fn ws_handler(
@@ -97,11 +97,8 @@ async fn process_packet(wss_state: &Arc<WssAppState>, device_name: &str, bin: &[
     }
 
     match &packet.payload {
-        PayloadType::Network(network_payload) => {
-            add_network_data(&wss_state.influx_client, device_name, network_payload).await?;
-        }
-        PayloadType::Process(process_payload) => {
-            add_process_data(&wss_state.influx_client, device_name, process_payload).await?;
+        PayloadType::Alert(alert_payload) => {
+            add_alert_data(&wss_state.influx_client, device_name, alert_payload).await?;
         }
         PayloadType::ArpAlert(arp_alert_payload) => {
             add_arp_alert_data(&wss_state.influx_client, device_name, arp_alert_payload).await?;

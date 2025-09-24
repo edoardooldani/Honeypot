@@ -537,6 +537,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "client"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "common",
+ "etherparse",
+ "futures-channel",
+ "futures-util",
+ "lazy_static",
+ "libproc",
+ "once_cell",
+ "openssl",
+ "petgraph",
+ "pnet",
+ "rand 0.9.0",
+ "rustls 0.23.23",
+ "serde",
+ "serde_json",
+ "ssh2",
+ "tokio",
+ "tokio-tungstenite 0.26.2",
+ "tracing",
+ "tracing-subscriber",
+ "tract-onnx",
+]
+
+[[package]]
 name = "cmake"
 version = "0.1.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -564,6 +591,7 @@ dependencies = [
  "tower-service",
  "tracing",
  "tracing-subscriber",
+ "tract-onnx",
 ]
 
 [[package]]
@@ -1266,33 +1294,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "589533453244b0995c858700322199b2becb13b627df2851f64a2775d024abcf"
 dependencies = [
  "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "honey"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "common",
- "etherparse",
- "futures-channel",
- "futures-util",
- "lazy_static",
- "libproc",
- "once_cell",
- "openssl",
- "petgraph",
- "pnet",
- "rand 0.9.0",
- "rustls 0.23.23",
- "serde",
- "serde_json",
- "ssh2",
- "tokio",
- "tokio-tungstenite 0.26.2",
- "tracing",
- "tracing-subscriber",
- "tract-onnx",
 ]
 
 [[package]]

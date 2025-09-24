@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "Backend",
+    "server",
     "common",
-    "honey"
+    "client"
     ]

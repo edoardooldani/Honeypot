@@ -1,6 +1,6 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use crate::ai::features::packet_features::PacketFeatures;
+use common::packet_features::{PacketDirection, PacketFeatures};
 use lazy_static::lazy_static;
 use pnet::packet::{ethernet::EthernetPacket, ip::IpNextHeaderProtocols, ipv4::Ipv4Packet, udp::UdpPacket};
 use std::net::Ipv4Addr;
@@ -8,11 +8,6 @@ use std::sync::Mutex;
 use pnet::packet::tcp::TcpPacket;
 use pnet::packet::Packet;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PacketDirection {
-    Forward,
-    Backward,
-}
 
 #[derive(Hash, Eq, PartialEq, Clone, Debug)]
 pub struct FlowKey {
