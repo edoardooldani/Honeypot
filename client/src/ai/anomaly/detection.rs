@@ -62,11 +62,11 @@ pub fn classify_anomaly(
                 warn!("Anomaly score: {:?}", AnomalyClassification::from_index(score as u8));
                 return AnomalyClassification::from_index(score as u8);
             }else {
-                println!("\nNormalized tensor");
+                /*println!("\nNormalized tensor");
                 for elem in cloned_array {
                     println!("{:?}", elem);
                 }
-                println!("Benign classified: {:?}", score);
+                println!("Benign classified: {:?}", score);*/
             }
         }
         Err(e) => warn!("❌ Error in classifier inference: {}", e),

@@ -3,6 +3,7 @@ use std::{time::Instant, u16};
 use pnet::packet::{ipv4::Ipv4Packet, tcp::TcpPacket, Packet};
 use serde::{Deserialize, Serialize};
 use tract_onnx::prelude::*;
+use tracing::error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PacketDirection {
@@ -730,7 +731,7 @@ impl PacketFeatures {
                 "idle_max" => self.idle_max as f32,
                 "idle_min" => self.idle_min as f32,
                 _ => {
-                    println!("❗ Feature '{}' non trovata in PacketFeatures for classifier!", name);
+                    error!("❗ Feature '{}' non trovata in PacketFeatures for classifier!", name);
                     0.0
                 }
             };
