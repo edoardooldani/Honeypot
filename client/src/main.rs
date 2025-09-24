@@ -29,7 +29,7 @@ async fn main() {
     let graph = Arc::new(Mutex::new(NetworkGraph::default()));
 
     create_honeypots(&graph).await;
-
+    
     scan_datalink(ws_tx, session_id, graph).await;
 }
 

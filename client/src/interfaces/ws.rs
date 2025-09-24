@@ -26,27 +26,31 @@ pub async fn handle_websocket(
     
     info!("🖥️ WebSocket connection established, session ID: {}", *session_id.lock().await);
 
-    let (mut write, read) = ws_stream.split();
-    let stdin_to_ws = stdin_rx.map(Ok).forward(&mut write);
+    let (write, read) = ws_stream.split();
 
-    let ws_to_stdout = read.for_each(|message| async {
-        match message {
-            Ok(msg) => match msg {
-                Message::Binary(_bin) => info!("📥 Received Binary Data"),
-                Message::Ping(ping_data) => {
-                    info!("📡 Received PING, sending PONG...");
-                    let _ = stdin_tx_pong.unbounded_send(Message::Pong(ping_data));
-                },
-                Message::Close(_) => {
-                    warn!("❌ WebSocket connection closed by the peer");
+    tokio::spawn(async move {
+        let stdin_to_ws = stdin_rx.map(Ok).forward(write);
+
+        let ws_to_stdout = read.for_each(move |message| {
+            let stdin_tx_pong = stdin_tx_pong.clone();
+            async move {
+                match message {
+                    Ok(Message::Binary(_)) => info!("📥 Received Binary Data"),
+                    Ok(Message::Ping(data)) => {
+                        info!("📡 Received PING, sending PONG...");
+                        let _ = stdin_tx_pong.unbounded_send(Message::Pong(data));
+                    }
+                    Ok(Message::Close(_)) => warn!("❌ WebSocket connection closed by the peer"),
+                    Ok(other) => error!("⚠️ Unsupported Message Type: {:?}", other),
+                    Err(e) => error!("❌ Error in message: {}", e),
                 }
-                _ => error!("⚠️ Unsupported Message Type: {:?}", msg),
-            },
-            Err(e) => error!("❌ Error in message: {}", e),
-        }
+            }
+        });
+
+        pin_mut!(stdin_to_ws, ws_to_stdout);
+        let _ = future::select(stdin_to_ws, ws_to_stdout).await;
+        info!("🔚 WebSocket task terminated");
     });
-    pin_mut!(stdin_to_ws, ws_to_stdout);
-    future::select(stdin_to_ws, ws_to_stdout).await;
     
     return (stdin_tx, session_id);
 }

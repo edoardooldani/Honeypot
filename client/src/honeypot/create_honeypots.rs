@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tracing::info;
 use crate::graph::types::NetworkGraph;
 
 const NUMBER_OF_HONEYPOTS: u8 = 10;
@@ -11,4 +12,7 @@ pub async fn create_honeypots(graph: &Arc<Mutex<NetworkGraph>>){
     }
     let graph_locked = graph.lock().await;
     graph_locked.print_virtual_nodes();
+
+    info!("🤖 Virtual Honeypots created");
+
 }
