@@ -1,43 +1,43 @@
 use common::packet_features::PacketFeatures;
-use tract_onnx::prelude::*;
+use tract_onnx::prelude::{tract_linalg::pack, *};
 use pnet::packet::ethernet::EthernetPacket;
-use crate::ai::{anomaly::anomalies::AnomalyClassification, features::{flow::get_flow, tensor::{get_scaler, normalize_tensor}}};
+use crate::ai::{anomaly::anomalies::AnomalyClassification, features::{flow::update_and_get_flow, tensor::{get_scaler, normalize_tensor}}};
 use crate::ai::model::{run_autoencoder_inference, run_classifier_inference};
 use tracing::warn;
 
 pub async fn detect_anomaly<'a>(
     autoencoder: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
-    _classifier: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
+    classifier: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
     ethernet_packet: EthernetPacket<'a>,
 ) -> AnomalyClassification {
 
-    let packet_features = get_flow(&ethernet_packet).await;
+    let packet_features = update_and_get_flow(&ethernet_packet).await;
     if packet_features.is_none() {
         return AnomalyClassification::Benign;
     }
-
     let packet_features = packet_features.expect("Packet features should not be None");
 
-    let scaler = get_scaler("src/ai/models/autoencoder_scaler_params.json");
-    let raw_tensor = packet_features.to_tensor(&scaler.columns);
+    if packet_features.fin_flag_cnt > 0 || packet_features.rst_flag_cnt > 0 || packet_features.tot_bwd_pkts + packet_features.tot_fwd_pkts % 10 == 0 {
 
-    let feature_tensors = normalize_tensor(raw_tensor, scaler)
-        .expect("Errore nella normalizzazione");
+        let scaler = get_scaler("src/ai/models/autoencoder_scaler_params.json");
+        let raw_tensor = packet_features.to_tensor(&scaler.columns);
 
-    match run_autoencoder_inference(&autoencoder, feature_tensors.clone()) {
-        Ok(result) => {
-            if result > 0.15 {
-                return AnomalyClassification::Malignant;
-                //return classify_anomaly(Arc::clone(&classifier), packet_features);
+        let feature_tensors = normalize_tensor(raw_tensor, scaler)
+            .expect("Errore nella normalizzazione");
+
+        match run_autoencoder_inference(&autoencoder, feature_tensors.clone()) {
+            Ok(result) => {
+                if result > 0.15 {
+                    return classify_anomaly(Arc::clone(&classifier), packet_features);
+                }
+                return AnomalyClassification::Benign;
+                
             }
-            return AnomalyClassification::Benign;
-            
+            Err(e) => {
+                eprintln!("❌ Errore nell'inferenza: {}", e);
+            }
         }
-        Err(e) => {
-            eprintln!("❌ Errore nell'inferenza: {}", e);
-        }
-    }
-    
+    } 
     return AnomalyClassification::Benign;
 }
 

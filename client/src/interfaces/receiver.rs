@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 use tract_onnx::prelude::*;
 use std::sync::Arc;
 use crate::ai::anomaly::anomalies::AnomalyClassification;
-use crate::ai::features::flow::get_flow;
+use crate::ai::features::flow::update_and_get_flow;
 use crate::ai::model::load_models;
 use crate::graph::utils::{get_primary_interface};
 use crate::honeypot::handler::handle_virtual_packet;
@@ -94,7 +94,7 @@ async fn scan_packet(
                 let mut g = graph.lock().await;
                 let anomalies_length = g.add_anomaly(&ethernet_packet, classification);
 
-                let features = get_flow(&ethernet_packet)
+                let features = update_and_get_flow(&ethernet_packet)
                     .await
                     .expect("Failed to extract packet features when anomalies detected");
 

@@ -65,7 +65,7 @@ fn is_forward(packet_src: &str, flow_src: &str) -> PacketDirection {
     }
 }
 
-pub async fn get_flow<'a>(ethernet_packet: &EthernetPacket<'a>) -> Option<PacketFeatures> {
+pub async fn update_and_get_flow<'a>(ethernet_packet: &EthernetPacket<'a>) -> Option<PacketFeatures> {
     if let Some(ip_packet) = Ipv4Packet::new(ethernet_packet.payload()) {
         let src_ip = ip_packet.get_source().to_string();
         let dst_ip = ip_packet.get_destination().to_string();
