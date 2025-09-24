@@ -99,10 +99,10 @@ async fn scan_packet(
 
             let serialized = bincode::serialize(&msg_packet).expect("Errore nella serializzazione");
             let msg = Message::Binary(serialized.into());
-
+            info!("📤 Sending alert to server, packet ID: {}, anomalies count: {}", msg_packet.header.id, anomalies_length);
             ws_tx.unbounded_send(msg).unwrap();
         }else {
-            info!("✔️ Benign packet from {:?}", src_node.clone());
+            //info!("✔️ Benign packet from {:?}", src_node.clone());
         }
     }
 

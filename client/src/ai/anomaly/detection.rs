@@ -53,7 +53,7 @@ pub fn classify_anomaly(
         .expect("Errore nella normalizzazione");
 
     let array = feature_tensors.to_array_view::<f32>().unwrap();
-    let cloned_array = array.to_owned();
+    let _cloned_array = array.to_owned();
 
     match run_classifier_inference(&classifier, feature_tensors) {
         Ok(score) => {
