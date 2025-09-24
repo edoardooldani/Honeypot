@@ -1,22 +1,17 @@
-Backend/.env
-Backend/queries
-Backend/target/
+server/.env
+server/queries
+server/target/
 
-Device/target/
+client/target/
 target
 
-AI/*.npy
-AI/*.keras
-AI/__pycache__/
+ai/*.npy
+ai/*.keras
+ai/__pycache__/
 
 # Ignora anche altri file temporanei di editor (come quelli di VS Code)
 .vscode/
 .idea/
-ai/dataset/CICIDS2017/Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv
-ai/dataset/CICIDS2017/Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv
-ai/dataset/CICIDS2017/Friday-WorkingHours-Morning.pcap_ISCX.csv
-ai/dataset/CICIDS2017/Monday-WorkingHours.pcap_ISCX.csv
-ai/dataset/CICIDS2017/Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv
-ai/dataset/CICIDS2017/Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv
-ai/dataset/CICIDS2017/Tuesday-WorkingHours.pcap_ISCX.csv
-ai/dataset/CICIDS2017/Wednesday-workingHours.pcap_ISCX.csv
+ai/dataset/
+
+ca/
