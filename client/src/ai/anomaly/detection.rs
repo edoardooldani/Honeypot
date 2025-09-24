@@ -3,7 +3,7 @@ use tract_onnx::prelude::{tract_linalg::pack, *};
 use pnet::packet::ethernet::EthernetPacket;
 use crate::ai::{anomaly::anomalies::AnomalyClassification, features::{flow::update_and_get_flow, tensor::{get_scaler, normalize_tensor}}};
 use crate::ai::model::{run_autoencoder_inference, run_classifier_inference};
-use tracing::warn;
+use tracing::{info, warn};
 
 pub async fn detect_anomaly<'a>(
     autoencoder: Arc<SimplePlan<TypedFact, Box<dyn TypedOp>, Graph<TypedFact, Box<dyn TypedOp>>>>,
@@ -18,6 +18,8 @@ pub async fn detect_anomaly<'a>(
     let packet_features = packet_features.expect("Packet features should not be None");
 
     if packet_features.fin_flag_cnt > 0 || packet_features.rst_flag_cnt > 0 || packet_features.tot_bwd_pkts + packet_features.tot_fwd_pkts % 10 == 0 {
+
+        info!("Sending packet features to AI model");
 
         let scaler = get_scaler("src/ai/models/autoencoder_scaler_params.json");
         let raw_tensor = packet_features.to_tensor(&scaler.columns);
