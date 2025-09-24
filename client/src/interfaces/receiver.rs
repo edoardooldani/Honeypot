@@ -101,6 +101,8 @@ async fn scan_packet(
             let msg = Message::Binary(serialized.into());
 
             ws_tx.unbounded_send(msg).unwrap();
+        }else {
+            info!("✔️ Benign packet from {:?}", src_node.clone());
         }
     }
 
