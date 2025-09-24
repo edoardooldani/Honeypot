@@ -77,6 +77,7 @@ async fn scan_packet(
 
             tokio::spawn(async move {
                 let packet = EthernetPacket::new(&packet_data).unwrap();
+                info!("🤖 Handling virtual honeypot packet for {:?}", packet.get_destination());
                 handle_virtual_packet(packet, tx_clone).await;  
             });
         }
@@ -87,6 +88,7 @@ async fn scan_packet(
         let classification = detect_anomaly(Arc::clone(&autoencoder_model), Arc::clone(&classifier_model), packet_ethernet).await;   
         if classification != AnomalyClassification::Benign {
             info!("⚠️ Anomaly detected: {:?} from {:?}", classification, src_node.clone());
+
             let mut graph_lock = graph.lock().await;
             let anomalies_length = graph_lock.add_anomaly(&ethernet_packet, classification);
 
@@ -100,6 +102,7 @@ async fn scan_packet(
             let serialized = bincode::serialize(&msg_packet).expect("Errore nella serializzazione");
             let msg = Message::Binary(serialized.into());
             info!("📤 Sending alert to server, packet ID: {}, anomalies count: {}", msg_packet.header.id, anomalies_length);
+
             ws_tx.unbounded_send(msg).unwrap();
         }else {
             //info!("✔️ Benign packet from {:?}", src_node.clone());
@@ -109,7 +112,7 @@ async fn scan_packet(
 }
 
 
-pub async fn build_ws_alert(
+async fn build_ws_alert(
     features: PacketFeatures, 
     session_id: Arc<Mutex<u32>>, 
     mac_address: MacAddr,
