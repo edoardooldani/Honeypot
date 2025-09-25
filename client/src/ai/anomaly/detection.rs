@@ -1,5 +1,5 @@
 use common::packet_features::PacketFeatures;
-use tract_onnx::prelude::{tract_linalg::pack, *};
+use tract_onnx::prelude::*;
 use pnet::packet::ethernet::EthernetPacket;
 use crate::ai::{anomaly::anomalies::AnomalyClassification, features::{flow::update_and_get_flow, tensor::{get_scaler, normalize_tensor}}};
 use crate::ai::model::{run_autoencoder_inference, run_classifier_inference};
@@ -29,8 +29,9 @@ pub async fn detect_anomaly<'a>(
 
         match run_autoencoder_inference(&autoencoder, feature_tensors.clone()) {
             Ok(result) => {
-                if result > 0.15 {
-                    return classify_anomaly(Arc::clone(&classifier), packet_features);
+                if result > 0.2 {
+                    return AnomalyClassification::Malignant;
+                    //return classify_anomaly(Arc::clone(&classifier), packet_features);
                 }
                 return AnomalyClassification::Benign;
                 
