@@ -1,4 +1,4 @@
-# Honeypot
+# 🍯 Honeypot
 
 A **distributed honeypot system** with real-time traffic analysis and anomaly detection powered by AI.
 
