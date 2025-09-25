@@ -34,3 +34,9 @@ Its goal is to capture intrusion attempts, study attacker behavior, and identify
 
 - Development and training of **autoencoder** and **classifier** models
 - Hyperparameter tuning and performance validation
+
+
+## ⚙️ Requirements 
+- server/certs folder with CA.pem and server-cert.pem issued by the same CA of the client
+- client/certs folder with CA.pem and client-cert.pem issued by the same CA of the server
+- InfluxDB Buckets for network logs
